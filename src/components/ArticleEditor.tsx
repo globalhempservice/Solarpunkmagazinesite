@@ -78,10 +78,16 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!title || !content) {
+      alert('Please fill in title and content')
+      return
+    }
+    
     onSave({
       title,
       content,
-      excerpt: excerpt || content.substring(0, 150) + '...',
+      excerpt: excerpt || content.substring(0, 150),
       category,
       coverImage,
       readingTime,
@@ -89,18 +95,9 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
     })
   }
 
-  const getMediaIcon = (type: string) => {
-    switch (type) {
-      case 'youtube': return Youtube
-      case 'audio': return Music
-      case 'image': return ImageIcon
-      default: return ImageIcon
-    }
-  }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
-      <Card className="border-emerald-200">
+      <Card>
         <CardHeader>
           <CardTitle>Article Details</CardTitle>
         </CardHeader>
@@ -113,14 +110,15 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter article title"
               required
+              className="text-base"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
+                <SelectTrigger id="category">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -138,9 +136,10 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
               <Input
                 id="readingTime"
                 type="number"
-                min="1"
                 value={readingTime}
-                onChange={(e) => setReadingTime(parseInt(e.target.value) || 5)}
+                onChange={(e) => setReadingTime(parseInt(e.target.value))}
+                min="1"
+                max="60"
               />
             </div>
           </div>
@@ -152,6 +151,7 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
               value={coverImage}
               onChange={(e) => setCoverImage(e.target.value)}
               placeholder="https://example.com/image.jpg"
+              className="text-sm"
             />
           </div>
 
@@ -161,8 +161,9 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
               id="excerpt"
               value={excerpt}
               onChange={(e) => setExcerpt(e.target.value)}
-              placeholder="Brief description of the article..."
-              rows={3}
+              placeholder="Brief summary of the article..."
+              rows={2}
+              className="resize-none text-sm"
             />
           </div>
 
@@ -175,6 +176,7 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
               placeholder="Write your article content here..."
               rows={12}
               required
+              className="resize-none text-sm sm:text-base font-mono"
             />
           </div>
         </CardContent>

@@ -7,6 +7,7 @@ import { ArticleCard } from './components/ArticleCard'
 import { ArticleReader } from './components/ArticleReader'
 import { UserDashboard } from './components/UserDashboard'
 import { ArticleEditor } from './components/ArticleEditor'
+import { AdminPanel } from './components/AdminPanel'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
@@ -46,7 +47,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null)
@@ -304,27 +305,27 @@ export default function App() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h2 className="text-3xl">Explore Articles</h2>
-                <p className="text-muted-foreground">Discover stories about our sustainable future</p>
+                <h2 className="text-2xl sm:text-3xl">Explore Articles</h2>
+                <p className="text-sm sm:text-base text-muted-foreground">Discover stories about our sustainable future</p>
               </div>
             </div>
 
             {userProgress && userProgress.currentStreak > 0 && (
               <Alert className="bg-gradient-to-r from-emerald-50 to-sky-50 border-emerald-200">
                 <Sparkles className="w-4 h-4 text-emerald-600" />
-                <AlertDescription>
+                <AlertDescription className="text-sm">
                   🔥 You're on a {userProgress.currentStreak}-day reading streak! Keep it up!
                 </AlertDescription>
               </Alert>
             )}
 
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-              <TabsList className="bg-emerald-50 border border-emerald-200">
+              <TabsList className="bg-emerald-50 border border-emerald-200 w-full sm:w-auto overflow-x-auto flex-nowrap justify-start">
                 {categories.map(category => (
                   <TabsTrigger
                     key={category}
                     value={category}
-                    className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
+                    className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-xs sm:text-sm whitespace-nowrap"
                   >
                     {category === 'all' ? 'All' : category}
                   </TabsTrigger>
@@ -391,6 +392,22 @@ export default function App() {
               setSelectedArticle(null)
             }}
           />
+        )}
+
+        {currentView === 'admin' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl">Admin Panel</h2>
+              <p className="text-muted-foreground">Manage all articles and view system data</p>
+            </div>
+            <AdminPanel
+              articles={articles}
+              onRefresh={fetchArticles}
+              onDeleteArticle={(id) => setArticles(articles.filter(a => a.id !== id))}
+              serverUrl={serverUrl}
+              accessToken={accessToken}
+            />
+          </div>
         )}
       </main>
 

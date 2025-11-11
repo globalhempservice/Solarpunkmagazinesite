@@ -1,6 +1,7 @@
 import { ArrowLeft, Clock, Eye } from "lucide-react"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
+import { GenerativeBackground } from "./GenerativeBackground"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 
 interface MediaItem {
@@ -105,15 +106,9 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         </Button>
         
         <article className="bg-card rounded-xl shadow-lg overflow-hidden border border-border">
-          {article.coverImage && (
-            <div className="aspect-video overflow-hidden">
-              <ImageWithFallback
-                src={article.coverImage}
-                alt={article.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
+          <div className="aspect-video overflow-hidden relative">
+            <GenerativeBackground seed={article.title} className="w-full h-full" />
+          </div>
           
           <div className="p-8 space-y-6">
             <div className="flex items-center gap-3 flex-wrap">

@@ -9,6 +9,7 @@ import { UserDashboard } from './components/UserDashboard'
 import { ArticleEditor } from './components/ArticleEditor'
 import { AdminPanel } from './components/AdminPanel'
 import { BottomNavbar } from './components/BottomNavbar'
+import { StreakBanner } from './components/StreakBanner'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
@@ -304,20 +305,12 @@ export default function App() {
       <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">{/* Added pb-24 for mobile bottom nav spacing */}
         {currentView === 'feed' && (
           <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h2 className="text-2xl sm:text-3xl">Explore Articles</h2>
-                <p className="text-sm sm:text-base text-muted-foreground">Discover engaging stories and insights</p>
-              </div>
-            </div>
-
             {userProgress && userProgress.currentStreak > 0 && (
-              <Alert className="bg-primary/5 border-primary/20">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <AlertDescription className="text-sm text-foreground">
-                  🔥 You're on a {userProgress.currentStreak}-day reading streak! Keep it up!
-                </AlertDescription>
-              </Alert>
+              <StreakBanner
+                currentStreak={userProgress.currentStreak}
+                longestStreak={userProgress.longestStreak}
+                points={userProgress.points}
+              />
             )}
 
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>

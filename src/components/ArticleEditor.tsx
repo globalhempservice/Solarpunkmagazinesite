@@ -20,7 +20,6 @@ interface ArticleEditorProps {
     content: string
     excerpt: string
     category: string
-    coverImage: string
     readingTime: number
     media: MediaItem[]
   }) => void
@@ -30,7 +29,6 @@ interface ArticleEditorProps {
     content: string
     excerpt: string
     category: string
-    coverImage: string
     readingTime: number
     media: MediaItem[]
   }
@@ -51,7 +49,6 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
   const [content, setContent] = useState(initialData?.content || '')
   const [excerpt, setExcerpt] = useState(initialData?.excerpt || '')
   const [category, setCategory] = useState(initialData?.category || categories[0])
-  const [coverImage, setCoverImage] = useState(initialData?.coverImage || '')
   const [readingTime, setReadingTime] = useState(initialData?.readingTime || 5)
   const [media, setMedia] = useState<MediaItem[]>(initialData?.media || [])
   
@@ -89,7 +86,6 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
       content,
       excerpt: excerpt || content.substring(0, 150),
       category,
-      coverImage,
       readingTime,
       media
     })
@@ -137,22 +133,11 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
                 id="readingTime"
                 type="number"
                 value={readingTime}
-                onChange={(e) => setReadingTime(parseInt(e.target.value))}
+                onChange={(e) => setReadingTime(parseInt(e.target.value) || 5)}
                 min="1"
                 max="60"
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="coverImage">Cover Image URL</Label>
-            <Input
-              id="coverImage"
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className="text-sm"
-            />
           </div>
 
           <div className="space-y-2">

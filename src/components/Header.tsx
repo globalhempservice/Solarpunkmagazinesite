@@ -1,6 +1,7 @@
 import { Button } from "./ui/button"
 import { UserCircle, LogOut } from "lucide-react"
 import { Badge } from "./ui/badge"
+import { BrandLogo } from "./BrandLogo"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "./ui/sheet"
 import {
   DropdownMenu,
@@ -32,14 +33,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, onLogout, use
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo/Branding */}
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('feed')}>
-          <div className="p-2 rounded-full bg-gradient-to-br from-emerald-400 to-sky-400 dark:from-emerald-500 dark:to-emerald-600 hempin:from-amber-500 hempin:to-emerald-400">
-            {/* DEWII Logo - Simple leaf/plant icon */}
-            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
-              <path d="M12 6v12"/>
-              <path d="M16 10l-4 4-4-4"/>
-            </svg>
-          </div>
+          <BrandLogo size="sm" showAnimation={false} />
           <div className="hidden sm:block">
             <h1 className="font-semibold text-foreground">DEWII</h1>
             <p className="text-xs text-muted-foreground">Discover • Engage • Write</p>

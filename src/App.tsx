@@ -16,7 +16,10 @@ import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
 import { Skeleton } from './components/ui/skeleton'
 import { Alert, AlertDescription } from './components/ui/alert'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Search, X, Filter } from 'lucide-react'
+import { Input } from './components/ui/input'
+import { Button } from './components/ui/button'
+import { Badge } from './components/ui/badge'
 
 interface Article {
   id: string
@@ -56,6 +59,7 @@ export default function App() {
   const [userArticles, setUserArticles] = useState<Article[]>([])
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [initializing, setInitializing] = useState(true)
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
@@ -383,9 +387,18 @@ export default function App() {
     }
   }
 
-  const filteredArticles = selectedCategory === 'all'
-    ? articles
-    : articles.filter(article => article.category === selectedCategory)
+  const filteredArticles = articles.filter(article => {
+    // Filter by category
+    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory
+    
+    // Filter by search query
+    const matchesSearch = searchQuery === '' || 
+      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.category.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    return matchesCategory && matchesSearch
+  })
 
   if (initializing) {
     return (
@@ -429,19 +442,88 @@ export default function App() {
               />
             )}
 
-            <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-              <TabsList className="bg-muted border border-border w-full sm:w-auto overflow-x-auto flex-nowrap justify-start">
-                {categories.map(category => (
-                  <TabsTrigger
-                    key={category}
-                    value={category}
-                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm whitespace-nowrap"
+            {/* Search and Filter Section */}
+            <div className="space-y-4">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search articles by title, content, or topic..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 pr-12 h-14 text-base border-2 border-border/50 focus:border-primary/50 rounded-2xl bg-muted/30 backdrop-blur-sm"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-muted"
                   >
-                    {category === 'all' ? 'All' : category}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-1">
+                  {categories.map(category => {
+                    const isActive = selectedCategory === category
+                    const categoryCount = category === 'all' 
+                      ? articles.length
+                      : articles.filter(a => a.category === category).length
+                    
+                    return (
+                      <Badge
+                        key={category}
+                        variant={isActive ? "default" : "outline"}
+                        className={`cursor-pointer whitespace-nowrap px-4 py-2 transition-all hover:scale-105 ${
+                          isActive 
+                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30' 
+                            : 'hover:bg-muted/70 hover:border-primary/30'
+                        }`}
+                        onClick={() => setSelectedCategory(category)}
+                      >
+                        {category === 'all' ? '🌍 All' : category}
+                        {categoryCount > 0 && (
+                          <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
+                            isActive ? 'bg-primary-foreground/20' : 'bg-muted'
+                          }`}>
+                            {categoryCount}
+                          </span>
+                        )}
+                      </Badge>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Active Filters Display */}
+              {(searchQuery || selectedCategory !== 'all') && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">
+                    Showing {filteredArticles.length} {filteredArticles.length === 1 ? 'article' : 'articles'}
+                  </span>
+                  {(searchQuery || selectedCategory !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery('')
+                        setSelectedCategory('all')
+                      }}
+                      className="h-7 text-xs gap-1 hover:text-primary"
+                    >
+                      <X className="w-3 h-3" />
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -483,18 +565,12 @@ export default function App() {
         )}
 
         {currentView === 'editor' && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-3xl">Write Article</h2>
-              <p className="text-muted-foreground">Share your knowledge and ideas</p>
-            </div>
-            <ArticleEditor
-              onSave={handleSaveArticle}
-              onCancel={() => setCurrentView('feed')}
-              article={editingArticle}
-              onUpdate={handleUpdateArticle}
-            />
-          </div>
+          <ArticleEditor
+            onSave={handleSaveArticle}
+            onCancel={() => setCurrentView('feed')}
+            article={editingArticle}
+            onUpdate={handleUpdateArticle}
+          />
         )}
 
         {currentView === 'article' && selectedArticle && (

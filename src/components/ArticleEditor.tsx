@@ -189,7 +189,7 @@ export function ArticleEditor({ onSave, onCancel, initialData, article, onUpdate
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto pb-32 md:pb-36">
       {/* Article Quality Score Card */}
       <div className="relative overflow-hidden rounded-3xl">
         {/* Animated gradient background */}
@@ -565,13 +565,6 @@ export function ArticleEditor({ onSave, onCancel, initialData, article, onUpdate
                   )}
                 </Button>
               </div>
-              
-              {/* Progress hint for mobile */}
-              {score < 50 && (
-                <p className="text-center text-xs text-muted-foreground mt-3 sm:hidden">
-                  📝 Fill in more details to unlock publishing
-                </p>
-              )}
             </div>
           </div>
         </div>

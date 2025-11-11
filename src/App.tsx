@@ -393,9 +393,9 @@ export default function App() {
     
     // Filter by search query
     const matchesSearch = searchQuery === '' || 
-      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.category.toLowerCase().includes(searchQuery.toLowerCase())
+      article.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.excerpt?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.category?.toLowerCase().includes(searchQuery.toLowerCase())
     
     return matchesCategory && matchesSearch
   })
@@ -577,6 +577,11 @@ export default function App() {
           <ArticleReader
             article={selectedArticle}
             userProgress={userProgress}
+            suggestedArticles={articles.filter(a => a.id !== selectedArticle.id && a.category === selectedArticle.category).slice(0, 2)}
+            onArticleSelect={(article) => {
+              setSelectedArticle(article)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
             onBack={() => {
               setCurrentView('feed')
               setSelectedArticle(null)

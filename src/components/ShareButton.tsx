@@ -14,9 +14,10 @@ interface ShareButtonProps {
     content: string
     excerpt?: string
   }
+  compact?: boolean
 }
 
-export function ShareButton({ article }: ShareButtonProps) {
+export function ShareButton({ article, compact = false }: ShareButtonProps) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showQR, setShowQR] = useState(false)

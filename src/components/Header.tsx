@@ -1,16 +1,6 @@
-import { Button } from "./ui/button"
-import { UserCircle, LogOut } from "lucide-react"
-import { Badge } from "./ui/badge"
+import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "./ui/sheet"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu"
-import { useState } from "react"
+import { Sparkles } from 'lucide-react'
 
 interface HeaderProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin'
@@ -20,146 +10,99 @@ interface HeaderProps {
   userPoints?: number
 }
 
-export function Header({ currentView, onNavigate, isAuthenticated, onLogout, userPoints }: HeaderProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+type Theme = 'light' | 'dark' | 'hempin'
 
-  const handleNavigate = (view: 'feed' | 'dashboard' | 'editor' | 'admin') => {
-    onNavigate(view)
-    setMobileMenuOpen(false)
+export function Header({ currentView, onNavigate, isAuthenticated }: HeaderProps) {
+  const [theme, setTheme] = useState<Theme>('light')
+  const [isAnimating, setIsAnimating] = useState(false)
+
+  // Check for saved theme preference on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as Theme | null
+    if (savedTheme && ['light', 'dark', 'hempin'].includes(savedTheme)) {
+      setTheme(savedTheme)
+    } else {
+      // Check system preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        setTheme('dark')
+      }
+    }
+  }, [])
+
+  const applyTheme = (newTheme: Theme) => {
+    setTheme(newTheme)
+    localStorage.setItem('theme', newTheme)
+    
+    // Remove all theme classes
+    document.documentElement.classList.remove('dark', 'hempin')
+    
+    // Apply new theme class
+    if (newTheme !== 'light') {
+      document.documentElement.classList.add(newTheme)
+    }
+  }
+
+  const cycleTheme = () => {
+    const themeOrder: Theme[] = ['light', 'dark', 'hempin']
+    const currentIndex = themeOrder.indexOf(theme)
+    const nextIndex = (currentIndex + 1) % themeOrder.length
+    applyTheme(themeOrder[nextIndex])
+    
+    // Trigger animation
+    setIsAnimating(true)
+    setTimeout(() => setIsAnimating(false), 600)
+  }
+
+  // Get theme label with fun names
+  const getThemeLabel = () => {
+    switch(theme) {
+      case 'light': return '☀️ Bright'
+      case 'dark': return '🌱 Eco'
+      case 'hempin': return '🌿 Hemp'
+      default: return '☀️ Bright'
+    }
+  }
+
+  // Get theme colors for the glow effect
+  const getThemeGlow = () => {
+    switch(theme) {
+      case 'light': return 'from-sky-400 to-blue-500'
+      case 'dark': return 'from-emerald-400 to-teal-500'
+      case 'hempin': return 'from-amber-400 to-orange-500'
+      default: return 'from-sky-400 to-blue-500'
+    }
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-lg border-border shadow-sm">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Logo/Branding */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('feed')}>
-          <BrandLogo size="sm" showAnimation={false} />
-          <div className="hidden sm:block">
-            <h1 className="font-semibold text-foreground">DEWII</h1>
-            <p className="text-xs text-muted-foreground">Discover • Engage • Write</p>
-          </div>
-          <div className="sm:hidden">
-            <h1 className="font-semibold text-foreground">DEWII</h1>
-          </div>
-        </div>
-
-        {/* Desktop Navigation - Profile Only */}
-        {isAuthenticated && (
-          <nav className="hidden md:flex items-center gap-3">
-            {userPoints !== undefined && (
-              <Badge className="bg-primary text-primary-foreground border-0">
-                {userPoints} pts
-              </Badge>
-            )}
+    <header className="sticky top-0 z-50 w-full bg-background/60 backdrop-blur-lg">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-center">
+        {/* Centered Logo with Theme Switcher */}
+        <button
+          onClick={cycleTheme}
+          className="group relative flex items-center justify-center py-2 px-6 rounded-2xl transition-all hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95"
+          aria-label="Change theme"
+        >
+          {/* Animated glow background */}
+          <div className={`absolute -inset-4 bg-gradient-to-r ${getThemeGlow()} rounded-3xl blur-2xl opacity-0 group-hover:opacity-20 transition-all duration-500 ${isAnimating ? 'opacity-40 animate-pulse' : ''}`} />
+          
+          {/* Logo with scale animation */}
+          <div className={`relative transform group-hover:scale-110 transition-all duration-300 ${isAnimating ? 'scale-125 rotate-12' : ''}`}>
+            <BrandLogo size="sm" showAnimation={true} />
             
-            {/* Profile Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="hover:bg-accent rounded-full"
-                  aria-label="User menu"
-                >
-                  <UserCircle className="w-6 h-6 text-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem 
-                  onClick={() => onNavigate('dashboard')}
-                  className="cursor-pointer"
-                >
-                  <UserCircle className="w-4 h-4 mr-2" />
-                  <div className="flex-1">
-                    <div className="font-medium">My Profile</div>
-                    <div className="text-xs text-muted-foreground">View stats & achievements</div>
-                  </div>
-                </DropdownMenuItem>
-                
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuItem 
-                  onClick={onLogout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </nav>
-        )}
-
-        {/* Mobile Navigation - Profile Only */}
-        {isAuthenticated && (
-          <div className="md:hidden flex items-center gap-3">
-            {userPoints !== undefined && (
-              <Badge className="bg-primary text-primary-foreground border-0 text-xs px-2">
-                {userPoints}
-              </Badge>
+            {/* Floating sparkles on hover */}
+            {isAnimating && (
+              <>
+                <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-primary animate-ping" />
+                <Sparkles className="absolute -bottom-2 -left-2 w-3 h-3 text-primary animate-ping" style={{ animationDelay: '150ms' }} />
+              </>
             )}
-            
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="rounded-full hover:bg-accent"
-                  aria-label="User menu"
-                >
-                  <UserCircle className="w-6 h-6 text-foreground" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-64">
-                <SheetTitle className="sr-only">User Menu</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Access your profile and account settings
-                </SheetDescription>
-                
-                <div className="flex flex-col gap-3 mt-8">
-                  {/* Profile Section */}
-                  <div className="pb-4 border-b border-border">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <UserCircle className="w-8 h-8 text-primary" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-foreground">My Account</div>
-                        {userPoints !== undefined && (
-                          <div className="text-sm text-muted-foreground">{userPoints} points</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Menu Items */}
-                  <Button
-                    variant="ghost"
-                    onClick={() => handleNavigate('dashboard')}
-                    className="justify-start hover:bg-accent text-foreground"
-                  >
-                    <UserCircle className="w-4 h-4 mr-2" />
-                    View Profile
-                  </Button>
-
-                  <div className="border-t border-border pt-3 mt-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        onLogout()
-                        setMobileMenuOpen(false)
-                      }}
-                      className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Logout
-                    </Button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
-        )}
+          
+          {/* Decorative shine effect */}
+          <div className="absolute inset-0 rounded-2xl overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+          </div>
+        </button>
       </div>
     </header>
   )

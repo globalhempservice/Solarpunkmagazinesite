@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
@@ -38,8 +38,6 @@ interface UserDashboardProps {
   userArticles?: Article[]
   onEditArticle?: (article: Article) => void
   onDeleteArticle?: (articleId: string) => void
-  onLogout?: () => void
-  onViewReadingHistory?: () => void
 }
 
 const achievementData: Record<string, { name: string; description: string; icon: any; color: string; rarity: 'common' | 'rare' | 'epic' | 'legendary' }> = {
@@ -103,7 +101,7 @@ const lockedAchievements = [
   { id: 'streak-30', requiredStreak: 30 },
 ]
 
-export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory }: UserDashboardProps) {
+export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle }: UserDashboardProps) {
   const [hoveredStat, setHoveredStat] = useState<string | null>(null)
   
   // Calculate user level based on points
@@ -285,7 +283,6 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
           className="relative group cursor-pointer"
           onMouseEnter={() => setHoveredStat('articles')}
           onMouseLeave={() => setHoveredStat(null)}
-          onClick={onViewReadingHistory}
         >
           <div className={`absolute -inset-1 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'articles' ? 'animate-pulse' : ''}`} />
           
@@ -306,19 +303,14 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                   <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
                   <Book className="relative w-10 h-10 text-emerald-500 drop-shadow-lg" />
                 </div>
-                <ChevronRight className="w-5 h-5 text-emerald-400/50 group-hover:translate-x-1 transition-transform" />
+                <Activity className="w-5 h-5 text-emerald-400/50 animate-pulse" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent mb-1">
                 {progress.totalArticlesRead}
               </div>
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                Articles Read
-                <Badge variant="outline" className="text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-                  View All
-                </Badge>
-              </div>
+              <div className="text-sm text-muted-foreground">Articles Read</div>
             </CardContent>
           </Card>
         </div>
@@ -429,6 +421,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
         </div>
       </div>
 
+      {/* REST OF THE COMPONENT CONTINUES... */}
       {/* Achievements Section */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Unlocked Achievements */}
@@ -524,146 +517,58 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
 
       {/* User Articles */}
       {userArticles && userArticles.length > 0 && (
-        <div className="relative overflow-hidden rounded-3xl">
-          {/* Animated gradient background - matching hero card style */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 animate-gradient-xy" />
-          
-          {/* Floating particles effect */}
-          <div className="absolute inset-0 overflow-hidden">
-            {[...Array(15)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-2 h-2 bg-primary/20 rounded-full animate-float"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 5}s`,
-                  animationDuration: `${3 + Math.random() * 4}s`
-                }}
-              />
-            ))}
-          </div>
-
-          <Card className="relative backdrop-blur-xl bg-card/80 border-2 border-primary/30 rounded-3xl shadow-2xl">
-            <CardHeader className="pb-6">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <div className="relative group">
-                    <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse" />
-                    <div className="relative p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 border-2 border-primary/30">
-                      <Book className="relative w-7 h-7 text-primary" />
+        <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Book className="w-5 h-5 text-primary" />
+              Your Articles ({userArticles.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {userArticles.map((article) => (
+                <div
+                  key={article.id}
+                  className="group flex items-center justify-between p-4 rounded-xl border-2 border-border/50 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 transition-all"
+                >
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors">{article.title}</h4>
+                    <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                      <Badge variant="outline" className="text-xs">{article.category}</Badge>
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-3 h-3" />
+                        {article.views || 0}
+                      </span>
+                      <span>{new Date(article.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                      Your Articles
-                    </span>
-                    <Badge className="bg-primary/10 text-primary border-primary/30 text-base px-3 py-1">
-                      {userArticles.length}
-                    </Badge>
+                  
+                  <div className="flex items-center gap-2">
+                    {onEditArticle && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditArticle(article)}
+                        className="gap-2 hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit
+                      </Button>
+                    )}
+                    {onDeleteArticle && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDeleteArticle(article.id)}
+                        className="gap-2 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </Button>
+                    )}
                   </div>
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Sparkles className="w-6 h-6 text-primary/50 animate-pulse" />
-                  <Star className="w-6 h-6 text-primary/40 animate-pulse" style={{ animationDelay: '0.3s' }} />
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="relative pt-0">
-              <div className="space-y-4">
-                {userArticles.map((article) => (
-                  <div
-                    key={article.id}
-                    className="group relative overflow-hidden p-5 rounded-2xl border-2 border-border/50 bg-gradient-to-br from-muted/40 to-muted/20 hover:from-muted/60 hover:to-muted/30 hover:border-primary/40 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
-                  >
-                    {/* Hover glow effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    
-                    {/* Decorative corner accent */}
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/20 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                    
-                    <div className="relative flex items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-3 truncate">
-                          {article.title}
-                        </h4>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge 
-                            variant="outline" 
-                            className="text-xs bg-primary/10 border-primary/30 text-primary"
-                          >
-                            {article.category}
-                          </Badge>
-                          <Badge 
-                            variant="outline" 
-                            className="text-xs bg-muted/50"
-                          >
-                            {article.readingTime} min read
-                          </Badge>
-                          {article.views !== undefined && (
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1"
-                            >
-                              <Eye className="w-3 h-3" />
-                              {article.views}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {onEditArticle && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEditArticle(article)}
-                            className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group/btn"
-                            title="Edit article"
-                          >
-                            <Edit className="w-5 h-5 transition-transform group-hover/btn:scale-110 group-hover/btn:rotate-12" />
-                            <span className="hidden sm:inline font-semibold">Edit</span>
-                          </Button>
-                        )}
-                        {onDeleteArticle && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDeleteArticle(article.id)}
-                            className="gap-2 hover:bg-destructive/10 hover:text-destructive transition-all group/btn"
-                            title="Delete article"
-                          >
-                            <Trash2 className="w-5 h-5 transition-transform group-hover/btn:scale-110" />
-                            <span className="hidden sm:inline font-semibold">Delete</span>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Logout Button */}
-      {onLogout && (
-        <Card className="border-2 border-destructive/20 bg-card/50 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-semibold text-foreground mb-1">Account Settings</h4>
-                <p className="text-sm text-muted-foreground">Manage your DEWII account</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={onLogout}
-                className="gap-2 border-destructive/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
+              ))}
             </div>
           </CardContent>
         </Card>

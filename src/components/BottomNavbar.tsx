@@ -1,12 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Sun, Moon, Home, User, Plus, TrendingUp, Sparkles } from 'lucide-react'
+import { Home, User, Plus } from 'lucide-react'
 import { Button } from './ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu'
 
 interface BottomNavbarProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin'
@@ -14,93 +7,52 @@ interface BottomNavbarProps {
   isAuthenticated: boolean
 }
 
-type Theme = 'light' | 'dark' | 'hempin'
-
 export function BottomNavbar({ currentView, onNavigate, isAuthenticated }: BottomNavbarProps) {
-  const [theme, setTheme] = useState<Theme>('light')
-
-  // Check for saved theme preference on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme | null
-    if (savedTheme && ['light', 'dark', 'hempin'].includes(savedTheme)) {
-      applyTheme(savedTheme)
-    } else {
-      // Check system preference
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        applyTheme('dark')
-      }
-    }
-  }, [])
-
-  const applyTheme = (newTheme: Theme) => {
-    setTheme(newTheme)
-    localStorage.setItem('theme', newTheme)
-    
-    // Remove all theme classes
-    document.documentElement.classList.remove('dark', 'hempin')
-    
-    // Apply new theme class
-    if (newTheme !== 'light') {
-      document.documentElement.classList.add(newTheme)
-    }
-  }
-
-  const getThemeIcon = () => {
-    switch (theme) {
-      case 'light':
-        return <Sun className="h-5 w-5" />
-      case 'dark':
-        return <Moon className="h-5 w-5" />
-      case 'hempin':
-        return <Sparkles className="h-5 w-5" />
-    }
-  }
-
-  const getThemeLabel = () => {
-    switch (theme) {
-      case 'light':
-        return 'Light'
-      case 'dark':
-        return 'Eco'
-      case 'hempin':
-        return 'Hemp'
-    }
-  }
-
   if (!isAuthenticated) return null
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-lg shadow-lg md:shadow-2xl">
       <div className="max-w-screen-xl mx-auto px-4">
-        <div className="flex items-center justify-around h-16 md:h-20">
+        {/* Centered 3-icon layout */}
+        <div className="flex items-center justify-center gap-4 h-20 md:h-24 max-w-md mx-auto">
           {/* Home/Feed Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onNavigate('feed')}
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-4 transition-all ${
+            className={`flex flex-col items-center gap-1.5 h-auto py-3 px-8 md:px-10 transition-all group rounded-2xl ${
               currentView === 'feed'
-                ? 'text-emerald-600 dark:text-emerald-400 hempin:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hempin:bg-emerald-950/20'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-emerald-600 dark:text-emerald-400 hempin:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hempin:bg-emerald-950/20 scale-105'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:scale-105'
             }`}
           >
-            <Home className={`h-5 w-5 ${currentView === 'feed' ? 'scale-110' : ''} transition-transform`} />
-            <span className="text-xs">Explore</span>
+            <div className="relative">
+              <Home className={`h-7 w-7 md:h-8 md:w-8 ${currentView === 'feed' ? 'scale-110' : ''} transition-transform`} />
+              {currentView === 'feed' && (
+                <div className="absolute -inset-2 bg-emerald-400/20 rounded-full blur-md animate-pulse" />
+              )}
+            </div>
+            <span className="text-xs md:text-sm font-semibold">Explore</span>
           </Button>
 
-          {/* Dashboard Button */}
+          {/* Me/Dashboard Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onNavigate('dashboard')}
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-4 transition-all ${
+            className={`flex flex-col items-center gap-1.5 h-auto py-3 px-8 md:px-10 transition-all group rounded-2xl ${
               currentView === 'dashboard'
-                ? 'text-sky-600 dark:text-sky-400 hempin:text-amber-400 bg-sky-50 dark:bg-sky-950/30 hempin:bg-amber-950/20'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-sky-600 dark:text-sky-400 hempin:text-amber-400 bg-sky-50 dark:bg-sky-950/30 hempin:bg-amber-950/20 scale-105'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:scale-105'
             }`}
           >
-            <TrendingUp className={`h-5 w-5 ${currentView === 'dashboard' ? 'scale-110' : ''} transition-transform`} />
-            <span className="text-xs">Progress</span>
+            <div className="relative">
+              <User className={`h-7 w-7 md:h-8 md:w-8 ${currentView === 'dashboard' ? 'scale-110' : ''} transition-transform`} />
+              {currentView === 'dashboard' && (
+                <div className="absolute -inset-2 bg-sky-400/20 dark:bg-sky-400/20 hempin:bg-amber-400/20 rounded-full blur-md animate-pulse" />
+              )}
+            </div>
+            <span className="text-xs md:text-sm font-semibold">Me</span>
           </Button>
 
           {/* Create Button */}
@@ -108,74 +60,22 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated }: Botto
             variant="ghost"
             size="sm"
             onClick={() => onNavigate('editor')}
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-4 transition-all ${
+            className={`flex flex-col items-center gap-1.5 h-auto py-3 px-8 md:px-10 transition-all group rounded-2xl ${
               currentView === 'editor'
-                ? 'text-amber-600 dark:text-amber-400 hempin:text-amber-500 bg-amber-50 dark:bg-amber-950/30 hempin:bg-amber-950/20'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-amber-600 dark:text-amber-400 hempin:text-amber-500 bg-amber-50 dark:bg-amber-950/30 hempin:bg-amber-950/20 scale-105'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:scale-105'
             }`}
           >
-            <Plus className={`h-5 w-5 ${currentView === 'editor' ? 'scale-110' : ''} transition-transform`} />
-            <span className="text-xs">Create</span>
+            <div className="relative">
+              <Plus className={`h-7 w-7 md:h-8 md:w-8 ${currentView === 'editor' ? 'scale-110' : ''} transition-transform`} />
+              {currentView === 'editor' && (
+                <div className="absolute -inset-2 bg-amber-400/20 rounded-full blur-md animate-pulse" />
+              )}
+            </div>
+            <span className="text-xs md:text-sm font-semibold">Create</span>
           </Button>
-
-          {/* Theme Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex flex-col items-center gap-1 h-auto py-2 px-4 text-muted-foreground hover:text-foreground transition-all group"
-                aria-label="Change theme"
-              >
-                <div className="relative h-5 w-5">
-                  {getThemeIcon()}
-                </div>
-                <span className="text-xs">{getThemeLabel()}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={() => applyTheme('light')}
-                className="flex items-center gap-3 cursor-pointer"
-              >
-                <Sun className="h-4 w-4" />
-                <div className="flex-1">
-                  <div className="font-medium">Light Mode</div>
-                  <div className="text-xs text-muted-foreground">Clean & bright</div>
-                </div>
-                {theme === 'light' && <div className="w-2 h-2 rounded-full bg-primary" />}
-              </DropdownMenuItem>
-              
-              <DropdownMenuItem
-                onClick={() => applyTheme('dark')}
-                className="flex items-center gap-3 cursor-pointer"
-              >
-                <Moon className="h-4 w-4" />
-                <div className="flex-1">
-                  <div className="font-medium">Eco Mode</div>
-                  <div className="text-xs text-muted-foreground">Emerald forest</div>
-                </div>
-                {theme === 'dark' && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
-              </DropdownMenuItem>
-              
-              <DropdownMenuItem
-                onClick={() => applyTheme('hempin')}
-                className="flex items-center gap-3 cursor-pointer"
-              >
-                <Sparkles className="h-4 w-4" />
-                <div className="flex-1">
-                  <div className="font-medium">Hemp'in Mode</div>
-                  <div className="text-xs text-muted-foreground">Carbon mint</div>
-                </div>
-                {theme === 'hempin' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
-
-      {/* Decorative gradient line */}
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
     </nav>
   )
 }

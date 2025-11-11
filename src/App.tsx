@@ -10,6 +10,7 @@ import { ArticleEditor } from './components/ArticleEditor'
 import { AdminPanel } from './components/AdminPanel'
 import { BottomNavbar } from './components/BottomNavbar'
 import { StreakBanner } from './components/StreakBanner'
+import { ReadingHistory } from './components/ReadingHistory'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
@@ -49,7 +50,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
@@ -416,7 +417,8 @@ export default function App() {
         userPoints={userProgress?.points}
       />
 
-      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">{/* Added pb-24 for mobile bottom nav spacing */}
+      <main className="container mx-auto px-4 py-8 pb-32">
+        {/* Increased pb-32 (128px) to account for bottom navbar height on all devices */}
         {currentView === 'feed' && (
           <div className="space-y-6">
             {userProgress && userProgress.currentStreak > 0 && (
@@ -470,18 +472,14 @@ export default function App() {
         )}
 
         {currentView === 'dashboard' && userProgress && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-3xl">Your Dashboard</h2>
-              <p className="text-muted-foreground">Track your reading journey and achievements</p>
-            </div>
-            <UserDashboard 
-              progress={userProgress}
-              userArticles={userArticles}
-              onEditArticle={handleEditArticle}
-              onDeleteArticle={handleDeleteArticle}
-            />
-          </div>
+          <UserDashboard 
+            progress={userProgress}
+            userArticles={userArticles}
+            onEditArticle={handleEditArticle}
+            onDeleteArticle={handleDeleteArticle}
+            onLogout={handleLogout}
+            onViewReadingHistory={() => setCurrentView('reading-history')}
+          />
         )}
 
         {currentView === 'editor' && (
@@ -524,6 +522,22 @@ export default function App() {
               accessToken={accessToken}
             />
           </div>
+        )}
+
+        {currentView === 'reading-history' && userProgress && (
+          <ReadingHistory
+            readArticleIds={userProgress.readArticles}
+            allArticles={articles}
+            totalArticlesRead={userProgress.totalArticlesRead}
+            points={userProgress.points}
+            onBack={() => setCurrentView('dashboard')}
+            onArticleClick={(articleId) => {
+              const article = articles.find(a => a.id === articleId)
+              if (article) {
+                handleArticleClick(article)
+              }
+            }}
+          />
         )}
       </main>
 

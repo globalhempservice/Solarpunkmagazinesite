@@ -47,7 +47,23 @@ export function ArticleHeroWithShare({ article, userProgress, pointsToEarn = 10 
       toast.success('Link copied to clipboard!')
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      toast.error('Failed to copy link')
+      console.error('Failed to copy link:', error)
+      // Fallback for older browsers
+      try {
+        const textArea = document.createElement('textarea')
+        textArea.value = shareUrl
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        setCopied(true)
+        toast.success('Link copied to clipboard!')
+        setTimeout(() => setCopied(false), 2000)
+      } catch (fallbackError) {
+        toast.error('Failed to copy link. Please copy manually.')
+      }
     }
   }
 

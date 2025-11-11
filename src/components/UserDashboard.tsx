@@ -1,7 +1,25 @@
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
+import { Button } from "./ui/button"
+
+interface Article {
+  id: string
+  title: string
+  content: string
+  excerpt: string
+  category: string
+  coverImage?: string
+  readingTime: number
+  views?: number
+  createdAt: string
+  media?: Array<{
+    type: 'youtube' | 'audio' | 'image'
+    url: string
+    caption?: string
+  }>
+}
 
 interface UserProgress {
   userId: string
@@ -16,6 +34,9 @@ interface UserProgress {
 
 interface UserDashboardProps {
   progress: UserProgress
+  userArticles?: Article[]
+  onEditArticle?: (article: Article) => void
+  onDeleteArticle?: (articleId: string) => void
 }
 
 const achievementData: Record<string, { name: string; description: string; icon: any; color: string; rarity: 'common' | 'rare' | 'epic' | 'legendary' }> = {
@@ -80,7 +101,7 @@ const lockedAchievements = [
   { id: 'streak-30', requiredStreak: 30 },
 ]
 
-export function UserDashboard({ progress }: UserDashboardProps) {
+export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle }: UserDashboardProps) {
   // Calculate user level based on points
   const level = Math.floor(progress.points / 100) + 1
   const pointsToNextLevel = ((level) * 100) - progress.points
@@ -421,6 +442,84 @@ export function UserDashboard({ progress }: UserDashboardProps) {
           </Card>
         )}
       </div>
+
+      {/* User Articles Section */}
+      {userArticles && userArticles.length > 0 && (
+        <Card className="bg-card/80 backdrop-blur-sm border-2 border-primary/30">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              <CardTitle>Your Articles</CardTitle>
+              <Badge className="bg-primary/20 text-primary border-primary/30">
+                {userArticles.length}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {userArticles.map((article) => (
+                <div
+                  key={article.id}
+                  className="relative overflow-hidden flex flex-col gap-3 p-4 rounded-lg border-2 border-border bg-card/50 hover:border-primary/50 transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold text-foreground">{article.title}</h4>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-0">
+                          {article.category}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {article.excerpt}
+                      </p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          <span>{article.views || 0} views</span>
+                        </div>
+                        <span>{new Date(article.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {article.views !== undefined && (
+                    <div className="space-y-1">
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500 rounded-full"
+                          style={{ width: `${Math.min((article.views / 100) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onEditArticle?.(article)}
+                      className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onDeleteArticle?.(article.id)}
+                      className="hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <style>{`
         @keyframes shimmer {

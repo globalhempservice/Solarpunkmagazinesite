@@ -32,6 +32,23 @@ interface ArticleEditorProps {
     readingTime: number
     media: MediaItem[]
   }
+  article?: {
+    id: string
+    title: string
+    content: string
+    excerpt: string
+    category: string
+    readingTime: number
+    media?: MediaItem[]
+  }
+  onUpdate?: (article: {
+    title: string
+    content: string
+    excerpt: string
+    category: string
+    readingTime: number
+    media: MediaItem[]
+  }) => void
 }
 
 const categories = [
@@ -44,13 +61,13 @@ const categories = [
   'Future Vision'
 ]
 
-export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorProps) {
-  const [title, setTitle] = useState(initialData?.title || '')
-  const [content, setContent] = useState(initialData?.content || '')
-  const [excerpt, setExcerpt] = useState(initialData?.excerpt || '')
-  const [category, setCategory] = useState(initialData?.category || categories[0])
-  const [readingTime, setReadingTime] = useState(initialData?.readingTime || 5)
-  const [media, setMedia] = useState<MediaItem[]>(initialData?.media || [])
+export function ArticleEditor({ onSave, onCancel, initialData, article, onUpdate }: ArticleEditorProps) {
+  const [title, setTitle] = useState(initialData?.title || article?.title || '')
+  const [content, setContent] = useState(initialData?.content || article?.content || '')
+  const [excerpt, setExcerpt] = useState(initialData?.excerpt || article?.excerpt || '')
+  const [category, setCategory] = useState(initialData?.category || article?.category || categories[0])
+  const [readingTime, setReadingTime] = useState(initialData?.readingTime || article?.readingTime || 5)
+  const [media, setMedia] = useState<MediaItem[]>(initialData?.media || article?.media || [])
   
   const [newMediaType, setNewMediaType] = useState<'youtube' | 'audio' | 'image'>('youtube')
   const [newMediaUrl, setNewMediaUrl] = useState('')
@@ -81,14 +98,21 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
       return
     }
     
-    onSave({
+    const articleData = {
       title,
       content,
       excerpt: excerpt || content.substring(0, 150),
       category,
       readingTime,
       media
-    })
+    }
+    
+    // If editing, use onUpdate, otherwise use onSave
+    if (article && onUpdate) {
+      onUpdate(articleData)
+    } else {
+      onSave(articleData)
+    }
   }
 
   return (
@@ -268,7 +292,7 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
           Cancel
         </Button>
         <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-          Save Article
+          {article ? 'Update Article' : 'Save Article'}
         </Button>
       </div>
     </form>

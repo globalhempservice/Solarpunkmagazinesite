@@ -52,10 +52,12 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
+  const [userArticles, setUserArticles] = useState<Article[]>([])
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [initializing, setInitializing] = useState(true)
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null)
 
   const supabase = createClient()
   const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`
@@ -79,6 +81,13 @@ export default function App() {
       }
     }
     checkSession()
+    
+    // Check if URL contains article parameter for sharing
+    const urlParams = new URLSearchParams(window.location.search)
+    const sharedArticleId = urlParams.get('article')
+    if (sharedArticleId) {
+      fetchSharedArticle(sharedArticleId)
+    }
   }, [])
 
   // Fetch articles and user progress when authenticated
@@ -86,6 +95,7 @@ export default function App() {
     if (isAuthenticated && userId) {
       fetchArticles()
       fetchUserProgress()
+      fetchUserArticles()
     }
   }, [isAuthenticated, userId])
 
@@ -135,6 +145,50 @@ export default function App() {
       setUserProgress(data.progress)
     } catch (error: any) {
       console.error('Error fetching user progress:', error)
+    }
+  }
+
+  const fetchUserArticles = async () => {
+    if (!userId || !accessToken) return
+
+    try {
+      const response = await fetch(`${serverUrl}/my-articles`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user articles')
+      }
+
+      const data = await response.json()
+      setUserArticles(data.articles || [])
+    } catch (error: any) {
+      console.error('Error fetching user articles:', error)
+    }
+  }
+
+  const fetchSharedArticle = async (articleId: string) => {
+    try {
+      const response = await fetch(`${serverUrl}/articles/${articleId}`, {
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`
+        }
+      })
+
+      if (!response.ok) {
+        toast.error('Article not found')
+        return
+      }
+
+      const data = await response.json()
+      setSelectedArticle(data.article)
+      setCurrentView('article')
+      toast.success('Shared article loaded!')
+    } catch (error: any) {
+      console.error('Error fetching shared article:', error)
+      toast.error('Failed to load shared article')
     }
   }
 
@@ -268,6 +322,66 @@ export default function App() {
     }
   }
 
+  const handleEditArticle = (article: Article) => {
+    setEditingArticle(article)
+    setCurrentView('editor')
+  }
+
+  const handleDeleteArticle = async (articleId: string) => {
+    if (!accessToken) return
+    
+    if (!confirm('Are you sure you want to delete this article?')) return
+
+    try {
+      const response = await fetch(`${serverUrl}/articles/${articleId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete article')
+      }
+
+      toast.success('Article deleted successfully')
+      await fetchUserArticles()
+      await fetchArticles()
+    } catch (error: any) {
+      console.error('Error deleting article:', error)
+      toast.error('Failed to delete article: ' + error.message)
+    }
+  }
+
+  const handleUpdateArticle = async (articleData: any) => {
+    if (!accessToken || !editingArticle) return
+
+    try {
+      const response = await fetch(`${serverUrl}/articles/${editingArticle.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(articleData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update article')
+      }
+
+      toast.success('Article updated successfully!')
+      setEditingArticle(null)
+      setCurrentView('dashboard')
+      await fetchArticles()
+      await fetchUserArticles()
+    } catch (error: any) {
+      console.error('Error updating article:', error)
+      toast.error('Failed to update article: ' + error.message)
+    }
+  }
+
   const filteredArticles = selectedCategory === 'all'
     ? articles
     : articles.filter(article => article.category === selectedCategory)
@@ -361,7 +475,12 @@ export default function App() {
               <h2 className="text-3xl">Your Dashboard</h2>
               <p className="text-muted-foreground">Track your reading journey and achievements</p>
             </div>
-            <UserDashboard progress={userProgress} />
+            <UserDashboard 
+              progress={userProgress}
+              userArticles={userArticles}
+              onEditArticle={handleEditArticle}
+              onDeleteArticle={handleDeleteArticle}
+            />
           </div>
         )}
 
@@ -374,6 +493,8 @@ export default function App() {
             <ArticleEditor
               onSave={handleSaveArticle}
               onCancel={() => setCurrentView('feed')}
+              article={editingArticle}
+              onUpdate={handleUpdateArticle}
             />
           </div>
         )}
@@ -381,6 +502,7 @@ export default function App() {
         {currentView === 'article' && selectedArticle && (
           <ArticleReader
             article={selectedArticle}
+            userProgress={userProgress}
             onBack={() => {
               setCurrentView('feed')
               setSelectedArticle(null)

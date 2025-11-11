@@ -152,6 +152,59 @@ app.get('/make-server-053bcd80/articles/:id', async (c) => {
   }
 })
 
+// Get user's own articles (auth required)
+app.get('/make-server-053bcd80/my-articles', requireAuth, async (c) => {
+  try {
+    const userId = c.get('userId')
+    
+    console.log('Fetching articles for user:', userId)
+    
+    const { data: articles, error } = await supabase
+      .from('articles')
+      .select(`
+        *,
+        article_media (
+          id,
+          type,
+          url,
+          caption,
+          position
+        )
+      `)
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.log('SQL Error fetching user articles:', error)
+      return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+    }
+    
+    console.log('Fetched', articles?.length || 0, 'articles for user')
+    
+    // Transform snake_case to camelCase
+    const transformedArticles = articles?.map(article => ({
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      excerpt: article.excerpt,
+      category: article.category,
+      coverImage: article.cover_image,
+      readingTime: article.reading_time,
+      authorId: article.author_id,
+      views: article.views,
+      likes: article.likes,
+      createdAt: article.created_at,
+      updatedAt: article.updated_at,
+      media: article.article_media || []
+    })) || []
+    
+    return c.json({ articles: transformedArticles })
+  } catch (error) {
+    console.log('Error fetching user articles:', error)
+    return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+  }
+})
+
 // Create new article (auth required)
 app.post('/make-server-053bcd80/articles', requireAuth, async (c) => {
   try {

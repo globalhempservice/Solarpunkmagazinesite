@@ -3,6 +3,8 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { GenerativeBackground } from "./GenerativeBackground"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
+import { ShareButton } from "./ShareButton"
+import { ArticleHeroWithShare } from "./ArticleHeroWithShare"
 
 interface MediaItem {
   type: 'youtube' | 'audio' | 'image'
@@ -25,9 +27,15 @@ interface Article {
 interface ArticleReaderProps {
   article: Article
   onBack: () => void
+  userProgress?: {
+    points: number
+    currentStreak: number
+    longestStreak: number
+    totalArticlesRead: number
+  } | null
 }
 
-export function ArticleReader({ article, onBack }: ArticleReaderProps) {
+export function ArticleReader({ article, onBack, userProgress }: ArticleReaderProps) {
   const renderMedia = (mediaItem: MediaItem, index: number) => {
     switch (mediaItem.type) {
       case 'youtube':
@@ -106,9 +114,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         </Button>
         
         <article className="bg-card rounded-xl shadow-lg overflow-hidden border border-border">
-          <div className="aspect-video overflow-hidden relative">
-            <GenerativeBackground seed={article.title} className="w-full h-full" />
-          </div>
+          <ArticleHeroWithShare article={article} userProgress={userProgress} />
           
           <div className="p-8 space-y-6">
             <div className="flex items-center gap-3 flex-wrap">

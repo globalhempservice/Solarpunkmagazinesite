@@ -1,7 +1,8 @@
 import { Card } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Clock, Eye } from "lucide-react"
-import { GenerativeBackground } from "./GenerativeBackground"
+import { PlaceholderArt } from "./PlaceholderArt"
+import { ImageWithFallback } from "./figma/ImageWithFallback"
 
 interface ArticleCardProps {
   article: {
@@ -24,10 +25,24 @@ export function ArticleCard({ article, onClick }: ArticleCardProps) {
       onClick={onClick}
     >
       <div className="aspect-video overflow-hidden relative">
-        <GenerativeBackground 
-          seed={article.title} 
-          className="w-full h-full"
-        />
+        {article.coverImage ? (
+          <div className="relative w-full h-full">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-10" />
+            <ImageWithFallback
+              src={article.coverImage}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          </div>
+        ) : (
+          <PlaceholderArt 
+            articleId={article.id}
+            category={article.category}
+            title={article.title}
+            className="w-full h-full group-hover:scale-105 transition-transform duration-300"
+            useCategoryArt={true}
+          />
+        )}
       </div>
       
       <div className="p-4 space-y-3">

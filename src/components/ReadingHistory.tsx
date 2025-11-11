@@ -1,12 +1,14 @@
-import { useState } from 'react'
-import { ArrowLeft, Book, Calendar, Clock, Sparkles, Trophy, Flame, Star, TrendingUp, Filter, Search, Award, Zap, Target, Crown, Rocket, BookOpen, Library, Bookmark, CheckCircle2, Medal, HeartHandshake, Share2, Link2, ExternalLink } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { Badge } from './ui/badge'
+import { ArrowLeft, Search, Filter, Calendar, TrendingUp, Award, BookOpen, Clock, Eye, Target, Zap, CheckCircle2, Flame, Download, Share2, Trophy, Star, Medal, Crown, Rocket, Sparkles, Library, Bookmark, Link2 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Badge } from './ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
-import { toast } from 'sonner@2.0.3'
 import { ImageWithFallback } from './figma/ImageWithFallback'
+import { PlaceholderArt } from './PlaceholderArt'
+import { toast } from 'sonner'
+import { useState, useMemo } from 'react'
 
 interface Article {
   id: string
@@ -544,12 +546,13 @@ export function ReadingHistory({
                         />
                       </>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5">
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                          <BookOpen className="relative w-20 h-20 text-primary/40 group-hover:text-primary/60 transition-colors" />
-                        </div>
-                      </div>
+                      <PlaceholderArt 
+                        articleId={article.id}
+                        category={article.category}
+                        title={article.title}
+                        className="w-full h-full group-hover:scale-110 transition-transform duration-500"
+                        useCategoryArt={true}
+                      />
                     )}
                     
                     {/* Read Badge */}

@@ -5,6 +5,7 @@ import { Card, CardContent } from "./ui/card"
 import { GenerativeBackground } from "./GenerativeBackground"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 import { ShareButton } from "./ShareButton"
+import { PlaceholderArt } from "./PlaceholderArt"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 
@@ -145,9 +146,31 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -100 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="min-h-screen pb-32"
+        className="min-h-screen pb-32 relative"
       >
-        <div className="max-w-3xl mx-auto px-4 py-6 md:py-8 space-y-6">
+        {/* Fixed Background Art - matches the article card preview */}
+        <motion.div
+          key={`bg-${article.id}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="fixed inset-0 z-0"
+        >
+          <div className="absolute inset-0 opacity-35 dark:opacity-30 hempin:opacity-40">
+            <PlaceholderArt 
+              articleId={article.id}
+              category={article.category}
+              title={article.title}
+              className="w-full h-full"
+              useCategoryArt={true}
+            />
+          </div>
+          {/* Subtle overlay to ensure readability */}
+          <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px]" />
+        </motion.div>
+        
+        <div className="max-w-3xl mx-auto px-4 py-6 md:py-8 space-y-6 relative z-10">
           
           {/* Gamified Share & Points Card */}
           {userProgress && (

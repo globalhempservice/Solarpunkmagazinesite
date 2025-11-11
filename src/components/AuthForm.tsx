@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
@@ -11,6 +11,8 @@ interface AuthFormProps {
   onSignup: (email: string, password: string, name: string) => Promise<void>
 }
 
+type Theme = 'light' | 'dark' | 'hempin'
+
 export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
@@ -18,6 +20,35 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [theme, setTheme] = useState<Theme>('light')
+
+  // Load saved theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as Theme | null
+    if (savedTheme && ['light', 'dark', 'hempin'].includes(savedTheme)) {
+      applyTheme(savedTheme)
+    }
+  }, [])
+
+  const applyTheme = (newTheme: Theme) => {
+    setTheme(newTheme)
+    localStorage.setItem('theme', newTheme)
+    
+    // Remove all theme classes
+    document.documentElement.classList.remove('dark', 'hempin')
+    
+    // Apply new theme class
+    if (newTheme !== 'light') {
+      document.documentElement.classList.add(newTheme)
+    }
+  }
+
+  const cycleTheme = () => {
+    const themeOrder: Theme[] = ['light', 'dark', 'hempin']
+    const currentIndex = themeOrder.indexOf(theme)
+    const nextIndex = (currentIndex + 1) % themeOrder.length
+    applyTheme(themeOrder[nextIndex])
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +83,7 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
 
       <div className="relative w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
         {/* Left Side - Branding & Features */}
-        <div className="hidden lg:block space-y-8 px-8">
+        <div className="hidden lg:flex flex-col space-y-8 px-8">
           {/* Logo & Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -64,14 +95,10 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                 <p className="text-muted-foreground">Digital Eco Wisdom & Innovation Insights</p>
               </div>
             </div>
-            
-            <p className="text-xl text-foreground/80">
-              Your gamified eco-futurist magazine for sustainable knowledge and green innovation
-            </p>
           </div>
 
-          {/* Feature Cards */}
-          <div className="space-y-4">
+          {/* Feature Cards - aligned with auth card */}
+          <div className="space-y-4 flex-1 flex flex-col justify-center">
             <div className="flex items-start gap-4 p-4 rounded-xl bg-card/50 backdrop-blur-sm border-2 border-emerald-500/30">
               <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500">
                 <BookOpen className="w-6 h-6 text-white" />
@@ -112,31 +139,15 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
               </div>
             </div>
           </div>
-
-          {/* Stats preview */}
-          <div className="flex gap-4 pt-4 border-t border-border">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-500">100+</div>
-              <div className="text-xs text-muted-foreground">Articles</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-500">50+</div>
-              <div className="text-xs text-muted-foreground">Active Readers</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-500">15+</div>
-              <div className="text-xs text-muted-foreground">Achievements</div>
-            </div>
-          </div>
         </div>
 
         {/* Right Side - Auth Form */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 rounded-2xl blur-2xl" />
           
-          {/* Logo above the card */}
+          {/* Logo above the card - clickable to cycle themes */}
           <div className="flex justify-center mb-8">
-            <BrandLogo size="xl" />
+            <BrandLogo size="xl" onClick={cycleTheme} />
           </div>
           
           <Card className="relative w-full border-2 border-primary/30 bg-card/80 backdrop-blur-xl shadow-2xl">

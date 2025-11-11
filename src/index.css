@@ -2614,16 +2614,6 @@
     color: var(--foreground);
   }
 
-  .text-foreground\/80 {
-    color: var(--foreground);
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .text-foreground\/80 {
-      color: color-mix(in oklab, var(--foreground) 80%, transparent);
-    }
-  }
-
   .text-gray-600 {
     color: var(--color-gray-600);
   }
@@ -3026,6 +3016,15 @@
 
   .placeholder\:text-muted-foreground::placeholder {
     color: var(--muted-foreground);
+  }
+
+  @media (hover: hover) {
+    .hover\:scale-105:hover {
+      --tw-scale-x: 105%;
+      --tw-scale-y: 105%;
+      --tw-scale-z: 105%;
+      scale: var(--tw-scale-x) var(--tw-scale-y);
+    }
   }
 
   @media (hover: hover) {
@@ -3639,8 +3638,8 @@
   }
 
   @media (width >= 64rem) {
-    .lg\:block {
-      display: block;
+    .lg\:flex {
+      display: flex;
     }
   }
 
@@ -4145,6 +4144,7 @@
   --destructive-foreground: #fee2e2;
   --border: #1e3a32;
   --input: #1a2f27;
+  --input-background: #0f1f1a;
   --ring: #34d399;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
@@ -4182,6 +4182,7 @@
   --destructive-foreground: #fee2e2;
   --border: #0f766e;
   --input: #062a1e;
+  --input-background: #041f1a;
   --ring: #f59e0b;
   --font-weight-medium: 500;
   --font-weight-normal: 400;

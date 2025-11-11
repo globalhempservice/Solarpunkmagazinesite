@@ -2,9 +2,10 @@ interface BrandLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
   showAnimation?: boolean
   className?: string
+  onClick?: () => void
 }
 
-export function BrandLogo({ size = 'md', showAnimation = true, className = '' }: BrandLogoProps) {
+export function BrandLogo({ size = 'md', showAnimation = true, className = '', onClick }: BrandLogoProps) {
   const sizeClasses = {
     sm: 'w-10 h-10',
     md: 'w-12 h-12',
@@ -20,7 +21,10 @@ export function BrandLogo({ size = 'md', showAnimation = true, className = '' }:
   }
 
   return (
-    <div className={`relative ${sizeClasses[size]} ${className}`}>
+    <div 
+      className={`relative ${sizeClasses[size]} ${className} ${onClick ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`} 
+      onClick={onClick}
+    >
       {/* Animated glow effect */}
       {showAnimation && (
         <>

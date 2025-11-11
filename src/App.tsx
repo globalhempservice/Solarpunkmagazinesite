@@ -253,6 +253,7 @@ export default function App() {
   const handleArticleClick = async (article: Article) => {
     setSelectedArticle(article)
     setCurrentView('article')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
 
     // Increment view count
     try {
@@ -577,6 +578,7 @@ export default function App() {
           <ArticleReader
             article={selectedArticle}
             userProgress={userProgress}
+            allArticles={articles}
             suggestedArticles={articles.filter(a => a.id !== selectedArticle.id && a.category === selectedArticle.category).slice(0, 2)}
             onArticleSelect={(article) => {
               setSelectedArticle(article)

@@ -10,6 +10,11 @@ interface BottomNavbarProps {
 export function BottomNavbar({ currentView, onNavigate, isAuthenticated }: BottomNavbarProps) {
   if (!isAuthenticated) return null
 
+  const handleNavigate = (view: 'feed' | 'dashboard' | 'editor') => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    onNavigate(view)
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-lg shadow-lg md:shadow-2xl">
       <div className="max-w-screen-xl mx-auto px-4">
@@ -19,7 +24,7 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated }: Botto
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onNavigate('feed')}
+            onClick={() => handleNavigate('feed')}
             className={`flex flex-col items-center gap-1.5 h-auto py-3 px-8 md:px-10 transition-all group rounded-2xl ${
               currentView === 'feed'
                 ? 'text-emerald-600 dark:text-emerald-400 hempin:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hempin:bg-emerald-950/20 scale-105'
@@ -39,7 +44,7 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated }: Botto
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => handleNavigate('dashboard')}
             className={`flex flex-col items-center gap-1.5 h-auto py-3 px-8 md:px-10 transition-all group rounded-2xl ${
               currentView === 'dashboard'
                 ? 'text-sky-600 dark:text-sky-400 hempin:text-amber-400 bg-sky-50 dark:bg-sky-950/30 hempin:bg-amber-950/20 scale-105'
@@ -59,7 +64,7 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated }: Botto
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onNavigate('editor')}
+            onClick={() => handleNavigate('editor')}
             className={`flex flex-col items-center gap-1.5 h-auto py-3 px-8 md:px-10 transition-all group rounded-2xl ${
               currentView === 'editor'
                 ? 'text-amber-600 dark:text-amber-400 hempin:text-amber-500 bg-amber-50 dark:bg-amber-950/30 hempin:bg-amber-950/20 scale-105'

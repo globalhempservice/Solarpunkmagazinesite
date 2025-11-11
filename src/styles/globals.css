@@ -1,4 +1,5 @@
 @custom-variant dark (&:is(.dark *));
+@custom-variant hempin (&:is(.hempin *));
 
 :root {
   --font-size: 16px;
@@ -42,40 +43,78 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --background: #0a1410;
+  --foreground: #e8f5f0;
+  --card: #132520;
+  --card-foreground: #e8f5f0;
+  --popover: #132520;
+  --popover-foreground: #e8f5f0;
+  --primary: #34d399;
+  --primary-foreground: #0a1410;
+  --secondary: #1e3a32;
+  --secondary-foreground: #a7f3d0;
+  --muted: #1a2f27;
+  --muted-foreground: #86efac;
+  --accent: #134e4a;
+  --accent-foreground: #6ee7b7;
+  --destructive: #dc2626;
+  --destructive-foreground: #fee2e2;
+  --border: #1e3a32;
+  --input: #1a2f27;
+  --ring: #34d399;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --chart-1: #34d399;
+  --chart-2: #38bdf8;
+  --chart-3: #a78bfa;
+  --chart-4: #fbbf24;
+  --chart-5: #fb7185;
+  --sidebar: #0f1f1a;
+  --sidebar-foreground: #d1fae5;
+  --sidebar-primary: #34d399;
+  --sidebar-primary-foreground: #0a1410;
+  --sidebar-accent: #1a2f27;
+  --sidebar-accent-foreground: #a7f3d0;
+  --sidebar-border: #1e3a32;
+  --sidebar-ring: #34d399;
+}
+
+.hempin {
+  /* Hemp'in - WETAS (Carbon Mint) + Gold accents for sustainability focus */
+  --background: #041F1A;
+  --foreground: #6EE7B7;
+  --card: #0B1020;
+  --card-foreground: #99F6E4;
+  --popover: #0B1020;
+  --popover-foreground: #99F6E4;
+  --primary: #F59E0B;
+  --primary-foreground: #0B1020;
+  --secondary: #0F766E;
+  --secondary-foreground: #CCFBF1;
+  --muted: #0E1116;
+  --muted-foreground: #10B981;
+  --accent: #0E7490;
+  --accent-foreground: #14B8A6;
+  --destructive: #dc2626;
+  --destructive-foreground: #fee2e2;
+  --border: #0F766E;
+  --input: #062A1E;
+  --ring: #F59E0B;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #10B981;
+  --chart-2: #14B8A6;
+  --chart-3: #0EA5E9;
+  --chart-4: #FBBF24;
+  --chart-5: #A78BFA;
+  --sidebar: #041F1A;
+  --sidebar-foreground: #CCFBF1;
+  --sidebar-primary: #F59E0B;
+  --sidebar-primary-foreground: #0B1020;
+  --sidebar-accent: #062A1E;
+  --sidebar-accent-foreground: #6EE7B7;
+  --sidebar-border: #0F766E;
+  --sidebar-ring: #F59E0B;
 }
 
 @theme inline {

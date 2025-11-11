@@ -8,6 +8,7 @@ import { ArticleReader } from './components/ArticleReader'
 import { UserDashboard } from './components/UserDashboard'
 import { ArticleEditor } from './components/ArticleEditor'
 import { AdminPanel } from './components/AdminPanel'
+import { BottomNavbar } from './components/BottomNavbar'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
@@ -291,7 +292,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-emerald-50/20 to-sky-50/20">
+    <div className="min-h-screen bg-background">
       <Header
         currentView={currentView}
         onNavigate={setCurrentView}
@@ -300,32 +301,32 @@ export default function App() {
         userPoints={userProgress?.points}
       />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">{/* Added pb-24 for mobile bottom nav spacing */}
         {currentView === 'feed' && (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <h2 className="text-2xl sm:text-3xl">Explore Articles</h2>
-                <p className="text-sm sm:text-base text-muted-foreground">Discover stories about our sustainable future</p>
+                <p className="text-sm sm:text-base text-muted-foreground">Discover engaging stories and insights</p>
               </div>
             </div>
 
             {userProgress && userProgress.currentStreak > 0 && (
-              <Alert className="bg-gradient-to-r from-emerald-50 to-sky-50 border-emerald-200">
-                <Sparkles className="w-4 h-4 text-emerald-600" />
-                <AlertDescription className="text-sm">
+              <Alert className="bg-primary/5 border-primary/20">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <AlertDescription className="text-sm text-foreground">
                   🔥 You're on a {userProgress.currentStreak}-day reading streak! Keep it up!
                 </AlertDescription>
               </Alert>
             )}
 
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-              <TabsList className="bg-emerald-50 border border-emerald-200 w-full sm:w-auto overflow-x-auto flex-nowrap justify-start">
+              <TabsList className="bg-muted border border-border w-full sm:w-auto overflow-x-auto flex-nowrap justify-start">
                 {categories.map(category => (
                   <TabsTrigger
                     key={category}
                     value={category}
-                    className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-xs sm:text-sm whitespace-nowrap"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm whitespace-nowrap"
                   >
                     {category === 'all' ? 'All' : category}
                   </TabsTrigger>
@@ -375,7 +376,7 @@ export default function App() {
           <div className="space-y-6">
             <div>
               <h2 className="text-3xl">Write Article</h2>
-              <p className="text-muted-foreground">Share your vision of a sustainable future</p>
+              <p className="text-muted-foreground">Share your knowledge and ideas</p>
             </div>
             <ArticleEditor
               onSave={handleSaveArticle}
@@ -412,6 +413,11 @@ export default function App() {
       </main>
 
       <Toaster />
+      <BottomNavbar
+        currentView={currentView}
+        onNavigate={setCurrentView}
+        isAuthenticated={isAuthenticated}
+      />
     </div>
   )
 }

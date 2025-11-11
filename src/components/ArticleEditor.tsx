@@ -97,9 +97,9 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Article Details</CardTitle>
+          <CardTitle className="text-foreground">Article Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -182,9 +182,9 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
         </CardContent>
       </Card>
 
-      <Card className="border-emerald-200">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Media Attachments</CardTitle>
+          <CardTitle className="text-foreground">Media Attachments</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
@@ -230,7 +230,7 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
               type="button"
               onClick={handleAddMedia}
               variant="outline"
-              className="w-full border-emerald-200 hover:bg-emerald-50"
+              className="w-full hover:bg-accent"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Media
@@ -238,7 +238,7 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
           </div>
 
           {media.length > 0 && (
-            <div className="space-y-2 pt-4 border-t">
+            <div className="space-y-2 pt-4 border-t border-border">
               <Label>Added Media ({media.length})</Label>
               <div className="space-y-2">
                 {media.map((item, index) => {
@@ -246,14 +246,14 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
                   return (
                     <div
                       key={index}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-muted border border-border"
                     >
-                      <Icon className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      <Icon className="w-5 h-5 text-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <Badge variant="secondary" className="mb-1">
+                        <Badge variant="secondary" className="mb-1 bg-primary/10 text-primary border-0">
                           {item.type}
                         </Badge>
-                        <p className="text-sm truncate">{item.url}</p>
+                        <p className="text-sm truncate text-foreground">{item.url}</p>
                         {item.caption && (
                           <p className="text-xs text-muted-foreground truncate">
                             {item.caption}
@@ -282,10 +282,21 @@ export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorPr
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
+        <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">
           Save Article
         </Button>
       </div>
     </form>
   )
+}
+
+function getMediaIcon(type: 'youtube' | 'audio' | 'image') {
+  switch (type) {
+    case 'youtube':
+      return Youtube
+    case 'audio':
+      return Music
+    case 'image':
+      return ImageIcon
+  }
 }

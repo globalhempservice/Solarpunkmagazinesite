@@ -20,10 +20,10 @@ interface ArticleCardProps {
 export function ArticleCard({ article, onClick }: ArticleCardProps) {
   return (
     <Card 
-      className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-emerald-200/50 bg-gradient-to-br from-white to-emerald-50/30"
+      className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group bg-card border-border"
       onClick={onClick}
     >
-      <div className="aspect-video overflow-hidden bg-gradient-to-br from-emerald-100 to-sky-100">
+      <div className="aspect-video overflow-hidden bg-muted">
         {article.coverImage ? (
           <ImageWithFallback
             src={article.coverImage}
@@ -31,15 +31,15 @@ export function ArticleCard({ article, onClick }: ArticleCardProps) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-sky-400 opacity-50" />
+          <div className="w-full h-full flex items-center justify-center bg-muted">
+            <div className="w-20 h-20 rounded-full bg-primary/20" />
           </div>
         )}
       </div>
       
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
+          <Badge variant="secondary" className="bg-primary/10 text-primary border-0">
             {article.category}
           </Badge>
           {article.views !== undefined && (
@@ -50,7 +50,7 @@ export function ArticleCard({ article, onClick }: ArticleCardProps) {
           )}
         </div>
         
-        <h3 className="line-clamp-2 group-hover:text-emerald-600 transition-colors">
+        <h3 className="line-clamp-2 text-foreground group-hover:text-primary transition-colors">
           {article.title}
         </h3>
         

@@ -46,7 +46,7 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
             </div>
           </div>
           <div>
-            <CardTitle className="text-2xl">Solarpunk Magazine</CardTitle>
+            <CardTitle className="text-2xl">DEWII</CardTitle>
             <CardDescription>
               {isLogin ? 'Welcome back! Sign in to continue reading.' : 'Join our community of eco-futurists.'}
             </CardDescription>

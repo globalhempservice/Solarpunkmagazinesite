@@ -1,7 +1,14 @@
 import { Button } from "./ui/button"
-import { Leaf, User, LogOut, LayoutDashboard, PenSquare, BookOpen, Shield, Menu } from "lucide-react"
+import { UserCircle, LogOut } from "lucide-react"
 import { Badge } from "./ui/badge"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "./ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
 import { useState } from "react"
 
 interface HeaderProps {
@@ -21,142 +28,134 @@ export function Header({ currentView, onNavigate, isAuthenticated, onLogout, use
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-lg border-emerald-200">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-lg border-border shadow-sm">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigate('feed')}>
-          <div className="p-2 rounded-full bg-gradient-to-br from-emerald-400 to-sky-400">
-            <Leaf className="w-5 h-5 text-white" />
+        {/* Logo/Branding */}
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('feed')}>
+          <div className="p-2 rounded-full bg-gradient-to-br from-emerald-400 to-sky-400 dark:from-emerald-500 dark:to-emerald-600 hempin:from-amber-500 hempin:to-emerald-400">
+            {/* DEWII Logo - Simple leaf/plant icon */}
+            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
+              <path d="M12 6v12"/>
+              <path d="M16 10l-4 4-4-4"/>
+            </svg>
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-xl">Solarpunk Magazine</h1>
-            <p className="text-xs text-muted-foreground">Building Tomorrow, Today</p>
+            <h1 className="font-semibold text-foreground">DEWII</h1>
+            <p className="text-xs text-muted-foreground">Discover • Engage • Write</p>
           </div>
           <div className="sm:hidden">
-            <h1 className="text-lg">Solarpunk</h1>
+            <h1 className="font-semibold text-foreground">DEWII</h1>
           </div>
         </div>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-2">
-          {isAuthenticated && (
-            <>
-              <Button
-                variant={currentView === 'feed' ? 'default' : 'ghost'}
-                onClick={() => onNavigate('feed')}
-                className={currentView === 'feed' ? 'bg-emerald-600 hover:bg-emerald-700' : 'hover:bg-emerald-50'}
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Articles
-              </Button>
-
-              <Button
-                variant={currentView === 'dashboard' ? 'default' : 'ghost'}
-                onClick={() => onNavigate('dashboard')}
-                className={currentView === 'dashboard' ? 'bg-emerald-600 hover:bg-emerald-700' : 'hover:bg-emerald-50'}
-              >
-                <LayoutDashboard className="w-4 h-4 mr-2" />
-                Dashboard
-              </Button>
-
-              <Button
-                variant={currentView === 'editor' ? 'default' : 'ghost'}
-                onClick={() => onNavigate('editor')}
-                className={currentView === 'editor' ? 'bg-emerald-600 hover:bg-emerald-700' : 'hover:bg-emerald-50'}
-              >
-                <PenSquare className="w-4 h-4 mr-2" />
-                Write
-              </Button>
-
-              <Button
-                variant={currentView === 'admin' ? 'default' : 'ghost'}
-                onClick={() => onNavigate('admin')}
-                className={currentView === 'admin' ? 'bg-sky-600 hover:bg-sky-700' : 'hover:bg-sky-50'}
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Admin
-              </Button>
-
-              {userPoints !== undefined && (
-                <Badge className="bg-gradient-to-r from-emerald-500 to-sky-500 text-white">
-                  {userPoints} pts
-                </Badge>
-              )}
-
-              <Button
-                variant="ghost"
-                onClick={onLogout}
-                className="hover:bg-red-50 hover:text-red-600"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-        </nav>
-
-        {/* Mobile Navigation */}
+        {/* Desktop Navigation - Profile Only */}
         {isAuthenticated && (
-          <div className="md:hidden flex items-center gap-2">
+          <nav className="hidden md:flex items-center gap-3">
             {userPoints !== undefined && (
-              <Badge className="bg-gradient-to-r from-emerald-500 to-sky-500 text-white text-xs">
+              <Badge className="bg-primary text-primary-foreground border-0">
+                {userPoints} pts
+              </Badge>
+            )}
+            
+            {/* Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="hover:bg-accent rounded-full"
+                  aria-label="User menu"
+                >
+                  <UserCircle className="w-6 h-6 text-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem 
+                  onClick={() => onNavigate('dashboard')}
+                  className="cursor-pointer"
+                >
+                  <UserCircle className="w-4 h-4 mr-2" />
+                  <div className="flex-1">
+                    <div className="font-medium">My Profile</div>
+                    <div className="text-xs text-muted-foreground">View stats & achievements</div>
+                  </div>
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem 
+                  onClick={onLogout}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </nav>
+        )}
+
+        {/* Mobile Navigation - Profile Only */}
+        {isAuthenticated && (
+          <div className="md:hidden flex items-center gap-3">
+            {userPoints !== undefined && (
+              <Badge className="bg-primary text-primary-foreground border-0 text-xs px-2">
                 {userPoints}
               </Badge>
             )}
+            
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="w-5 h-5" />
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="rounded-full hover:bg-accent"
+                  aria-label="User menu"
+                >
+                  <UserCircle className="w-6 h-6 text-foreground" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-64">
-                <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                <SheetTitle className="sr-only">User Menu</SheetTitle>
                 <SheetDescription className="sr-only">
-                  Navigate through the Solarpunk Magazine sections
+                  Access your profile and account settings
                 </SheetDescription>
-                <div className="flex flex-col gap-4 mt-8">
-                  <Button
-                    variant={currentView === 'feed' ? 'default' : 'ghost'}
-                    onClick={() => handleNavigate('feed')}
-                    className={`justify-start ${currentView === 'feed' ? 'bg-emerald-600 hover:bg-emerald-700' : 'hover:bg-emerald-50'}`}
-                  >
-                    <BookOpen className="w-4 h-4 mr-2" />
-                    Articles
-                  </Button>
+                
+                <div className="flex flex-col gap-3 mt-8">
+                  {/* Profile Section */}
+                  <div className="pb-4 border-b border-border">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <UserCircle className="w-8 h-8 text-primary" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-foreground">My Account</div>
+                        {userPoints !== undefined && (
+                          <div className="text-sm text-muted-foreground">{userPoints} points</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* Menu Items */}
                   <Button
-                    variant={currentView === 'dashboard' ? 'default' : 'ghost'}
+                    variant="ghost"
                     onClick={() => handleNavigate('dashboard')}
-                    className={`justify-start ${currentView === 'dashboard' ? 'bg-emerald-600 hover:bg-emerald-700' : 'hover:bg-emerald-50'}`}
+                    className="justify-start hover:bg-accent text-foreground"
                   >
-                    <LayoutDashboard className="w-4 h-4 mr-2" />
-                    Dashboard
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    View Profile
                   </Button>
 
-                  <Button
-                    variant={currentView === 'editor' ? 'default' : 'ghost'}
-                    onClick={() => handleNavigate('editor')}
-                    className={`justify-start ${currentView === 'editor' ? 'bg-emerald-600 hover:bg-emerald-700' : 'hover:bg-emerald-50'}`}
-                  >
-                    <PenSquare className="w-4 h-4 mr-2" />
-                    Write Article
-                  </Button>
-
-                  <Button
-                    variant={currentView === 'admin' ? 'default' : 'ghost'}
-                    onClick={() => handleNavigate('admin')}
-                    className={`justify-start ${currentView === 'admin' ? 'bg-sky-600 hover:bg-sky-700' : 'hover:bg-sky-50'}`}
-                  >
-                    <Shield className="w-4 h-4 mr-2" />
-                    Admin Panel
-                  </Button>
-
-                  <div className="border-t pt-4 mt-4">
+                  <div className="border-t border-border pt-3 mt-2">
                     <Button
                       variant="ghost"
                       onClick={() => {
                         onLogout()
                         setMobileMenuOpen(false)
                       }}
-                      className="w-full justify-start hover:bg-red-50 hover:text-red-600"
+                      className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
                       Logout

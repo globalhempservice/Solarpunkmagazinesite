@@ -33,7 +33,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         const videoId = extractYouTubeId(mediaItem.url)
         return (
           <div key={index} className="my-6 space-y-2">
-            <div className="aspect-video rounded-lg overflow-hidden border border-emerald-200">
+            <div className="aspect-video rounded-lg overflow-hidden border border-border">
               <iframe
                 width="100%"
                 height="100%"
@@ -55,7 +55,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
       case 'audio':
         return (
           <div key={index} className="my-6 space-y-2">
-            <div className="p-4 bg-gradient-to-br from-emerald-50 to-sky-50 rounded-lg border border-emerald-200">
+            <div className="p-4 bg-muted rounded-lg border border-border">
               <audio controls className="w-full">
                 <source src={mediaItem.url} type="audio/mpeg" />
                 Your browser does not support the audio element.
@@ -72,7 +72,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
       case 'image':
         return (
           <div key={index} className="my-6 space-y-2">
-            <div className="rounded-lg overflow-hidden border border-emerald-200">
+            <div className="rounded-lg overflow-hidden border border-border">
               <ImageWithFallback
                 src={mediaItem.url}
                 alt={mediaItem.caption || 'Article image'}
@@ -93,18 +93,18 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-emerald-50/20 to-sky-50/20">
+    <div className="min-h-screen">
       <div className="max-w-3xl mx-auto px-4 py-8">
         <Button 
           variant="ghost" 
           onClick={onBack}
-          className="mb-6 hover:bg-emerald-100"
+          className="mb-6 hover:bg-accent"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Articles
         </Button>
         
-        <article className="bg-white rounded-xl shadow-lg overflow-hidden border border-emerald-100">
+        <article className="bg-card rounded-xl shadow-lg overflow-hidden border border-border">
           {article.coverImage && (
             <div className="aspect-video overflow-hidden">
               <ImageWithFallback
@@ -117,7 +117,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
           
           <div className="p-8 space-y-6">
             <div className="flex items-center gap-3 flex-wrap">
-              <Badge className="bg-emerald-100 text-emerald-700">
+              <Badge className="bg-primary/10 text-primary border-0">
                 {article.category}
               </Badge>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -132,18 +132,18 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
               )}
             </div>
             
-            <h1 className="text-4xl">{article.title}</h1>
+            <h1 className="text-4xl text-foreground">{article.title}</h1>
             
-            <div className="prose prose-emerald max-w-none">
+            <div className="prose prose-lg max-w-none">
               {article.content.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="mb-4 text-foreground">
+                <p key={index} className="mb-4 text-foreground leading-relaxed">
                   {paragraph}
                 </p>
               ))}
             </div>
             
             {article.media && article.media.length > 0 && (
-              <div className="space-y-6 pt-6 border-t border-emerald-100">
+              <div className="space-y-6 pt-6 border-t border-border">
                 {article.media.map((mediaItem, index) => renderMedia(mediaItem, index))}
               </div>
             )}

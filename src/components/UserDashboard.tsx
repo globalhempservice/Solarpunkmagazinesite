@@ -51,54 +51,54 @@ export function UserDashboard({ progress }: UserDashboardProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-emerald-50 to-white border-emerald-200">
+        <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Total Points</CardTitle>
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
+            <CardTitle className="text-sm text-foreground">Total Points</CardTitle>
+            <TrendingUp className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{progress.points}</div>
+            <div className="text-2xl text-foreground">{progress.points}</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-sky-50 to-white border-sky-200">
+        <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Articles Read</CardTitle>
-            <Book className="w-4 h-4 text-sky-600" />
+            <CardTitle className="text-sm text-foreground">Articles Read</CardTitle>
+            <Book className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{progress.totalArticlesRead}</div>
+            <div className="text-2xl text-foreground">{progress.totalArticlesRead}</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-white border-orange-200">
+        <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Current Streak</CardTitle>
-            <Flame className="w-4 h-4 text-orange-600" />
+            <CardTitle className="text-sm text-foreground">Current Streak</CardTitle>
+            <Flame className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{progress.currentStreak} days</div>
+            <div className="text-2xl text-foreground">{progress.currentStreak} days</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-white border-purple-200">
+        <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Achievements</CardTitle>
-            <Trophy className="w-4 h-4 text-purple-600" />
+            <CardTitle className="text-sm text-foreground">Achievements</CardTitle>
+            <Trophy className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{progress.achievements.length}</div>
+            <div className="text-2xl text-foreground">{progress.achievements.length}</div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-emerald-200">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Next Milestone</CardTitle>
+          <CardTitle className="text-foreground">Next Milestone</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span>{progress.totalArticlesRead} articles</span>
+            <span className="text-foreground">{progress.totalArticlesRead} articles</span>
             <span className="text-muted-foreground">{nextMilestone} articles</span>
           </div>
           <Progress value={progressToNext} className="h-3" />
@@ -109,9 +109,9 @@ export function UserDashboard({ progress }: UserDashboardProps) {
       </Card>
 
       {progress.achievements.length > 0 && (
-        <Card className="border-emerald-200">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle>Achievements Unlocked</CardTitle>
+            <CardTitle className="text-foreground">Achievements Unlocked</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -124,15 +124,15 @@ export function UserDashboard({ progress }: UserDashboardProps) {
                 return (
                   <div
                     key={achievementId}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-gradient-to-br from-emerald-50 to-sky-50 border border-emerald-200"
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted border border-border"
                   >
-                    <div className="p-2 rounded-full bg-emerald-100">
-                      <Icon className="w-5 h-5 text-emerald-600" />
+                    <div className="p-2 rounded-full bg-primary/20">
+                      <Icon className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm truncate">{achievement.name}</p>
-                        <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
+                        <p className="text-sm text-foreground truncate">{achievement.name}</p>
+                        <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-0">
                           Unlocked
                         </Badge>
                       </div>

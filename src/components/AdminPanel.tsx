@@ -77,11 +77,11 @@ export function AdminPanel({ articles, onRefresh, onDeleteArticle, serverUrl, ac
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle>Article Management</CardTitle>
+              <CardTitle className="text-foreground">Article Management</CardTitle>
               <CardDescription className="hidden sm:block">View and manage all articles in the system</CardDescription>
             </div>
             <Button onClick={onRefresh} variant="outline" className="w-full sm:w-auto">
@@ -90,7 +90,7 @@ export function AdminPanel({ articles, onRefresh, onDeleteArticle, serverUrl, ac
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border overflow-x-auto">
+          <div className="rounded-md border border-border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -114,29 +114,29 @@ export function AdminPanel({ articles, onRefresh, onDeleteArticle, serverUrl, ac
                     <TableRow key={article.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-sm sm:text-base">{article.title}</div>
+                          <div className="font-medium text-sm sm:text-base text-foreground">{article.title}</div>
                           <div className="text-xs sm:text-sm text-muted-foreground truncate max-w-[150px] sm:max-w-xs">
                             {article.excerpt}
                           </div>
                           <div className="sm:hidden mt-1">
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
                               {article.category}
                             </Badge>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                           {article.category}
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        <code className="text-xs bg-muted px-2 py-1 rounded text-foreground">
                           {article.authorId?.substring(0, 8)}...
                         </code>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 text-foreground">
                           <Eye className="w-3 h-3 text-muted-foreground" />
                           <span>{article.views || 0}</span>
                         </div>
@@ -168,13 +168,13 @@ export function AdminPanel({ articles, onRefresh, onDeleteArticle, serverUrl, ac
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Debug Information</CardTitle>
+          <CardTitle className="text-lg sm:text-xl text-foreground">Debug Information</CardTitle>
           <CardDescription className="text-xs sm:text-sm">Raw article data for troubleshooting</CardDescription>
         </CardHeader>
         <CardContent>
-          <pre className="bg-gray-100 p-2 sm:p-4 rounded-lg text-[10px] sm:text-xs overflow-auto max-h-96">
+          <pre className="bg-muted p-2 sm:p-4 rounded-lg text-[10px] sm:text-xs overflow-auto max-h-96 text-foreground">
             {JSON.stringify(articles, null, 2)}
           </pre>
         </CardContent>

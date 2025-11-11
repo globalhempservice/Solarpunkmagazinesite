@@ -1,0 +1,289 @@
+import { useState } from "react"
+import { Button } from "./ui/button"
+import { Input } from "./ui/input"
+import { Label } from "./ui/label"
+import { Textarea } from "./ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Plus, Trash2, Youtube, Music, Image as ImageIcon } from "lucide-react"
+import { Badge } from "./ui/badge"
+
+interface MediaItem {
+  type: 'youtube' | 'audio' | 'image'
+  url: string
+  caption?: string
+}
+
+interface ArticleEditorProps {
+  onSave: (article: {
+    title: string
+    content: string
+    excerpt: string
+    category: string
+    coverImage: string
+    readingTime: number
+    media: MediaItem[]
+  }) => void
+  onCancel: () => void
+  initialData?: {
+    title: string
+    content: string
+    excerpt: string
+    category: string
+    coverImage: string
+    readingTime: number
+    media: MediaItem[]
+  }
+}
+
+const categories = [
+  'Renewable Energy',
+  'Sustainable Tech',
+  'Green Cities',
+  'Eco Innovation',
+  'Climate Action',
+  'Community',
+  'Future Vision'
+]
+
+export function ArticleEditor({ onSave, onCancel, initialData }: ArticleEditorProps) {
+  const [title, setTitle] = useState(initialData?.title || '')
+  const [content, setContent] = useState(initialData?.content || '')
+  const [excerpt, setExcerpt] = useState(initialData?.excerpt || '')
+  const [category, setCategory] = useState(initialData?.category || categories[0])
+  const [coverImage, setCoverImage] = useState(initialData?.coverImage || '')
+  const [readingTime, setReadingTime] = useState(initialData?.readingTime || 5)
+  const [media, setMedia] = useState<MediaItem[]>(initialData?.media || [])
+  
+  const [newMediaType, setNewMediaType] = useState<'youtube' | 'audio' | 'image'>('youtube')
+  const [newMediaUrl, setNewMediaUrl] = useState('')
+  const [newMediaCaption, setNewMediaCaption] = useState('')
+
+  const handleAddMedia = () => {
+    if (!newMediaUrl) return
+    
+    setMedia([...media, {
+      type: newMediaType,
+      url: newMediaUrl,
+      caption: newMediaCaption
+    }])
+    
+    setNewMediaUrl('')
+    setNewMediaCaption('')
+  }
+
+  const handleRemoveMedia = (index: number) => {
+    setMedia(media.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSave({
+      title,
+      content,
+      excerpt: excerpt || content.substring(0, 150) + '...',
+      category,
+      coverImage,
+      readingTime,
+      media
+    })
+  }
+
+  const getMediaIcon = (type: string) => {
+    switch (type) {
+      case 'youtube': return Youtube
+      case 'audio': return Music
+      case 'image': return ImageIcon
+      default: return ImageIcon
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
+      <Card className="border-emerald-200">
+        <CardHeader>
+          <CardTitle>Article Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter article title"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="readingTime">Reading Time (minutes)</Label>
+              <Input
+                id="readingTime"
+                type="number"
+                min="1"
+                value={readingTime}
+                onChange={(e) => setReadingTime(parseInt(e.target.value) || 5)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="coverImage">Cover Image URL</Label>
+            <Input
+              id="coverImage"
+              value={coverImage}
+              onChange={(e) => setCoverImage(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="excerpt">Excerpt (optional)</Label>
+            <Textarea
+              id="excerpt"
+              value={excerpt}
+              onChange={(e) => setExcerpt(e.target.value)}
+              placeholder="Brief description of the article..."
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="content">Content</Label>
+            <Textarea
+              id="content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Write your article content here..."
+              rows={12}
+              required
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-emerald-200">
+        <CardHeader>
+          <CardTitle>Media Attachments</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Media Type</Label>
+                <Select value={newMediaType} onValueChange={(value: any) => setNewMediaType(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="youtube">YouTube Video</SelectItem>
+                    <SelectItem value="audio">Audio (MP3)</SelectItem>
+                    <SelectItem value="image">Image</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label>URL</Label>
+                <Input
+                  value={newMediaUrl}
+                  onChange={(e) => setNewMediaUrl(e.target.value)}
+                  placeholder={
+                    newMediaType === 'youtube' ? 'https://youtube.com/watch?v=...' :
+                    newMediaType === 'audio' ? 'https://example.com/audio.mp3' :
+                    'https://example.com/image.jpg'
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Caption (optional)</Label>
+              <Input
+                value={newMediaCaption}
+                onChange={(e) => setNewMediaCaption(e.target.value)}
+                placeholder="Add a caption for this media..."
+              />
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleAddMedia}
+              variant="outline"
+              className="w-full border-emerald-200 hover:bg-emerald-50"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Media
+            </Button>
+          </div>
+
+          {media.length > 0 && (
+            <div className="space-y-2 pt-4 border-t">
+              <Label>Added Media ({media.length})</Label>
+              <div className="space-y-2">
+                {media.map((item, index) => {
+                  const Icon = getMediaIcon(item.type)
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200"
+                    >
+                      <Icon className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <Badge variant="secondary" className="mb-1">
+                          {item.type}
+                        </Badge>
+                        <p className="text-sm truncate">{item.url}</p>
+                        {item.caption && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {item.caption}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveMedia(index)}
+                        className="hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex gap-3 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
+          Save Article
+        </Button>
+      </div>
+    </form>
+  )
+}

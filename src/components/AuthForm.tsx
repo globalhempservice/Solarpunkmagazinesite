@@ -4,6 +4,7 @@ import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
+import { PlaceholderArt } from "./PlaceholderArt"
 import { Sparkles, BookOpen, Flame, Trophy, Zap } from "lucide-react"
 
 interface AuthFormProps {
@@ -82,60 +83,55 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
       </div>
 
       <div className="relative w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
-        {/* Left Side - Branding & Features */}
-        <div className="hidden lg:flex flex-col space-y-8 px-8">
-          {/* Logo & Brand */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <BrandLogo size="lg" />
-              <div>
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 bg-clip-text text-transparent">
-                  DEWII
-                </h1>
-                <p className="text-muted-foreground">Digital Eco Wisdom & Innovation Insights</p>
-              </div>
+        {/* Left Side - Generative Art with DEWII Branding */}
+        <div className="hidden lg:block relative h-[600px] rounded-3xl overflow-hidden border-2 border-primary/20 shadow-2xl">
+          {/* Generative Art Background */}
+          <PlaceholderArt 
+            articleId="dewii-welcome"
+            category="innovation"
+            title="Digital Eco Wisdom Innovation Insights Magazine"
+            className="absolute inset-0 w-full h-full"
+            useCategoryArt={true}
+          />
+          
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
+          
+          {/* Content overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
+            {/* Logo */}
+            <div className="mb-8 transform hover:scale-110 transition-transform duration-300 cursor-pointer" onClick={cycleTheme}>
+              <BrandLogo size="xl" />
             </div>
-          </div>
-
-          {/* Feature Cards - aligned with auth card */}
-          <div className="space-y-4 flex-1 flex flex-col justify-center">
-            <div className="flex items-start gap-4 p-4 rounded-xl bg-card/50 backdrop-blur-sm border-2 border-emerald-500/30">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500">
-                <BookOpen className="w-6 h-6 text-white" />
+            
+            {/* Brand Name */}
+            <h1 className="text-7xl font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent drop-shadow-2xl">
+              DEWII
+            </h1>
+            
+            {/* Subtitle */}
+            <p className="text-xl text-white/90 mb-8 max-w-md leading-relaxed drop-shadow-lg">
+              Digital Eco Wisdom & Innovation Insights
+            </p>
+            
+            {/* Decorative divider */}
+            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent mb-8 rounded-full" />
+            
+            {/* Tagline */}
+            <p className="text-lg text-white/80 max-w-sm leading-relaxed">
+              Your gamified magazine for sustainability, technology, and a brighter future
+            </p>
+            
+            {/* Floating badges */}
+            <div className="mt-12 flex flex-wrap gap-3 justify-center">
+              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
+                🌱 Eco-Focused
               </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Curated Articles</h3>
-                <p className="text-sm text-muted-foreground">Discover engaging stories about renewable energy, sustainable tech, and climate action</p>
+              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
+                🎮 Gamified
               </div>
-            </div>
-
-            <div className="flex items-start gap-4 p-4 rounded-xl bg-card/50 backdrop-blur-sm border-2 border-orange-500/30">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-orange-400 to-red-500">
-                <Flame className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Reading Streaks</h3>
-                <p className="text-sm text-muted-foreground">Build daily reading habits and maintain your streak to unlock special rewards</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 p-4 rounded-xl bg-card/50 backdrop-blur-sm border-2 border-amber-500/30">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500">
-                <Trophy className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Achievements</h3>
-                <p className="text-sm text-muted-foreground">Earn points, unlock badges, and level up your knowledge journey</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 p-4 rounded-xl bg-card/50 backdrop-blur-sm border-2 border-purple-500/30">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-purple-400 to-pink-500">
-                <Zap className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Rich Media</h3>
-                <p className="text-sm text-muted-foreground">Experience articles with YouTube videos, audio files, and stunning imagery</p>
+              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
+                📚 Knowledge
               </div>
             </div>
           </div>

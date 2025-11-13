@@ -9,6 +9,7 @@ import { UserDashboard } from './components/UserDashboard'
 import { ArticleEditor } from './components/ArticleEditor'
 import { AdminPanel } from './components/AdminPanel'
 import { BottomNavbar } from './components/BottomNavbar'
+import { VersionOverviewPage } from './components/VersionOverviewPage'
 import { StreakBanner } from './components/StreakBanner'
 import { ReadingHistory } from './components/ReadingHistory'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
@@ -50,6 +51,10 @@ interface UserProgress {
 }
 
 export default function App() {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/about/version-1')) {
+    return <VersionOverviewPage />
+  }
+
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)

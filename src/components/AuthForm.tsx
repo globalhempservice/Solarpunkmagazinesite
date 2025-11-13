@@ -5,7 +5,7 @@ import { Label } from "./ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
-import { Sparkles, BookOpen, Flame, Trophy, Zap } from "lucide-react"
+import { Sparkles, BookOpen, Flame, Trophy, Zap, ExternalLink } from "lucide-react"
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -86,52 +86,82 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
         {/* Left Side - Generative Art with DEWII Branding */}
         <div className="hidden lg:block relative h-[600px] rounded-3xl overflow-hidden border-2 border-primary/20 shadow-2xl">
           {/* Generative Art Background */}
-          <PlaceholderArt 
+          <PlaceholderArt
             articleId="dewii-welcome"
             category="innovation"
             title="Digital Eco Wisdom Innovation Insights Magazine"
             className="absolute inset-0 w-full h-full"
             useCategoryArt={true}
           />
-          
+
           {/* Dark overlay for text readability */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
-          
+
           {/* Content overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
-            {/* Logo */}
-            <div className="mb-8 transform hover:scale-110 transition-transform duration-300 cursor-pointer" onClick={cycleTheme}>
-              <BrandLogo size="xl" />
+          <div className="absolute inset-0 flex flex-col justify-between p-12">
+            <div className="flex flex-col items-center text-center">
+              {/* Logo */}
+              <div className="mb-8 transform hover:scale-110 transition-transform duration-300 cursor-pointer" onClick={cycleTheme}>
+                <BrandLogo size="xl" />
+              </div>
+
+              {/* Brand Name */}
+              <h1 className="text-7xl font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent drop-shadow-2xl">
+                DEWII
+              </h1>
+
+              {/* Subtitle */}
+              <p className="text-xl text-white/90 mb-8 max-w-md leading-relaxed drop-shadow-lg">
+                Digital Eco Wisdom & Innovation Insights
+              </p>
+
+              {/* Decorative divider */}
+              <div className="w-24 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent mb-8 rounded-full" />
+
+              {/* Tagline */}
+              <p className="text-lg text-white/80 max-w-sm leading-relaxed">
+                Your gamified magazine for sustainability, technology, and a brighter future
+              </p>
+
+              {/* Floating badges */}
+              <div className="mt-12 flex flex-wrap gap-3 justify-center">
+                <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
+                  🌱 Eco-Focused
+                </div>
+                <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
+                  🎮 Gamified
+                </div>
+                <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
+                  📚 Knowledge
+                </div>
+              </div>
             </div>
-            
-            {/* Brand Name */}
-            <h1 className="text-7xl font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent drop-shadow-2xl">
-              DEWII
-            </h1>
-            
-            {/* Subtitle */}
-            <p className="text-xl text-white/90 mb-8 max-w-md leading-relaxed drop-shadow-lg">
-              Digital Eco Wisdom & Innovation Insights
-            </p>
-            
-            {/* Decorative divider */}
-            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent mb-8 rounded-full" />
-            
-            {/* Tagline */}
-            <p className="text-lg text-white/80 max-w-sm leading-relaxed">
-              Your gamified magazine for sustainability, technology, and a brighter future
-            </p>
-            
-            {/* Floating badges */}
-            <div className="mt-12 flex flex-wrap gap-3 justify-center">
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                🌱 Eco-Focused
-              </div>
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                🎮 Gamified
-              </div>
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                📚 Knowledge
+
+            {/* About version overview */}
+            <div className="mt-10 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 p-6 shadow-xl">
+              <div className="flex items-start gap-4 text-left">
+                <div className="p-3 rounded-full bg-emerald-400/20 border border-emerald-200/40">
+                  <BookOpen className="w-6 h-6 text-emerald-100" />
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/60">Version 1 Overview</p>
+                    <h2 className="text-2xl font-semibold text-white">See what's inside DEWII today</h2>
+                  </div>
+                  <p className="text-sm text-white/80 leading-relaxed">
+                    Explore the current feature set, gamified experience, and infrastructure powering our solar-punk magazine.
+                  </p>
+                  <Button
+                    asChild
+                    variant="secondary"
+                    className="bg-white/15 hover:bg-white/25 border border-white/30 text-white shadow-lg"
+                  >
+                    <a href="/about/version-1" target="_blank" rel="noopener noreferrer" className="inline-flex items-center">
+                      Read the Version 1 overview
+                      <ExternalLink className="w-4 h-4 ml-2" />
+                    </a>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

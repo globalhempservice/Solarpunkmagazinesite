@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
+import { Card, CardContent, CardHeader } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
 import { Sparkles, BookOpen, ExternalLink, Orbit, Zap } from "lucide-react"
@@ -22,6 +22,7 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [theme, setTheme] = useState<Theme>('light')
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   // Load saved theme on mount
   useEffect(() => {
@@ -50,6 +51,14 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
     const nextIndex = (currentIndex + 1) % themeOrder.length
     applyTheme(themeOrder[nextIndex])
   }
+
+  useEffect(() => {
+    if (!isLogin) {
+      nameInputRef.current?.focus()
+    } else {
+      setName('')
+    }
+  }, [isLogin])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -214,6 +223,7 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                     </Label>
                     <Input
                       id="name"
+                      ref={nameInputRef}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Your name"
@@ -299,10 +309,11 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    setIsLogin(!isLogin)
+                    setIsLogin((prev) => !prev)
                     setError('')
                   }}
                   className="w-full p-3 rounded-lg border-2 border-primary/40 bg-card hover:border-primary hover:bg-primary/10 transition-all text-foreground font-medium shadow-sm"
+                  aria-pressed={!isLogin}
                 >
                   {isLogin ? '✨ Create New Account' : '🌱 Sign In Instead'}
                 </button>

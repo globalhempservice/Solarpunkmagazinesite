@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
+import { Card, CardContent, CardHeader } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
-import { Sparkles, BookOpen, Flame, Trophy, Zap } from "lucide-react"
+import { Sparkles, BookOpen, ExternalLink, Orbit, Zap } from "lucide-react"
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -22,6 +22,7 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [theme, setTheme] = useState<Theme>('light')
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   // Load saved theme on mount
   useEffect(() => {
@@ -50,6 +51,14 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
     const nextIndex = (currentIndex + 1) % themeOrder.length
     applyTheme(themeOrder[nextIndex])
   }
+
+  useEffect(() => {
+    if (!isLogin) {
+      nameInputRef.current?.focus()
+    } else {
+      setName('')
+    }
+  }, [isLogin])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,52 +95,105 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
         {/* Left Side - Generative Art with DEWII Branding */}
         <div className="hidden lg:block relative h-[600px] rounded-3xl overflow-hidden border-2 border-primary/20 shadow-2xl">
           {/* Generative Art Background */}
-          <PlaceholderArt 
+          <PlaceholderArt
             articleId="dewii-welcome"
             category="innovation"
             title="Digital Eco Wisdom Innovation Insights Magazine"
             className="absolute inset-0 w-full h-full"
             useCategoryArt={true}
+            showCategoryLabel={false}
           />
-          
+
           {/* Dark overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
-          
+          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-emerald-950/70 to-black/75" />
+
           {/* Content overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
-            {/* Logo */}
-            <div className="mb-8 transform hover:scale-110 transition-transform duration-300 cursor-pointer" onClick={cycleTheme}>
-              <BrandLogo size="xl" />
+          <div className="absolute inset-0 flex flex-col p-12">
+            <div className="flex-1 overflow-y-auto pr-2 sm:pr-4">
+              <div className="flex flex-col gap-8 text-left text-white/90 pb-8">
+              {/* Logo */}
+              <div className="w-full flex items-center justify-between">
+                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.55em] text-emerald-200/80">
+                  <span className="hidden sm:inline">Dewii Orbital Press</span>
+                  <span className="sm:hidden">D.O.P</span>
+                </div>
+                <div
+                  className="shrink-0 rounded-full bg-white/10 p-3 hover:p-3.5 transition-all duration-300 cursor-pointer border border-white/20 shadow-[0_20px_45px_rgba(16,185,129,0.35)]"
+                  onClick={cycleTheme}
+                  title="Rotate the orb to explore each theme skin"
+                >
+                  <BrandLogo size="lg" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm uppercase tracking-[0.4em] text-emerald-200/80">Version 1 Field Briefing</p>
+                <h1 className="text-4xl font-black leading-tight text-white drop-shadow-[0_25px_60px_rgba(13,148,136,0.45)]">
+                  The regenerative magazine enters orbit
+                </h1>
+                <p className="text-base text-emerald-100/85 max-w-xl leading-relaxed">
+                  Catch the state of our playable publication&mdash;from Supabase-powered rituals to exploration flows&mdash;and see how tonight&apos;s build invites contributors, readers, and stewards into the Solarpunk commons.
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4 max-w-3xl">
+                <div className="rounded-3xl bg-white/10 border border-white/20 p-4 backdrop-blur-md">
+                  <div className="flex items-center gap-3 text-sm font-semibold text-white">
+                    <Sparkles className="w-4 h-4 text-emerald-200" />
+                    Rituals
+                  </div>
+                  <p className="mt-2 text-xs text-emerald-100/80 leading-relaxed">
+                    Seamless onboarding, streaks, and achievements track every luminous visit.
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-white/10 border border-white/20 p-4 backdrop-blur-md">
+                  <div className="flex items-center gap-3 text-sm font-semibold text-white">
+                    <BookOpen className="w-4 h-4 text-emerald-200" />
+                    Story Trails
+                  </div>
+                  <p className="mt-2 text-xs text-emerald-100/80 leading-relaxed">
+                    Curated feeds, category filters, and shareable deep links chart our narrative cosmos.
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-white/10 border border-white/20 p-4 backdrop-blur-md">
+                  <div className="flex items-center gap-3 text-sm font-semibold text-white">
+                    <Orbit className="w-4 h-4 text-emerald-200" />
+                    Creator Core
+                  </div>
+                  <p className="mt-2 text-xs text-emerald-100/80 leading-relaxed">
+                    The editor, admin cockpit, and progress dashboards steward our contributors.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] bg-gradient-to-br from-white/10 via-emerald-500/10 to-cyan-400/20 border border-white/20 backdrop-blur-xl p-6 max-w-2xl shadow-[0_30px_80px_rgba(15,118,110,0.35)]">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <p className="text-xs uppercase tracking-[0.45em] text-emerald-200/90">Read the full dispatch</p>
+                    <span className="text-[11px] uppercase tracking-[0.3em] text-white/60">opens in new tab</span>
+                  </div>
+                  <p className="text-sm text-emerald-100/80 leading-relaxed">
+                    Dive into the Version 1 overview to review feature coverage, experience notes, and the design system ingredients guiding our next evolutions.
+                  </p>
+                  <Button
+                    asChild
+                    variant="secondary"
+                    className="w-full sm:w-auto bg-emerald-400/20 hover:bg-emerald-300/30 text-white border border-white/30 font-semibold tracking-wide shadow-lg"
+                  >
+                    <a href="/about/version-1" target="_blank" rel="noopener noreferrer" className="inline-flex items-center">
+                      Launch Version 1 overview
+                      <ExternalLink className="w-4 h-4 ml-2" />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              </div>
             </div>
-            
-            {/* Brand Name */}
-            <h1 className="text-7xl font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent drop-shadow-2xl">
-              DEWII
-            </h1>
-            
-            {/* Subtitle */}
-            <p className="text-xl text-white/90 mb-8 max-w-md leading-relaxed drop-shadow-lg">
-              Digital Eco Wisdom & Innovation Insights
-            </p>
-            
-            {/* Decorative divider */}
-            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent mb-8 rounded-full" />
-            
-            {/* Tagline */}
-            <p className="text-lg text-white/80 max-w-sm leading-relaxed">
-              Your gamified magazine for sustainability, technology, and a brighter future
-            </p>
-            
-            {/* Floating badges */}
-            <div className="mt-12 flex flex-wrap gap-3 justify-center">
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                🌱 Eco-Focused
-              </div>
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                🎮 Gamified
-              </div>
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                📚 Knowledge
+
+            <div className="pt-6 text-white/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[11px] uppercase tracking-[0.35em]">
+                <span>Rotate the orb to sample light, dark, and hemp&apos;in palettes</span>
+                <span className="text-white/40">Solarpunk login atrium lives to the right &rarr;</span>
               </div>
             </div>
           </div>
@@ -161,6 +223,7 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                     </Label>
                     <Input
                       id="name"
+                      ref={nameInputRef}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Your name"
@@ -246,10 +309,11 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    setIsLogin(!isLogin)
+                    setIsLogin((prev) => !prev)
                     setError('')
                   }}
                   className="w-full p-3 rounded-lg border-2 border-primary/40 bg-card hover:border-primary hover:bg-primary/10 transition-all text-foreground font-medium shadow-sm"
+                  aria-pressed={!isLogin}
                 >
                   {isLogin ? '✨ Create New Account' : '🌱 Sign In Instead'}
                 </button>

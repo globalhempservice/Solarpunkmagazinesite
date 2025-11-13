@@ -5,7 +5,7 @@ import { Label } from "./ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
-import { Sparkles, BookOpen, Flame, Trophy, Zap, ExternalLink } from "lucide-react"
+import { Sparkles, BookOpen, ExternalLink, ArrowRight, Orbit } from "lucide-react"
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -99,69 +99,94 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
 
           {/* Content overlay */}
           <div className="absolute inset-0 flex flex-col justify-between p-12">
-            <div className="flex flex-col items-center text-center">
+            <div className="flex flex-col items-center text-center space-y-6">
               {/* Logo */}
               <div className="mb-8 transform hover:scale-110 transition-transform duration-300 cursor-pointer" onClick={cycleTheme}>
                 <BrandLogo size="xl" />
               </div>
 
+              <div className="text-xs uppercase tracking-[0.6em] text-white/60 drop-shadow">Solarpunk Login Atrium</div>
+
               {/* Brand Name */}
-              <h1 className="text-7xl font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent drop-shadow-2xl">
-                DEWII
+              <h1 className="text-6xl font-black leading-none bg-gradient-to-br from-white via-emerald-100 to-emerald-300 bg-clip-text text-transparent drop-shadow-[0_20px_60px_rgba(16,185,129,0.35)]">
+                DEWII ORBITAL PRESS
               </h1>
 
               {/* Subtitle */}
-              <p className="text-xl text-white/90 mb-8 max-w-md leading-relaxed drop-shadow-lg">
-                Digital Eco Wisdom & Innovation Insights
+              <p className="text-xl text-white/90 max-w-xl leading-relaxed drop-shadow-lg">
+                A luminous dispatch for builders of regenerative futures, blending story quests, tech lore, and playful experimentation.
               </p>
 
               {/* Decorative divider */}
-              <div className="w-24 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent mb-8 rounded-full" />
+              <div className="h-1.5 w-32 bg-gradient-to-r from-emerald-300/20 via-white/80 to-emerald-200/30 rounded-full" />
 
-              {/* Tagline */}
-              <p className="text-lg text-white/80 max-w-sm leading-relaxed">
-                Your gamified magazine for sustainability, technology, and a brighter future
+              {/* Excerpt */}
+              <p className="text-base text-white/75 max-w-lg leading-relaxed">
+                Tune into the dew-soaked datastream, rotate the orb to shift atmospheres, and claim your place in the dawn chorus of solarpunk creators.
               </p>
 
-              {/* Floating badges */}
-              <div className="mt-12 flex flex-wrap gap-3 justify-center">
-                <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                  🌱 Eco-Focused
+              <div className="w-full max-w-lg mx-auto mt-6 rounded-3xl bg-black/30 border border-white/20 backdrop-blur-xl p-6 text-left space-y-5 shadow-[0_40px_120px_rgba(12,74,110,0.4)]">
+                <div className="flex items-center gap-3 text-white/70 uppercase tracking-[0.4em] text-xs">
+                  <Orbit className="w-4 h-4" />
+                  Tonight's Signals
                 </div>
-                <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                  🎮 Gamified
-                </div>
-                <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                  📚 Knowledge
+                <div className="space-y-4 text-white/85">
+                  <div className="flex gap-4">
+                    <div className="p-2 rounded-2xl bg-white/10 border border-white/10">
+                      <Sparkles className="w-5 h-5 text-emerald-200" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Questlines ignite at dusk</h3>
+                      <p className="text-sm text-white/70 leading-relaxed">Stack streaks, unlock archives, and grow luminous gardens of knowledge with every read.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="p-2 rounded-2xl bg-white/10 border border-white/10">
+                      <BookOpen className="w-5 h-5 text-emerald-200" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Stories shimmer in triads</h3>
+                      <p className="text-sm text-white/70 leading-relaxed">Dip into essays, field notes, and speculative visions engineered to spark collaborative imagination.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="p-2 rounded-2xl bg-white/10 border border-white/10">
+                      <ArrowRight className="w-5 h-5 text-emerald-200" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Every login shifts the light</h3>
+                      <p className="text-sm text-white/70 leading-relaxed">Tap the orb, remix the palette, and explore how each theme refracts our regenerative mission.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* About version overview */}
-            <div className="mt-10 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 p-6 shadow-xl">
-              <div className="flex items-start gap-4 text-left">
-                <div className="p-3 rounded-full bg-emerald-400/20 border border-emerald-200/40">
-                  <BookOpen className="w-6 h-6 text-emerald-100" />
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.3em] text-white/60">Version 1 Overview</p>
-                    <h2 className="text-2xl font-semibold text-white">See what's inside DEWII today</h2>
+            <div className="mt-10 rounded-[28px] bg-gradient-to-br from-emerald-400/15 via-white/10 to-cyan-400/20 backdrop-blur-xl border border-white/20 p-6 shadow-[0_30px_80px_rgba(34,197,94,0.35)]">
+              <div className="flex flex-col gap-6 text-left">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-black/40 border border-white/10">
+                    <BookOpen className="w-6 h-6 text-emerald-100" />
                   </div>
-                  <p className="text-sm text-white/80 leading-relaxed">
-                    Explore the current feature set, gamified experience, and infrastructure powering our solar-punk magazine.
-                  </p>
-                  <Button
-                    asChild
-                    variant="secondary"
-                    className="bg-white/15 hover:bg-white/25 border border-white/30 text-white shadow-lg"
-                  >
-                    <a href="/about/version-1" target="_blank" rel="noopener noreferrer" className="inline-flex items-center">
-                      Read the Version 1 overview
-                      <ExternalLink className="w-4 h-4 ml-2" />
-                    </a>
-                  </Button>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.45em] text-white/60">Version 1 Dossier</p>
+                    <h2 className="text-2xl font-semibold text-white">Chart the magazine's current constellation</h2>
+                  </div>
                 </div>
+                <p className="text-sm text-white/80 leading-relaxed">
+                  Step through the crafted roadmap covering authentication rituals, reader journeys, gamified loops, creator tooling, and community infrastructure powering DEWII today.
+                </p>
+                <Button
+                  asChild
+                  variant="secondary"
+                  className="self-start bg-white/20 hover:bg-white/30 border border-white/40 text-white shadow-lg"
+                >
+                  <a href="/about/version-1" target="_blank" rel="noopener noreferrer" className="inline-flex items-center font-semibold tracking-wide">
+                    Launch the Version 1 briefing
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </a>
+                </Button>
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { Label } from "./ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
-import { Sparkles, BookOpen, ExternalLink, Orbit } from "lucide-react"
+import { Sparkles, BookOpen, ExternalLink, Orbit, Zap } from "lucide-react"
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -92,14 +92,16 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
             title="Digital Eco Wisdom Innovation Insights Magazine"
             className="absolute inset-0 w-full h-full"
             useCategoryArt={true}
+            showCategoryLabel={false}
           />
 
           {/* Dark overlay for text readability */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-emerald-950/70 to-black/75" />
 
           {/* Content overlay */}
-          <div className="absolute inset-0 flex flex-col justify-between p-12">
-            <div className="flex flex-col gap-8 text-left text-white/90">
+          <div className="absolute inset-0 flex flex-col p-12">
+            <div className="flex-1 overflow-y-auto pr-2 sm:pr-4">
+              <div className="flex flex-col gap-8 text-left text-white/90 pb-8">
               {/* Logo */}
               <div className="w-full flex items-center justify-between">
                 <div className="flex items-center gap-3 text-xs uppercase tracking-[0.55em] text-emerald-200/80">
@@ -176,11 +178,14 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                   </Button>
                 </div>
               </div>
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[11px] uppercase tracking-[0.35em] text-white/50">
-              <span>Rotate the orb to sample light, dark, and hemp&apos;in palettes</span>
-              <span className="text-white/40">Solarpunk login atrium lives to the right &rarr;</span>
+            <div className="pt-6 text-white/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[11px] uppercase tracking-[0.35em]">
+                <span>Rotate the orb to sample light, dark, and hemp&apos;in palettes</span>
+                <span className="text-white/40">Solarpunk login atrium lives to the right &rarr;</span>
+              </div>
             </div>
           </div>
         </div>

@@ -7,9 +7,9 @@ import { ArticleCard } from './components/ArticleCard'
 import { ArticleReader } from './components/ArticleReader'
 import { UserDashboard } from './components/UserDashboard'
 import { ArticleEditor } from './components/ArticleEditor'
+import { LinkedInImporter } from './components/LinkedInImporter'
 import { AdminPanel } from './components/AdminPanel'
 import { BottomNavbar } from './components/BottomNavbar'
-import { VersionOverviewPage } from './components/VersionOverviewPage'
 import { StreakBanner } from './components/StreakBanner'
 import { ReadingHistory } from './components/ReadingHistory'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
@@ -32,6 +32,13 @@ interface Article {
   readingTime: number
   views?: number
   createdAt: string
+  source?: string
+  sourceUrl?: string
+  // LinkedIn metadata
+  author?: string
+  authorImage?: string
+  authorTitle?: string
+  publishDate?: string
   media?: Array<{
     type: 'youtube' | 'audio' | 'image'
     url: string
@@ -51,14 +58,10 @@ interface UserProgress {
 }
 
 export default function App() {
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/about/version-1')) {
-    return <VersionOverviewPage />
-  }
-
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
@@ -127,7 +130,6 @@ export default function App() {
 
       const data = await response.json()
       console.log('Articles fetched:', data.articles?.length || 0, 'articles')
-      console.log('Articles data:', data.articles)
       setArticles(data.articles || [])
     } catch (error: any) {
       console.error('Error fetching articles:', error)
@@ -169,13 +171,17 @@ export default function App() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to fetch user articles')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Failed to fetch user articles. Status:', response.status, 'Error:', errorData)
+        setUserArticles([]) // Set to empty array instead of throwing
+        return
       }
 
       const data = await response.json()
       setUserArticles(data.articles || [])
     } catch (error: any) {
       console.error('Error fetching user articles:', error)
+      setUserArticles([]) // Ensure we set empty array on error
     }
   }
 
@@ -352,7 +358,9 @@ export default function App() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete article')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Delete article error response:', errorData)
+        throw new Error(errorData.details || errorData.error || 'Failed to delete article')
       }
 
       toast.success('Article deleted successfully')
@@ -626,6 +634,23 @@ export default function App() {
               }
             }}
           />
+        )}
+
+        {currentView === 'linkedin-importer' && accessToken && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl">LinkedIn Post Importer</h2>
+              <p className="text-muted-foreground">Convert LinkedIn posts into DEWII articles</p>
+            </div>
+            <LinkedInImporter
+              accessToken={accessToken}
+              onArticleCreated={() => {
+                fetchArticles()
+                fetchUserArticles()
+                setCurrentView('feed')
+              }}
+            />
+          </div>
         )}
       </main>
 

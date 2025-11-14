@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Eye, Share2, Award, TrendingUp, Sparkles, ChevronRight, ArrowRight } from "lucide-react"
+import { ArrowLeft, Clock, Eye, Share2, Award, TrendingUp, Sparkles, ChevronRight, ArrowRight, ExternalLink } from "lucide-react"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Card, CardContent } from "./ui/card"
@@ -24,7 +24,13 @@ interface Article {
   readingTime: number
   views?: number
   createdAt: string
+  source?: string
+  sourceUrl?: string
   media?: MediaItem[]
+  author?: string
+  authorImage?: string
+  authorTitle?: string
+  publishDate?: string
 }
 
 interface ArticleReaderProps {
@@ -312,6 +318,113 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
               
               {/* Title */}
               <h1 className="text-3xl md:text-4xl text-foreground">{article.title}</h1>
+              
+              {/* LinkedIn Author Info Box - Shows only if LinkedIn metadata exists */}
+              {(article.author || article.authorImage) && (
+                <Card className="relative overflow-hidden border-0 shadow-lg">
+                    {/* Gradient Background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-blue-500/10" />
+                    
+                    {/* Floating particles */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      <div className="absolute top-4 right-4 w-20 h-20 bg-blue-400/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '3s' }} />
+                      <div className="absolute bottom-4 left-4 w-24 h-24 bg-cyan-400/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '4s', animationDelay: '1s' }} />
+                    </div>
+                    
+                    <CardContent className="relative p-5 md:p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-blue-500/20 rounded-lg">
+                          <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                        </div>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          LinkedIn Author
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        {/* Author Avatar */}
+                        <div className="relative group">
+                          <div className="absolute -inset-1 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity" />
+                          <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-3 border-blue-500/30 bg-muted flex-shrink-0">
+                            {article.authorImage ? (
+                              <img 
+                                src={article.authorImage} 
+                                alt={article.author || 'Author'} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-2xl font-bold">
+                                {article.author?.charAt(0).toUpperCase() || 'A'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Author Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-lg md:text-xl text-foreground mb-1 truncate">
+                            {article.author || 'LinkedIn Author'}
+                          </h3>
+                          {article.authorTitle && (
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {article.authorTitle}
+                            </p>
+                          )}
+                          {article.publishDate && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              <span>
+                                Published: {new Date(article.publishDate).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* LinkedIn Badge */}
+                        <Badge className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg flex-shrink-0">
+                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                          LinkedIn
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+              )}
+              
+              {/* LinkedIn Source Link */}
+              {article.source === 'linkedin' && article.sourceUrl && (
+                <div className="flex items-center gap-2 p-4 rounded-xl bg-blue-500/10 border-2 border-blue-500/30">
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                      <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-muted-foreground font-medium">Originally posted on LinkedIn</p>
+                    </div>
+                  </div>
+                  <a 
+                    href={article.sourceUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold text-sm"
+                  >
+                    View Original
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
               
               {/* Content */}
               <div className="prose prose-base md:prose-lg max-w-none">

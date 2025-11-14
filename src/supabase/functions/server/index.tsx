@@ -2,6 +2,7 @@ import { Hono } from 'npm:hono'
 import { cors } from 'npm:hono/cors'
 import { logger } from 'npm:hono/logger'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import * as kv from './kv_store.tsx'
 
 const app = new Hono()
 
@@ -50,37 +51,29 @@ app.get('/make-server-053bcd80/articles', async (c) => {
     
     console.log('Fetching articles from SQL database...')
     
+    // Build query
     let query = supabase
       .from('articles')
-      .select(`
-        *,
-        article_media (
-          id,
-          type,
-          url,
-          caption,
-          position
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(limit)
     
-    if (category) {
+    // Filter by category if provided
+    if (category && category !== 'all') {
       query = query.eq('category', category)
-      console.log('Filtering by category:', category)
     }
     
     const { data: articles, error } = await query
     
     if (error) {
-      console.log('SQL Error fetching articles:', error)
-      return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+      console.error('Error fetching articles from SQL:', error)
+      throw error
     }
     
-    console.log('Fetched', articles?.length || 0, 'articles from SQL')
+    console.log('Fetched', articles?.length || 0, 'articles from SQL database')
     
-    // Transform snake_case to camelCase for compatibility with frontend
-    const transformedArticles = articles?.map(article => ({
+    // Transform SQL articles to frontend format (snake_case -> camelCase)
+    const transformedArticles = (articles || []).map(article => ({
       id: article.id,
       title: article.title,
       content: article.content,
@@ -89,16 +82,22 @@ app.get('/make-server-053bcd80/articles', async (c) => {
       coverImage: article.cover_image,
       readingTime: article.reading_time,
       authorId: article.author_id,
-      views: article.views,
-      likes: article.likes,
+      views: article.views || 0,
+      likes: article.likes || 0,
       createdAt: article.created_at,
       updatedAt: article.updated_at,
-      media: article.article_media || []
-    })) || []
+      media: article.media || [],
+      source: article.source,
+      sourceUrl: article.source_url,
+      author: article.author,
+      authorImage: article.author_image,
+      authorTitle: article.author_title,
+      publishDate: article.publish_date
+    }))
     
     return c.json({ articles: transformedArticles })
-  } catch (error) {
-    console.log('Error fetching articles:', error)
+  } catch (error: any) {
+    console.error('Error fetching articles:', error)
     return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
   }
 })
@@ -108,27 +107,28 @@ app.get('/make-server-053bcd80/articles/:id', async (c) => {
   try {
     const id = c.req.param('id')
     
+    console.log('Fetching article by ID from SQL database:', id)
+    
+    // Get article from SQL database
     const { data: article, error } = await supabase
       .from('articles')
-      .select(`
-        *,
-        article_media (
-          id,
-          type,
-          url,
-          caption,
-          position
-        )
-      `)
+      .select('*')
       .eq('id', id)
       .single()
     
-    if (error || !article) {
-      console.log('Article not found:', id, error)
+    if (error) {
+      console.log('Error fetching article:', error)
+      return c.json({ error: 'Failed to fetch article', details: error.message }, 500)
+    }
+    
+    if (!article) {
+      console.log('Article not found:', id)
       return c.json({ error: 'Article not found' }, 404)
     }
     
-    // Transform to camelCase
+    console.log('Article found:', id)
+    
+    // Transform SQL article to frontend format (snake_case -> camelCase)
     const transformedArticle = {
       id: article.id,
       title: article.title,
@@ -138,15 +138,21 @@ app.get('/make-server-053bcd80/articles/:id', async (c) => {
       coverImage: article.cover_image,
       readingTime: article.reading_time,
       authorId: article.author_id,
-      views: article.views,
-      likes: article.likes,
+      views: article.views || 0,
+      likes: article.likes || 0,
       createdAt: article.created_at,
       updatedAt: article.updated_at,
-      media: article.article_media || []
+      media: article.media || [],
+      source: article.source,
+      sourceUrl: article.source_url,
+      author: article.author,
+      authorImage: article.author_image,
+      authorTitle: article.author_title,
+      publishDate: article.publish_date
     }
     
     return c.json({ article: transformedArticle })
-  } catch (error) {
+  } catch (error: any) {
     console.log('Error fetching article:', error)
     return c.json({ error: 'Failed to fetch article', details: error.message }, 500)
   }
@@ -159,29 +165,21 @@ app.get('/make-server-053bcd80/my-articles', requireAuth, async (c) => {
     
     console.log('Fetching articles for user:', userId)
     
+    // Get articles from SQL database
     const { data: articles, error } = await supabase
       .from('articles')
-      .select(`
-        *,
-        article_media (
-          id,
-          type,
-          url,
-          caption,
-          position
-        )
-      `)
+      .select('*')
       .eq('author_id', userId)
       .order('created_at', { ascending: false })
     
     if (error) {
-      console.log('SQL Error fetching user articles:', error)
+      console.log('Error fetching user articles:', error)
       return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
     }
     
     console.log('Fetched', articles?.length || 0, 'articles for user')
     
-    // Transform snake_case to camelCase
+    // Transform SQL articles to frontend format (snake_case -> camelCase)
     const transformedArticles = articles?.map(article => ({
       id: article.id,
       title: article.title,
@@ -191,16 +189,23 @@ app.get('/make-server-053bcd80/my-articles', requireAuth, async (c) => {
       coverImage: article.cover_image,
       readingTime: article.reading_time,
       authorId: article.author_id,
-      views: article.views,
-      likes: article.likes,
+      views: article.views || 0,
+      likes: article.likes || 0,
       createdAt: article.created_at,
       updatedAt: article.updated_at,
-      media: article.article_media || []
+      media: article.media || [],
+      source: article.source,
+      sourceUrl: article.source_url,
+      author: article.author,
+      authorImage: article.author_image,
+      authorTitle: article.author_title,
+      publishDate: article.publish_date
     })) || []
     
     return c.json({ articles: transformedArticles })
-  } catch (error) {
+  } catch (error: any) {
     console.log('Error fetching user articles:', error)
+    console.log('Error stack:', error.stack)
     return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
   }
 })
@@ -214,91 +219,79 @@ app.post('/make-server-053bcd80/articles', requireAuth, async (c) => {
     console.log('Creating article for user:', userId)
     console.log('Article data received:', JSON.stringify(body, null, 2))
     
-    const { title, content, excerpt, category, coverImage, readingTime, media } = body
+    const { title, content, excerpt, category, coverImage, readingTime, media, source, sourceUrl, author, authorImage, authorTitle, publishDate } = body
     
     if (!title || !content) {
       console.log('Validation failed: missing title or content')
       return c.json({ error: 'Title and content are required' }, 400)
     }
     
-    // Insert article into SQL
-    const { data: article, error: articleError } = await supabase
+    // Create article ID
+    const articleId = crypto.randomUUID()
+    const now = new Date().toISOString()
+    
+    // Create article object (snake_case for SQL) - now with all columns
+    const article = {
+      id: articleId,
+      title,
+      content,
+      excerpt: excerpt || content.substring(0, 150) + '...',
+      category: category || 'general',
+      cover_image: coverImage || '',
+      reading_time: readingTime || 5,
+      author_id: userId,
+      views: 0,
+      likes: 0,
+      created_at: now,
+      updated_at: now,
+      media: media || [],
+      source: source || null,
+      source_url: sourceUrl || null,
+      author: author || null,
+      author_image: authorImage || null,
+      author_title: authorTitle || null,
+      publish_date: publishDate || null
+    }
+    
+    // Save to SQL database with all fields
+    const { data: savedArticle, error } = await supabase
       .from('articles')
-      .insert([{
-        title,
-        content,
-        excerpt: excerpt || content.substring(0, 150) + '...',
-        category: category || 'general',
-        cover_image: coverImage || '',
-        reading_time: readingTime || 5,
-        author_id: userId
-      }])
+      .insert([article])
       .select()
       .single()
     
-    if (articleError) {
-      console.log('SQL Error creating article:', articleError)
-      return c.json({ error: 'Failed to create article', details: articleError.message }, 500)
+    if (error) {
+      console.log('Error creating article:', error)
+      return c.json({ error: 'Failed to create article', details: error.message }, 500)
     }
     
-    console.log('Article created successfully:', article.id)
+    console.log('Article created successfully:', articleId)
     
-    // Insert media if provided
-    if (media && Array.isArray(media) && media.length > 0) {
-      console.log('Inserting', media.length, 'media items')
-      const mediaRecords = media.map((m: any, index: number) => ({
-        article_id: article.id,
-        type: m.type,
-        url: m.url,
-        caption: m.caption || '',
-        position: index
-      }))
-      
-      const { error: mediaError } = await supabase
-        .from('article_media')
-        .insert(mediaRecords)
-      
-      if (mediaError) {
-        console.log('Warning: Failed to insert media:', mediaError)
-        // Don't fail the whole request, article is already created
-      }
+    // Transform to camelCase for frontend
+    const responseArticle = {
+      id: savedArticle.id,
+      title: savedArticle.title,
+      content: savedArticle.content,
+      excerpt: savedArticle.excerpt,
+      category: savedArticle.category,
+      coverImage: savedArticle.cover_image,
+      readingTime: savedArticle.reading_time,
+      authorId: savedArticle.author_id,
+      views: savedArticle.views,
+      likes: savedArticle.likes,
+      createdAt: savedArticle.created_at,
+      updatedAt: savedArticle.updated_at,
+      media: savedArticle.media || [],
+      source: savedArticle.source,
+      sourceUrl: savedArticle.source_url,
+      author: savedArticle.author,
+      authorImage: savedArticle.author_image,
+      authorTitle: savedArticle.author_title,
+      publishDate: savedArticle.publish_date
     }
     
-    // Fetch the complete article with media
-    const { data: completeArticle } = await supabase
-      .from('articles')
-      .select(`
-        *,
-        article_media (
-          id,
-          type,
-          url,
-          caption,
-          position
-        )
-      `)
-      .eq('id', article.id)
-      .single()
-    
-    // Transform to camelCase
-    const transformedArticle = {
-      id: completeArticle.id,
-      title: completeArticle.title,
-      content: completeArticle.content,
-      excerpt: completeArticle.excerpt,
-      category: completeArticle.category,
-      coverImage: completeArticle.cover_image,
-      readingTime: completeArticle.reading_time,
-      authorId: completeArticle.author_id,
-      views: completeArticle.views,
-      likes: completeArticle.likes,
-      createdAt: completeArticle.created_at,
-      updatedAt: completeArticle.updated_at,
-      media: completeArticle.article_media || []
-    }
-    
-    return c.json({ article: transformedArticle }, 201)
-  } catch (error) {
+    return c.json({ article: responseArticle }, 201)
+  } catch (error: any) {
     console.log('Error creating article:', error)
     return c.json({ error: 'Failed to create article', details: error.message }, 500)
   }
@@ -313,14 +306,19 @@ app.put('/make-server-053bcd80/articles/:id', requireAuth, async (c) => {
     
     console.log('Updating article:', id, 'by user:', userId)
     
-    // Check if article exists and user is the author
-    const { data: existingArticle, error: fetchError } = await supabase
+    // Get existing article from SQL database
+    const { data: existingArticle, error } = await supabase
       .from('articles')
-      .select('author_id')
+      .select('*')
       .eq('id', id)
       .single()
     
-    if (fetchError || !existingArticle) {
+    if (error) {
+      console.log('Error fetching article:', error)
+      return c.json({ error: 'Failed to fetch article', details: error.message }, 500)
+    }
+    
+    if (!existingArticle) {
       return c.json({ error: 'Article not found' }, 404)
     }
     
@@ -328,88 +326,65 @@ app.put('/make-server-053bcd80/articles/:id', requireAuth, async (c) => {
       return c.json({ error: 'Unauthorized' }, 403)
     }
     
-    const { title, content, excerpt, category, coverImage, readingTime, media } = body
+    const { title, content, excerpt, category, coverImage, readingTime, media, source, sourceUrl, author, authorImage, authorTitle, publishDate } = body
     
-    // Update article
-    const { data: updatedArticle, error: updateError } = await supabase
+    // Update article (snake_case for SQL) - now with all columns
+    const updatedArticle = {
+      title,
+      content,
+      excerpt,
+      category,
+      cover_image: coverImage,
+      reading_time: readingTime,
+      media: media || [],
+      source: source || null,
+      source_url: sourceUrl || null,
+      author: author || null,
+      author_image: authorImage || null,
+      author_title: authorTitle || null,
+      publish_date: publishDate || null,
+      updated_at: new Date().toISOString()
+    }
+    
+    const { data: savedArticle, error: updateError } = await supabase
       .from('articles')
-      .update({
-        title,
-        content,
-        excerpt,
-        category,
-        cover_image: coverImage,
-        reading_time: readingTime,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatedArticle)
       .eq('id', id)
       .select()
       .single()
     
     if (updateError) {
-      console.log('SQL Error updating article:', updateError)
+      console.log('Error updating article:', updateError)
       return c.json({ error: 'Failed to update article', details: updateError.message }, 500)
     }
     
-    // Update media if provided
-    if (media !== undefined) {
-      // Delete existing media
-      await supabase
-        .from('article_media')
-        .delete()
-        .eq('article_id', id)
-      
-      // Insert new media
-      if (Array.isArray(media) && media.length > 0) {
-        const mediaRecords = media.map((m: any, index: number) => ({
-          article_id: id,
-          type: m.type,
-          url: m.url,
-          caption: m.caption || '',
-          position: index
-        }))
-        
-        await supabase
-          .from('article_media')
-          .insert(mediaRecords)
-      }
+    console.log('Article updated successfully:', id)
+    
+    // Transform to camelCase for frontend
+    const responseArticle = {
+      id: savedArticle.id,
+      title: savedArticle.title,
+      content: savedArticle.content,
+      excerpt: savedArticle.excerpt,
+      category: savedArticle.category,
+      coverImage: savedArticle.cover_image,
+      readingTime: savedArticle.reading_time,
+      authorId: savedArticle.author_id,
+      views: savedArticle.views,
+      likes: savedArticle.likes,
+      createdAt: savedArticle.created_at,
+      updatedAt: savedArticle.updated_at,
+      media: savedArticle.media || [],
+      source: savedArticle.source,
+      sourceUrl: savedArticle.source_url,
+      author: savedArticle.author,
+      authorImage: savedArticle.author_image,
+      authorTitle: savedArticle.author_title,
+      publishDate: savedArticle.publish_date
     }
     
-    // Fetch complete article with media
-    const { data: completeArticle } = await supabase
-      .from('articles')
-      .select(`
-        *,
-        article_media (
-          id,
-          type,
-          url,
-          caption,
-          position
-        )
-      `)
-      .eq('id', id)
-      .single()
-    
-    // Transform to camelCase
-    const transformedArticle = {
-      id: completeArticle.id,
-      title: completeArticle.title,
-      content: completeArticle.content,
-      excerpt: completeArticle.excerpt,
-      category: completeArticle.category,
-      coverImage: completeArticle.cover_image,
-      readingTime: completeArticle.reading_time,
-      authorId: completeArticle.author_id,
-      views: completeArticle.views,
-      likes: completeArticle.likes,
-      createdAt: completeArticle.created_at,
-      updatedAt: completeArticle.updated_at,
-      media: completeArticle.article_media || []
-    }
-    
-    return c.json({ article: transformedArticle })
-  } catch (error) {
+    return c.json({ article: responseArticle })
+  } catch (error: any) {
     console.log('Error updating article:', error)
     return c.json({ error: 'Failed to update article', details: error.message }, 500)
   }
@@ -421,31 +396,48 @@ app.delete('/make-server-053bcd80/articles/:id', requireAuth, async (c) => {
     const id = c.req.param('id')
     const userId = c.get('userId')
     
-    // Check ownership (RLS will handle this, but good to double-check)
-    const { data: article } = await supabase
+    console.log('Delete article request - ID:', id, 'User:', userId)
+    
+    // Get article from SQL database to check ownership
+    const { data: article, error } = await supabase
       .from('articles')
-      .select('author_id')
+      .select('*')
       .eq('id', id)
       .single()
     
-    if (article && article.author_id !== userId) {
-      return c.json({ error: 'Unauthorized' }, 403)
+    if (error) {
+      console.log('Error fetching article for deletion:', error)
+      return c.json({ error: 'Failed to fetch article', details: error.message }, 500)
     }
     
-    const { error } = await supabase
+    if (!article) {
+      console.log('Article not found for deletion:', id)
+      return c.json({ error: 'Article not found' }, 404)
+    }
+    
+    console.log('Article found - Owner:', article.author_id, 'Requester:', userId)
+    
+    if (article.author_id !== userId) {
+      console.log('Unauthorized delete attempt - Article owner:', article.author_id, 'User:', userId)
+      return c.json({ error: 'Unauthorized - You can only delete your own articles' }, 403)
+    }
+    
+    // Delete from SQL database
+    const { error: deleteError } = await supabase
       .from('articles')
       .delete()
       .eq('id', id)
     
-    if (error) {
-      console.log('SQL Error deleting article:', error)
-      return c.json({ error: 'Failed to delete article', details: error.message }, 500)
+    if (deleteError) {
+      console.log('Error deleting article from database:', deleteError)
+      return c.json({ error: 'Failed to delete article', details: deleteError.message }, 500)
     }
     
-    console.log('Article deleted:', id)
-    return c.json({ success: true })
-  } catch (error) {
-    console.log('Error deleting article:', error)
+    console.log('Article deleted successfully:', id)
+    return c.json({ success: true, message: 'Article deleted successfully' })
+  } catch (error: any) {
+    console.log('Exception while deleting article:', error)
+    console.log('Error stack:', error.stack)
     return c.json({ error: 'Failed to delete article', details: error.message }, 500)
   }
 })
@@ -911,6 +903,714 @@ app.post('/make-server-053bcd80/upload', requireAuth, async (c) => {
 // Health check
 app.get('/make-server-053bcd80/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+// ===== LINKEDIN POST PARSER =====
+
+// Upload external image URL to Supabase storage
+async function uploadExternalImage(imageUrl: string, index: number): Promise<string | null> {
+  try {
+    console.log('Attempting to download image from:', imageUrl)
+    
+    // LinkedIn images are heavily protected and usually can't be downloaded server-side
+    if (imageUrl.includes('linkedin.com') || imageUrl.includes('licdn.com')) {
+      console.log('Skipping LinkedIn CDN image (protected by authentication):', imageUrl)
+      return null
+    }
+    
+    // Download the image with proper headers to avoid 403
+    const imageResponse = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': imageUrl,
+      }
+    })
+    
+    if (!imageResponse.ok) {
+      console.log('Failed to download image:', imageResponse.status, imageResponse.statusText)
+      return null
+    }
+    
+    const imageBlob = await imageResponse.blob()
+    
+    // Check if blob is valid
+    if (imageBlob.size === 0) {
+      console.log('Downloaded image is empty')
+      return null
+    }
+    
+    const arrayBuffer = await imageBlob.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+    
+    // Generate unique filename
+    const fileExtension = imageUrl.includes('.jpg') || imageUrl.includes('.jpeg') ? 'jpg' : 'png'
+    const fileName = `external-${crypto.randomUUID()}-${index}.${fileExtension}`
+    const bucketName = 'make-053bcd80-magazine-media'
+    
+    // Upload to Supabase storage
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(fileName, uint8Array, {
+        contentType: imageBlob.type || 'image/jpeg'
+      })
+    
+    if (error) {
+      console.log('Failed to upload image to storage:', error)
+      return null
+    }
+    
+    // Generate signed URL (valid for 10 years)
+    const { data: signedUrlData } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(fileName, 315360000)
+    
+    console.log('Image uploaded successfully:', signedUrlData?.signedUrl)
+    return signedUrlData?.signedUrl || null
+  } catch (error) {
+    console.log('Error uploading external image:', error)
+    return null
+  }
+}
+
+// Parse LinkedIn post and extract content
+app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    
+    if (!url || typeof url !== 'string') {
+      return c.json({ error: 'LinkedIn URL is required' }, 400)
+    }
+
+    console.log('Parsing LinkedIn post:', url)
+
+    // Validate it's a LinkedIn URL
+    if (!url.includes('linkedin.com')) {
+      return c.json({ error: 'Invalid LinkedIn URL' }, 400)
+    }
+
+    // Check if it's a post URL (various formats supported)
+    const isPostUrl = url.includes('/posts/') || 
+                      url.includes('/feed/update/') || 
+                      url.includes('activity-') ||
+                      url.includes('urn:li:activity:')
+    
+    if (!isPostUrl) {
+      return c.json({ 
+        error: 'Please provide a LinkedIn post URL (not a profile or company page)',
+        title: '',
+        content: 'Please copy the post content from LinkedIn and paste it here.',
+        hashtags: []
+      }, 200)
+    }
+
+    // Fetch the LinkedIn post content
+    // Note: LinkedIn requires authentication and has strict scraping policies
+    // This is a basic implementation that attempts to fetch public post data
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch LinkedIn post:', response.status)
+        return c.json({ 
+          error: 'Could not fetch LinkedIn post. The post may be private or require authentication.',
+          title: '',
+          content: 'Please manually copy and paste the content from the LinkedIn post.',
+          hashtags: []
+        }, 200) // Return 200 with empty data so user can manually enter
+      }
+
+      const html = await response.text()
+
+      // Parse the HTML to extract content
+      // This is a simplified parser - LinkedIn's HTML structure may change
+      let title = ''
+      let content = ''
+      let author = ''
+      let authorImage = ''
+      let authorTitle = ''
+      let publishDate = ''
+      const hashtags: string[] = []
+      const images: string[] = []
+
+      // STEP 1: Extract author username from URL
+      // URL format: /posts/username_text-activity-id or /posts/username/activity-id
+      const usernameMatch = url.match(/\/posts\/([a-zA-Z0-9-]+)(?:_|\/)/)
+      const authorUsername = usernameMatch ? usernameMatch[1] : null
+      
+      console.log('Extracted author username from URL:', authorUsername)
+
+      // STEP 2: Extract post text (LinkedIn uses various meta tags)
+      const descriptionMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i)
+      if (descriptionMatch) {
+        content = descriptionMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+
+      // STEP 3: Extract title (if available)
+      const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i)
+      if (titleMatch) {
+        title = titleMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .trim()
+        console.log('Raw og:title content:', titleMatch[1])
+        console.log('Cleaned og:title:', title)
+      }
+      
+      // STEP 4: Extract author name from title (usually in format "Name on LinkedIn: Post content")
+      if (titleMatch) {
+        const authorNameMatch = titleMatch[1].match(/^([^:]+?)\s+(?:on LinkedIn|posted on|LinkedIn)/i)
+        if (authorNameMatch) {
+          author = authorNameMatch[1].trim()
+          console.log('Extracted author from title:', author)
+        }
+      }
+      
+      // Alternative: Extract author from page title tag
+      if (!author) {
+        const pageTitleMatch = html.match(/<title>([^<]+)<\/title>/i)
+        if (pageTitleMatch) {
+          const pageTitleAuthor = pageTitleMatch[1].match(/^([^:]+?)\s+(?:on LinkedIn|posted on)/i)
+          if (pageTitleAuthor) {
+            author = pageTitleAuthor[1].trim()
+            console.log('Extracted author from page title:', author)
+          }
+        }
+      }
+      
+      // Try to extract author from other meta tags
+      if (!author) {
+        const authorMatch = html.match(/<meta\s+(?:property="article:author"|name="author")\s+content="([^"]+)"/i)
+        if (authorMatch) {
+          author = authorMatch[1].trim()
+          console.log('Extracted author from meta tag:', author)
+        }
+      }
+      
+      // STEP 4.5: Extract author headline from page title
+      // LinkedIn page titles often contain: "Name - Headline on LinkedIn: Post"
+      let authorHeadlineFromTitle = ''
+      if (titleMatch) {
+        // Pattern: "Name - Headline on LinkedIn: Post"
+        const nameHeadlineMatch = titleMatch[1].match(/^(.+?)\s*-\s*(.+?)\s+(?:on LinkedIn|posted on):/i)
+        if (nameHeadlineMatch) {
+          const extractedName = nameHeadlineMatch[1].trim()
+          authorHeadlineFromTitle = nameHeadlineMatch[2].trim()
+          
+          // Update author if not already set
+          if (!author) {
+            author = extractedName
+          }
+          
+          console.log('Extracted author headline from og:title - Name:', extractedName, 'Headline:', authorHeadlineFromTitle)
+        }
+      }
+      
+      // Also try from <title> tag
+      if (!authorHeadlineFromTitle) {
+        const pageTitleMatch = html.match(/<title>([^<]+)<\/title>/i)
+        if (pageTitleMatch) {
+          console.log('Full <title> tag content:', pageTitleMatch[1])
+          
+          const nameHeadlineMatch = pageTitleMatch[1].match(/^(.+?)\s*-\s*(.+?)\s+(?:on LinkedIn|posted)/i)
+          if (nameHeadlineMatch) {
+            const extractedName = nameHeadlineMatch[1].trim()
+            authorHeadlineFromTitle = nameHeadlineMatch[2].trim()
+            
+            // Update author if not already set
+            if (!author) {
+              author = extractedName
+            }
+            
+            console.log('Extracted author headline from <title> - Name:', extractedName, 'Headline:', authorHeadlineFromTitle)
+          }
+        }
+      }
+      
+      // Third attempt: Try simpler pattern without "on LinkedIn"
+      // Sometimes the title is: "Name - Headline: Post content"
+      if (!authorHeadlineFromTitle && titleMatch) {
+        const simpleMatch = titleMatch[1].match(/^(.+?)\s*-\s*(.+?):/i)
+        if (simpleMatch) {
+          const extractedName = simpleMatch[1].trim()
+          const potentialHeadline = simpleMatch[2].trim()
+          
+          // Make sure it's not the post content by checking length and keywords
+          if (potentialHeadline.length < 150 && (
+            potentialHeadline.includes('@') || 
+            potentialHeadline.includes('|') ||
+            potentialHeadline.match(/\b(Founder|CEO|Director|Manager|Engineer|Designer|Developer|at|@)\b/i)
+          )) {
+            authorHeadlineFromTitle = potentialHeadline
+            if (!author) {
+              author = extractedName
+            }
+            console.log('Extracted author headline (simple pattern) - Name:', extractedName, 'Headline:', authorHeadlineFromTitle)
+          }
+        }
+      }
+      
+      // STEP 5: Extract author headline/title from JSON-LD structured data
+      const structuredDataMatch = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/is)
+      if (structuredDataMatch) {
+        try {
+          const jsonData = JSON.parse(structuredDataMatch[1])
+          
+          // LinkedIn often uses nested author objects
+          if (jsonData.author) {
+            if (jsonData.author.name && !author) {
+              author = jsonData.author.name
+              console.log('Extracted author from JSON-LD:', author)
+            }
+            if (jsonData.author.jobTitle) {
+              authorTitle = jsonData.author.jobTitle
+              console.log('Extracted author title from JSON-LD:', authorTitle)
+            }
+            if (jsonData.author.image) {
+              authorImage = typeof jsonData.author.image === 'string' 
+                ? jsonData.author.image 
+                : jsonData.author.image.url || jsonData.author.image.contentUrl
+              console.log('Extracted author image from JSON-LD:', authorImage)
+            }
+          }
+        } catch (e) {
+          console.log('Failed to parse JSON-LD:', e)
+        }
+      }
+      
+      // STEP 6: Extract author profile image from meta tags
+      if (!authorImage) {
+        const authorImageMatch = html.match(/<meta\s+property="profile:image"\s+content="([^"]+)"/i)
+        if (authorImageMatch) {
+          authorImage = authorImageMatch[1]
+          console.log('Extracted author image from profile:image meta:', authorImage)
+        }
+      }
+      
+      // Alternative: look for author image in various meta patterns
+      if (!authorImage) {
+        const imageMetaMatch = html.match(/"author"\s*:\s*{[^}]*"image"\s*:\s*"([^"]+)"/i)
+        if (imageMetaMatch) {
+          authorImage = imageMetaMatch[1]
+          console.log('Extracted author image from author object:', authorImage)
+        }
+      }
+      
+      // Decode HTML entities in author image URL
+      if (authorImage) {
+        const decodeHtmlEntities = (text: string): string => {
+          return text
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&nbsp;/g, ' ')
+        }
+        authorImage = decodeHtmlEntities(authorImage)
+        console.log('Decoded author image URL:', authorImage)
+      }
+      
+      // STEP 7: Try to extract author headline from various locations
+      if (!authorTitle) {
+        // Look for headline in meta tags
+        const headlineMatch = html.match(/<meta[^>]*(?:name|property)=["'](?:profile:)?headline["'][^>]*content=["']([^"']+)["']/i)
+        if (headlineMatch) {
+          authorTitle = headlineMatch[1].trim()
+          console.log('Extracted author title from headline meta:', authorTitle)
+        }
+      }
+      
+      // Try to parse author title from structured data in the page
+      if (!authorTitle) {
+        const titleInTextMatch = html.match(/class=["'][^"']*headline[^"']*["'][^>]*>([^<]+)</i)
+        if (titleInTextMatch) {
+          authorTitle = titleInTextMatch[1].trim()
+          console.log('Extracted author title from headline class:', authorTitle)
+        }
+      }
+      
+      // Try to extract from description meta tag (sometimes contains "Name - Title")
+      if (!authorTitle && titleMatch) {
+        const titleWithHeadlineMatch = titleMatch[1].match(/^[^-]+-\s*(.+?)\s*:/i)
+        if (titleWithHeadlineMatch) {
+          authorTitle = titleWithHeadlineMatch[1].trim()
+          console.log('Extracted author title from title meta:', authorTitle)
+        }
+      }
+      
+      // Look for author headline in multiple JSON-LD scripts
+      if (!authorTitle) {
+        const allScriptMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>.*?<\/script>/gis)
+        if (allScriptMatches) {
+          for (const scriptMatch of allScriptMatches) {
+            try {
+              const scriptContent = scriptMatch.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/is)
+              if (scriptContent) {
+                const jsonData = JSON.parse(scriptContent[1])
+                
+                // Check various paths where headline might be stored
+                if (jsonData.author?.jobTitle) {
+                  authorTitle = jsonData.author.jobTitle
+                  console.log('Extracted author title from JSON-LD author.jobTitle:', authorTitle)
+                  break
+                }
+                if (jsonData.author?.headline) {
+                  authorTitle = jsonData.author.headline
+                  console.log('Extracted author title from JSON-LD author.headline:', authorTitle)
+                  break
+                }
+                if (jsonData.headline) {
+                  authorTitle = jsonData.headline
+                  console.log('Extracted author title from JSON-LD headline:', authorTitle)
+                  break
+                }
+              }
+            } catch (e) {
+              // Continue to next script
+            }
+          }
+        }
+      }
+      
+      // Look for headline in data attributes
+      if (!authorTitle) {
+        const dataHeadlineMatch = html.match(/data-headline=["']([^"']+)["']/i)
+        if (dataHeadlineMatch) {
+          authorTitle = dataHeadlineMatch[1]
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .trim()
+          console.log('Extracted author title from data-headline:', authorTitle)
+        }
+      }
+      
+      // Look for headline in aria-label or title attributes
+      if (!authorTitle) {
+        const ariaLabelMatch = html.match(/aria-label=["'][^"']*,\s*([^,"']+(?:@|at)[^"']+)["']/i)
+        if (ariaLabelMatch) {
+          authorTitle = ariaLabelMatch[1].trim()
+          console.log('Extracted author title from aria-label:', authorTitle)
+        }
+      }
+      
+      // Try to find headline in nested span/div elements near author name
+      if (!authorTitle && author) {
+        const escapedAuthor = author.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const contextMatch = html.match(new RegExp(`>${escapedAuthor}<.*?<[^>]*>([^<]+(?:@|at|\\||Founder|CEO|Director|Manager|Engineer|Designer)[^<]{10,150})<`, 'is'))
+        if (contextMatch) {
+          const potentialTitle = contextMatch[1]
+            .replace(/<[^>]+>/g, '')
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (potentialTitle.length < 200 && potentialTitle.length > 5) {
+            authorTitle = potentialTitle
+            console.log('Extracted author title from context near name:', authorTitle)
+          }
+        }
+      }
+      
+      // STEP 7.5: Use headline extracted from page title as fallback
+      if (!authorTitle && authorHeadlineFromTitle) {
+        authorTitle = authorHeadlineFromTitle
+        console.log('Using author headline from page title as fallback:', authorTitle)
+      }
+      
+      // STEP 8: If we have username but no author name, format username nicely
+      if (!author && authorUsername) {
+        // Convert username to display name (capitalize, remove hyphens)
+        author = authorUsername
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ')
+        console.log('Generated author name from username:', author)
+      }
+      
+      // STEP 9: Construct profile image URL from username if not found
+      if (!authorImage && authorUsername) {
+        // LinkedIn profile images can sometimes be accessed via public profile
+        // Format: https://www.linkedin.com/in/USERNAME/
+        // But we can't directly get the image without being logged in
+        // Instead, we'll leave it empty and let the user see the fallback
+        console.log('Author image not found - will use fallback')
+      }
+      
+      // STEP 10: Extract publish date
+      const dateMatch = html.match(/<meta\s+property="article:published_time"\s+content="([^"]+)"/i)
+      if (dateMatch) {
+        publishDate = dateMatch[1]
+        console.log('Extracted publish date:', publishDate)
+      }
+      
+      // Try to extract from time tag
+      if (!publishDate) {
+        const timeMatch = html.match(/<time[^>]+datetime="([^"]+)"/i)
+        if (timeMatch) {
+          publishDate = timeMatch[1]
+          console.log('Extracted publish date from time tag:', publishDate)
+        }
+      }
+      
+      // Try to extract from modified_time meta tag
+      if (!publishDate) {
+        const modifiedMatch = html.match(/<meta\s+property="article:modified_time"\s+content="([^"]+)"/i)
+        if (modifiedMatch) {
+          publishDate = modifiedMatch[1]
+          console.log('Extracted publish date from modified_time:', publishDate)
+        }
+      }
+      
+      // Try to extract from datePublished in JSON-LD
+      if (!publishDate) {
+        const allScriptMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>.*?<\/script>/gis)
+        if (allScriptMatches) {
+          for (const scriptMatch of allScriptMatches) {
+            try {
+              const scriptContent = scriptMatch.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/is)
+              if (scriptContent) {
+                const jsonData = JSON.parse(scriptContent[1])
+                
+                if (jsonData.datePublished) {
+                  publishDate = jsonData.datePublished
+                  console.log('Extracted publish date from JSON-LD datePublished:', publishDate)
+                  break
+                }
+                if (jsonData.dateCreated) {
+                  publishDate = jsonData.dateCreated
+                  console.log('Extracted publish date from JSON-LD dateCreated:', publishDate)
+                  break
+                }
+              }
+            } catch (e) {
+              // Continue to next script
+            }
+          }
+        }
+      }
+      
+      // Try to extract from data-date attributes
+      if (!publishDate) {
+        const dataDateMatch = html.match(/data-(?:date|time|published)=["']([^"']+)["']/i)
+        if (dataDateMatch) {
+          publishDate = dataDateMatch[1]
+          console.log('Extracted publish date from data attribute:', publishDate)
+        }
+      }
+      
+      // Extract activity ID from URL and convert to approximate date
+      // LinkedIn activity IDs contain timestamp information
+      if (!publishDate) {
+        const activityMatch = url.match(/activity-(\d+)/)
+        if (activityMatch) {
+          const activityId = activityMatch[1]
+          // LinkedIn activity IDs are approximately milliseconds since epoch
+          // But this is just a fallback approximation
+          try {
+            // The activity ID format changed over time, but we can try to extract
+            // a rough timestamp from the first 13 digits
+            if (activityId.length >= 13) {
+              const timestamp = parseInt(activityId.substring(0, 13))
+              if (!isNaN(timestamp) && timestamp > 1000000000000) {
+                publishDate = new Date(timestamp).toISOString()
+                console.log('Extracted approximate publish date from activity ID:', publishDate)
+              }
+            }
+          } catch (e) {
+            console.log('Could not parse activity ID for date')
+          }
+        }
+      }
+      
+      // Log final extraction results
+      console.log('=== EXTRACTION SUMMARY ===')
+      console.log('Author:', author || 'NOT FOUND')
+      console.log('Author Title:', authorTitle || 'NOT FOUND')
+      console.log('Author Image:', authorImage || 'NOT FOUND')
+      console.log('Publish Date:', publishDate || 'NOT FOUND')
+      console.log('==========================')
+      
+      // Extract image
+      const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i)
+      if (imageMatch) {
+        images.push(imageMatch[1])
+      }
+
+      // Try to extract additional images from various meta tags
+      const imageMatches = html.match(/<meta\s+property="og:image(?::secure_url)?"\s+content="([^"]+)"/gi)
+      if (imageMatches && imageMatches.length > 1) {
+        imageMatches.forEach(match => {
+          const urlMatch = match.match(/content="([^"]+)"/)
+          if (urlMatch && !images.includes(urlMatch[1])) {
+            images.push(urlMatch[1])
+          }
+        })
+      }
+
+      // Also try to find images in the page content
+      const contentImageMatches = html.match(/<img[^>]+src="([^"]+)"[^>]*>/gi)
+      if (contentImageMatches) {
+        contentImageMatches.slice(0, 3).forEach(match => {
+          const urlMatch = match.match(/src="([^"]+)"/)
+          if (urlMatch && urlMatch[1].includes('media') && !images.includes(urlMatch[1])) {
+            images.push(urlMatch[1])
+          }
+        })
+      }
+      
+      // Decode HTML entities in all image URLs
+      const decodeHtmlEntities = (text: string): string => {
+        return text
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+      }
+      
+      // Decode all image URLs
+      const decodedImages = images.map(url => decodeHtmlEntities(url))
+      console.log('Decoded image URLs:', decodedImages)
+
+      // Extract hashtags from content
+      const hashtagMatches = content.match(/#[\w]+/g)
+      if (hashtagMatches) {
+        hashtags.push(...hashtagMatches.map(tag => tag.substring(1)))
+      }
+
+      // Generate a title from content if not found
+      if (!title && content) {
+        // LinkedIn posts don't have titles, so create a meaningful one
+        // Strategy: Use first meaningful sentence/phrase, but make it engaging
+        
+        // Remove hashtags from end for cleaner title extraction
+        const contentWithoutHashtags = content.replace(/(#\w+\s*)+$/g, '').trim()
+        
+        // Split by sentences
+        const sentences = contentWithoutHashtags.split(/[.!?]+/).filter(s => s.trim().length > 10)
+        
+        if (sentences.length > 0) {
+          // Use the first substantial sentence
+          let firstSentence = sentences[0].trim()
+          
+          // If it's too long, truncate at a word boundary
+          if (firstSentence.length > 80) {
+            const words = firstSentence.split(' ')
+            let truncated = ''
+            for (const word of words) {
+              if ((truncated + word).length > 75) {
+                break
+              }
+              truncated += (truncated ? ' ' : '') + word
+            }
+            title = truncated + '...'
+          } else if (firstSentence.length > 15) {
+            title = firstSentence
+          } else {
+            // First sentence too short, try combining with second
+            if (sentences.length > 1) {
+              const combined = `${sentences[0].trim()}. ${sentences[1].trim()}`
+              if (combined.length <= 80) {
+                title = combined
+              } else {
+                title = firstSentence + '...'
+              }
+            } else {
+              title = firstSentence
+            }
+          }
+        } else {
+          // No sentences found, use first 75 characters
+          title = content.substring(0, 75).trim() + '...'
+        }
+        
+        // Clean up any leftover formatting
+        title = title
+          .replace(/\n/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+        
+        console.log('Generated title from content:', title)
+      }
+
+      // Clean up content - remove hashtags at the end if they're redundant
+      const contentLines = content.split('\n')
+      const lastLines = contentLines.slice(-3).join('\n')
+      if (lastLines.match(/^(#[\w]+\s*)+$/)) {
+        content = contentLines.slice(0, -3).join('\n').trim()
+      }
+
+      // For LinkedIn images with public CDN URLs (e=2147483647), return them directly
+      // Otherwise attempt to upload to Supabase storage
+      const finalImages: string[] = []
+      for (let i = 0; i < decodedImages.length; i++) {
+        const imageUrl = decodedImages[i]
+        
+        // Check if it's a LinkedIn CDN URL with public expiry parameter
+        if ((imageUrl.includes('licdn.com') || imageUrl.includes('linkedin.com')) && imageUrl.includes('e=2147483647')) {
+          console.log('Using LinkedIn CDN URL directly (public URL):', imageUrl)
+          finalImages.push(imageUrl)
+        } else {
+          // Try to upload non-LinkedIn images to our storage
+          const uploadedUrl = await uploadExternalImage(imageUrl, i + 1)
+          if (uploadedUrl) {
+            finalImages.push(uploadedUrl)
+          }
+        }
+      }
+
+      console.log('Successfully parsed LinkedIn post')
+      console.log('Title:', title)
+      console.log('Content length:', content.length)
+      console.log('Images found:', images.length)
+      console.log('Original Image URLs:', JSON.stringify(images))
+      console.log('Final Image URLs:', JSON.stringify(finalImages))
+      console.log('Hashtags:', hashtags)
+
+      return c.json({
+        title,
+        content,
+        author,
+        authorImage,
+        authorTitle,
+        publishDate,
+        images: finalImages,
+        hashtags,
+        date: new Date().toISOString()
+      })
+    } catch (fetchError: any) {
+      console.error('Error fetching LinkedIn post:', fetchError)
+      
+      // Return a helpful error message with empty fields
+      return c.json({
+        error: 'Could not automatically fetch LinkedIn post content. Please manually copy the content.',
+        title: '',
+        content: 'Please copy the post content from LinkedIn and paste it here.',
+        hashtags: []
+      }, 200)
+    }
+  } catch (error: any) {
+    console.error('Error parsing LinkedIn post:', error)
+    return c.json({ 
+      error: 'Failed to parse LinkedIn post', 
+      details: error.message 
+    }, 500)
+  }
 })
 
 Deno.serve(app.fetch)

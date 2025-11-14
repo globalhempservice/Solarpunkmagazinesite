@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
@@ -607,6 +607,15 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                             >
                               <Eye className="w-3 h-3" />
                               {article.views}
+                            </Badge>
+                          )}
+                          {article.media && article.media.length > 0 && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center gap-1"
+                            >
+                              <ImageIcon className="w-3 h-3" />
+                              {article.media.length} media
                             </Badge>
                           )}
                         </div>

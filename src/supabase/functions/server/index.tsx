@@ -1555,6 +1555,62 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
         content = contentLines.slice(0, -3).join('\n').trim()
       }
 
+      // Extract YouTube URLs from content (direct links)
+      const youtubeUrls: string[] = []
+      const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g
+      let youtubeMatch
+      while ((youtubeMatch = youtubeRegex.exec(content)) !== null) {
+        const videoId = youtubeMatch[1]
+        const fullUrl = `https://www.youtube.com/watch?v=${videoId}`
+        if (!youtubeUrls.includes(fullUrl)) {
+          youtubeUrls.push(fullUrl)
+          console.log('Found direct YouTube video in content:', fullUrl)
+        }
+      }
+
+      // Extract and resolve LinkedIn shortened URLs (lnkd.in)
+      const lnkdRegex = /https?:\/\/lnkd\.in\/[a-zA-Z0-9_-]+/g
+      const lnkdMatches = content.match(lnkdRegex)
+      
+      if (lnkdMatches && lnkdMatches.length > 0) {
+        console.log(`Found ${lnkdMatches.length} LinkedIn shortened URL(s), resolving...`)
+        
+        for (const shortUrl of lnkdMatches) {
+          try {
+            console.log('Resolving shortened URL:', shortUrl)
+            
+            // Follow the redirect to get the real URL
+            const redirectResponse = await fetch(shortUrl, {
+              method: 'HEAD',
+              redirect: 'follow',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              }
+            })
+            
+            const finalUrl = redirectResponse.url
+            console.log('Resolved to:', finalUrl)
+            
+            // Check if the resolved URL is a YouTube URL
+            const youtubeMatch = finalUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+            
+            if (youtubeMatch) {
+              const videoId = youtubeMatch[1]
+              const fullYouTubeUrl = `https://www.youtube.com/watch?v=${videoId}`
+              
+              if (!youtubeUrls.includes(fullYouTubeUrl)) {
+                youtubeUrls.push(fullYouTubeUrl)
+                console.log('✅ Found YouTube video from shortened link:', fullYouTubeUrl)
+              }
+            } else {
+              console.log('Shortened link does not point to YouTube:', finalUrl)
+            }
+          } catch (error) {
+            console.error('Error resolving shortened URL:', shortUrl, error)
+          }
+        }
+      }
+
       // For LinkedIn images with public CDN URLs (e=2147483647), return them directly
       // Otherwise attempt to upload to Supabase storage
       const finalImages: string[] = []
@@ -1580,7 +1636,15 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
       console.log('Images found:', images.length)
       console.log('Original Image URLs:', JSON.stringify(images))
       console.log('Final Image URLs:', JSON.stringify(finalImages))
+      console.log('YouTube URLs found:', youtubeUrls.length)
+      console.log('YouTube URLs:', JSON.stringify(youtubeUrls))
       console.log('Hashtags:', hashtags)
+      console.log('=== FINAL RESPONSE DATA ===')
+      console.log('author:', author)
+      console.log('authorTitle:', authorTitle)
+      console.log('authorImage:', authorImage)
+      console.log('publishDate:', publishDate)
+      console.log('==========================')
 
       return c.json({
         title,
@@ -1590,6 +1654,7 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
         authorTitle,
         publishDate,
         images: finalImages,
+        youtubeUrls,
         hashtags,
         date: new Date().toISOString()
       })
@@ -1608,6 +1673,772 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
     console.error('Error parsing LinkedIn post:', error)
     return c.json({ 
       error: 'Failed to parse LinkedIn post', 
+      details: error.message 
+    }, 500)
+  }
+})
+
+// Instagram Parser Route
+app.post('/make-server-053bcd80/parse-instagram', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    
+    if (!url) {
+      return c.json({ error: 'URL is required' }, 400)
+    }
+
+    console.log('Parsing Instagram URL:', url)
+
+    try {
+      // Fetch the Instagram post page
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const html = await response.text()
+      console.log('Instagram HTML fetched, length:', html.length)
+
+      // Initialize data
+      let author = ''
+      let authorUsername = ''
+      let authorImage = ''
+      let caption = ''
+      let location = ''
+      let timestamp = ''
+      let mediaUrl = ''
+      let thumbnailUrl = ''
+      let mediaType: 'image' | 'video' | 'carousel' = 'image'
+      let hasAudio = false
+
+      // Try to extract data from JSON-LD structured data
+      const scriptMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/gis)
+      if (scriptMatches) {
+        for (const scriptMatch of scriptMatches) {
+          try {
+            const scriptContent = scriptMatch.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/is)
+            if (scriptContent) {
+              const jsonData = JSON.parse(scriptContent[1])
+              console.log('Found JSON-LD data:', JSON.stringify(jsonData, null, 2))
+
+              // Extract author info
+              if (jsonData.author) {
+                if (jsonData.author.name) {
+                  author = jsonData.author.name
+                  console.log('Extracted author:', author)
+                }
+                if (jsonData.author.alternateName) {
+                  authorUsername = jsonData.author.alternateName.replace('@', '')
+                  console.log('Extracted username:', authorUsername)
+                }
+                if (jsonData.author.image) {
+                  authorImage = typeof jsonData.author.image === 'string' 
+                    ? jsonData.author.image 
+                    : jsonData.author.image.url
+                  console.log('Extracted author image:', authorImage)
+                }
+              }
+
+              // Extract caption/description
+              if (jsonData.articleBody) {
+                caption = jsonData.articleBody
+                console.log('Extracted caption from articleBody')
+              } else if (jsonData.description) {
+                caption = jsonData.description
+                console.log('Extracted caption from description')
+              }
+
+              // Extract media
+              if (jsonData.video) {
+                mediaType = 'video'
+                if (Array.isArray(jsonData.video)) {
+                  mediaUrl = jsonData.video[0]?.contentUrl || jsonData.video[0]?.url
+                  thumbnailUrl = jsonData.video[0]?.thumbnailUrl
+                } else {
+                  mediaUrl = jsonData.video.contentUrl || jsonData.video.url
+                  thumbnailUrl = jsonData.video.thumbnailUrl
+                }
+                console.log('Extracted video URL:', mediaUrl)
+              } else if (jsonData.image) {
+                mediaType = 'image'
+                if (Array.isArray(jsonData.image)) {
+                  mediaUrl = jsonData.image[0]?.url || jsonData.image[0]
+                } else {
+                  mediaUrl = typeof jsonData.image === 'string' ? jsonData.image : jsonData.image.url
+                }
+                console.log('Extracted image URL:', mediaUrl)
+              }
+
+              // Extract timestamp
+              if (jsonData.uploadDate || jsonData.datePublished) {
+                timestamp = jsonData.uploadDate || jsonData.datePublished
+                console.log('Extracted timestamp:', timestamp)
+              }
+
+              // Extract location
+              if (jsonData.contentLocation) {
+                location = typeof jsonData.contentLocation === 'string' 
+                  ? jsonData.contentLocation 
+                  : jsonData.contentLocation.name
+                console.log('Extracted location:', location)
+              }
+            }
+          } catch (e) {
+            console.log('Failed to parse JSON-LD:', e)
+          }
+        }
+      }
+
+      // Try alternative extraction from meta tags
+      if (!author) {
+        const authorMatch = html.match(/<meta[^>]*property="instapp:owner"[^>]*content="([^"]+)"/i) ||
+                           html.match(/<meta[^>]*property="al:ios:url"[^>]*content="instagram:\/\/user\?username=([^"]+)"/i)
+        if (authorMatch) {
+          authorUsername = authorMatch[1]
+          console.log('Extracted username from meta:', authorUsername)
+        }
+      }
+
+      // Extract from og:description (sometimes contains username)
+      if (!caption) {
+        const descMatch = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/i)
+        if (descMatch) {
+          caption = descMatch[1]
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/&#39;/g, "'")
+            .trim()
+          console.log('Extracted caption from og:description')
+        }
+      }
+
+      // Extract media from og:image and og:video
+      if (!mediaUrl) {
+        const videoMatch = html.match(/<meta[^>]*property="og:video"[^>]*content="([^"]+)"/i)
+        if (videoMatch) {
+          mediaUrl = videoMatch[1]
+          mediaType = 'video'
+          console.log('Extracted video from og:video:', mediaUrl)
+        }
+      }
+
+      if (!mediaUrl) {
+        const imageMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i)
+        if (imageMatch) {
+          mediaUrl = imageMatch[1]
+          thumbnailUrl = mediaUrl
+          console.log('Extracted image from og:image:', mediaUrl)
+        }
+      }
+
+      // Check if it's a Reel (video)
+      if (url.includes('/reel/')) {
+        mediaType = 'video'
+        hasAudio = true // Reels typically have audio
+        console.log('Detected as Reel (video with audio)')
+      }
+
+      // Extract shortcode from URL for fallback
+      const shortcodeMatch = url.match(/\/(p|reel|tv)\/([A-Za-z0-9_-]+)/)
+      const shortcode = shortcodeMatch ? shortcodeMatch[2] : ''
+      console.log('Extracted shortcode:', shortcode)
+
+      console.log('=== FINAL INSTAGRAM DATA ===')
+      console.log('author:', author)
+      console.log('authorUsername:', authorUsername)
+      console.log('authorImage:', authorImage)
+      console.log('caption:', caption?.substring(0, 100))
+      console.log('location:', location)
+      console.log('timestamp:', timestamp)
+      console.log('mediaUrl:', mediaUrl)
+      console.log('mediaType:', mediaType)
+      console.log('hasAudio:', hasAudio)
+      console.log('===========================')
+
+      // Generate title from caption or use default
+      let title = ''
+      if (caption) {
+        const sentences = caption.split(/[.!?]+/).filter(s => s.trim().length > 10)
+        if (sentences.length > 0) {
+          title = sentences[0].trim().substring(0, 100)
+        } else {
+          title = caption.substring(0, 100).trim()
+        }
+      } else {
+        title = `Instagram ${mediaType === 'video' ? 'Reel' : 'Post'}`
+      }
+
+      // Use caption as content
+      const content = caption || 'Instagram content (login required to view full content)'
+
+      return c.json({
+        title,
+        content,
+        author,
+        authorUsername,
+        authorImage,
+        publishDate: timestamp,
+        location,
+        images: mediaType === 'image' ? [mediaUrl].filter(Boolean) : [],
+        mediaUrl: mediaUrl || thumbnailUrl,
+        mediaType,
+        hashtags: [],
+        youtubeUrls: []
+      })
+    } catch (fetchError: any) {
+      console.error('Error fetching Instagram post:', fetchError)
+      
+      return c.json({
+        error: 'Could not automatically fetch Instagram post. Instagram requires authentication for most content.',
+        title: 'Instagram Post',
+        content: 'Instagram has strict content protection. You can manually copy the caption and paste it here, then add the image/video URL in Media Attachments.\n\nTip: Right-click on Instagram posts to copy text, or use Instagram\'s "Share" → "Copy Link" feature.',
+        author: '',
+        authorUsername: '',
+        authorImage: '',
+        images: [],
+        hashtags: [],
+        youtubeUrls: []
+      }, 200)
+    }
+  } catch (error: any) {
+    console.error('Error parsing Instagram post:', error)
+    return c.json({ 
+      error: 'Failed to parse Instagram post', 
+      details: error.message 
+    }, 500)
+  }
+})
+
+// Medium Parser Route
+app.post('/make-server-053bcd80/parse-medium', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    
+    if (!url || typeof url !== 'string') {
+      return c.json({ error: 'Medium URL is required' }, 400)
+    }
+
+    console.log('Parsing Medium post:', url)
+
+    // Validate it's a Medium URL
+    if (!url.includes('medium.com')) {
+      return c.json({ error: 'Invalid Medium URL' }, 400)
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch Medium post:', response.status)
+        return c.json({ 
+          error: 'Could not fetch Medium post. The post may be behind a paywall or require authentication.',
+          title: '',
+          content: 'Please manually copy and paste the content from the Medium post.',
+        }, 200)
+      }
+
+      const html = await response.text()
+
+      let title = ''
+      let content = ''
+      let author = ''
+      let authorImage = ''
+      let authorUsername = ''
+      let publishDate = ''
+      const images: string[] = []
+
+      // Extract title
+      const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i)
+      if (titleMatch) {
+        title = titleMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+
+      // Extract description/excerpt as content
+      const descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i)
+      if (descMatch) {
+        content = descMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+
+      // Try to extract full content from article body
+      const articleMatch = html.match(/<article[^>]*>(.*?)<\/article>/is)
+      if (articleMatch) {
+        const articleText = articleMatch[1]
+          .replace(/<script[^>]*>.*?<\/script>/gis, '')
+          .replace(/<style[^>]*>.*?<\/style>/gis, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ')
+          .trim()
+        
+        if (articleText.length > content.length) {
+          content = articleText
+        }
+      }
+
+      // Extract author from meta tag
+      const authorMatch = html.match(/<meta\s+(?:property="article:author"|name="author")\s+content="([^"]+)"/i)
+      if (authorMatch) {
+        author = authorMatch[1].trim()
+      }
+
+      // Extract author from URL pattern (medium.com/@username/...)
+      const usernameMatch = url.match(/\/@([a-zA-Z0-9_-]+)\//)
+      if (usernameMatch) {
+        authorUsername = usernameMatch[1]
+        if (!author) {
+          author = authorUsername.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+        }
+      }
+
+      // Extract author image
+      const authorImgMatch = html.match(/<meta\s+property="article:author:image"\s+content="([^"]+)"/i)
+      if (authorImgMatch) {
+        authorImage = authorImgMatch[1]
+      }
+
+      // Extract publish date
+      const dateMatch = html.match(/<meta\s+property="article:published_time"\s+content="([^"]+)"/i)
+      if (dateMatch) {
+        publishDate = dateMatch[1]
+      }
+
+      // Extract main image
+      const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i)
+      if (imageMatch) {
+        images.push(imageMatch[1])
+      }
+
+      console.log('Successfully parsed Medium post')
+      console.log('Title:', title)
+      console.log('Content length:', content.length)
+      console.log('Author:', author)
+
+      return c.json({
+        title,
+        content,
+        author,
+        authorImage,
+        authorUsername,
+        publishDate,
+        images,
+        hashtags: [],
+        youtubeUrls: []
+      })
+    } catch (fetchError: any) {
+      console.error('Error fetching Medium post:', fetchError)
+      return c.json({
+        error: 'Could not automatically fetch Medium post content. Please manually copy the content.',
+        title: '',
+        content: 'Please copy the post content from Medium and paste it here.',
+      }, 200)
+    }
+  } catch (error: any) {
+    console.error('Error parsing Medium post:', error)
+    return c.json({ 
+      error: 'Failed to parse Medium post', 
+      details: error.message 
+    }, 500)
+  }
+})
+
+// X/Twitter Parser Route
+app.post('/make-server-053bcd80/parse-x', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    
+    if (!url || typeof url !== 'string') {
+      return c.json({ error: 'X/Twitter URL is required' }, 400)
+    }
+
+    console.log('Parsing X/Twitter post:', url)
+
+    // Validate it's a Twitter/X URL
+    if (!url.includes('twitter.com') && !url.includes('x.com')) {
+      return c.json({ error: 'Invalid X/Twitter URL' }, 400)
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch X/Twitter post:', response.status)
+        return c.json({ 
+          error: 'Could not fetch X/Twitter post. The post may be private or require authentication.',
+          title: '',
+          content: 'Please manually copy and paste the content from the post.',
+        }, 200)
+      }
+
+      const html = await response.text()
+
+      let title = ''
+      let content = ''
+      let author = ''
+      let authorImage = ''
+      let authorUsername = ''
+      let publishDate = ''
+      const images: string[] = []
+      const hashtags: string[] = []
+
+      // Extract content from description
+      const descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i)
+      if (descMatch) {
+        content = descMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+
+      // Extract title
+      const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i)
+      if (titleMatch) {
+        const fullTitle = titleMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .trim()
+        
+        // X titles are usually "Username on X: Tweet content"
+        const authorMatch = fullTitle.match(/^([^:]+?)\s+on\s+(?:X|Twitter):/i)
+        if (authorMatch) {
+          author = authorMatch[1].trim()
+        }
+        
+        title = fullTitle.split(':').slice(1).join(':').trim() || content.substring(0, 100)
+      }
+
+      // Extract author username from URL
+      const usernameMatch = url.match(/\/([^\/]+)\/status\//)
+      if (usernameMatch) {
+        authorUsername = usernameMatch[1]
+        if (!author) {
+          author = authorUsername
+        }
+      }
+
+      // Extract author image
+      const authorImgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i)
+      if (authorImgMatch) {
+        authorImage = authorImgMatch[1]
+      }
+
+      // Extract images
+      const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/gi)
+      if (imageMatch) {
+        imageMatch.forEach(match => {
+          const urlMatch = match.match(/content="([^"]+)"/)
+          if (urlMatch && !images.includes(urlMatch[1])) {
+            images.push(urlMatch[1])
+          }
+        })
+      }
+
+      // Extract hashtags
+      const hashtagMatches = content.match(/#[\w]+/g)
+      if (hashtagMatches) {
+        hashtags.push(...hashtagMatches.map(tag => tag.substring(1)))
+      }
+
+      // Generate title from content if needed
+      if (!title && content) {
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10)
+        if (sentences.length > 0) {
+          title = sentences[0].trim().substring(0, 100)
+        } else {
+          title = content.substring(0, 100).trim() + '...'
+        }
+      }
+
+      console.log('Successfully parsed X/Twitter post')
+      console.log('Title:', title)
+      console.log('Content length:', content.length)
+      console.log('Author:', author)
+
+      return c.json({
+        title,
+        content,
+        author,
+        authorImage,
+        authorUsername,
+        publishDate,
+        images,
+        hashtags,
+        youtubeUrls: []
+      })
+    } catch (fetchError: any) {
+      console.error('Error fetching X/Twitter post:', fetchError)
+      return c.json({
+        error: 'Could not automatically fetch X/Twitter post content. Please manually copy the content.',
+        title: '',
+        content: 'Please copy the post content and paste it here.',
+      }, 200)
+    }
+  } catch (error: any) {
+    console.error('Error parsing X/Twitter post:', error)
+    return c.json({ 
+      error: 'Failed to parse X/Twitter post', 
+      details: error.message 
+    }, 500)
+  }
+})
+
+// TikTok Parser Route
+app.post('/make-server-053bcd80/parse-tiktok', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    
+    if (!url || typeof url !== 'string') {
+      return c.json({ error: 'TikTok URL is required' }, 400)
+    }
+
+    console.log('Parsing TikTok post:', url)
+
+    // Validate it's a TikTok URL
+    if (!url.includes('tiktok.com')) {
+      return c.json({ error: 'Invalid TikTok URL' }, 400)
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch TikTok post:', response.status)
+        return c.json({ 
+          error: 'Could not fetch TikTok post. The post may be private or require authentication.',
+          title: '',
+          content: 'Please manually copy and paste the content from the TikTok post.',
+        }, 200)
+      }
+
+      const html = await response.text()
+
+      let title = ''
+      let content = ''
+      let author = ''
+      let authorImage = ''
+      let authorUsername = ''
+      let publishDate = ''
+      const images: string[] = []
+      const hashtags: string[] = []
+
+      // Extract description/content
+      const descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i)
+      if (descMatch) {
+        content = descMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+
+      // Extract title
+      const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i)
+      if (titleMatch) {
+        title = titleMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+
+      // Extract author from URL pattern (@username/video/...)
+      const usernameMatch = url.match(/\/@([a-zA-Z0-9._]+)\//)
+      if (usernameMatch) {
+        authorUsername = usernameMatch[1]
+        author = authorUsername
+      }
+
+      // Extract author image
+      const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i)
+      if (imageMatch) {
+        images.push(imageMatch[1])
+      }
+
+      // Extract hashtags from content
+      const hashtagMatches = content.match(/#[\w]+/g)
+      if (hashtagMatches) {
+        hashtags.push(...hashtagMatches.map(tag => tag.substring(1)))
+      }
+
+      // Generate title from content if needed
+      if (!title && content) {
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10)
+        if (sentences.length > 0) {
+          title = sentences[0].trim().substring(0, 100)
+        } else {
+          title = content.substring(0, 100).trim() + '...'
+        }
+      }
+
+      console.log('Successfully parsed TikTok post')
+      console.log('Title:', title)
+      console.log('Content length:', content.length)
+      console.log('Author:', author)
+
+      return c.json({
+        title,
+        content,
+        author,
+        authorImage,
+        authorUsername,
+        publishDate,
+        images,
+        hashtags,
+        youtubeUrls: [],
+        mediaUrl: images[0],
+        mediaType: 'video'
+      })
+    } catch (fetchError: any) {
+      console.error('Error fetching TikTok post:', fetchError)
+      return c.json({
+        error: 'Could not automatically fetch TikTok post content. Please manually copy the content.',
+        title: '',
+        content: 'Please copy the post content from TikTok and paste it here.',
+      }, 200)
+    }
+  } catch (error: any) {
+    console.error('Error parsing TikTok post:', error)
+    return c.json({ 
+      error: 'Failed to parse TikTok post', 
+      details: error.message 
+    }, 500)
+  }
+})
+
+// Reddit Parser Route
+app.post('/make-server-053bcd80/parse-reddit', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    
+    if (!url || typeof url !== 'string') {
+      return c.json({ error: 'Reddit URL is required' }, 400)
+    }
+
+    console.log('Parsing Reddit post:', url)
+
+    // Validate it's a Reddit URL
+    if (!url.includes('reddit.com')) {
+      return c.json({ error: 'Invalid Reddit URL' }, 400)
+    }
+
+    try {
+      // Reddit has a JSON API - append .json to the URL
+      const jsonUrl = url.replace(/\/$/, '') + '.json'
+      
+      const response = await fetch(jsonUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json',
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch Reddit post:', response.status)
+        return c.json({ 
+          error: 'Could not fetch Reddit post. The post may be private or deleted.',
+          title: '',
+          content: 'Please manually copy and paste the content from the Reddit post.',
+        }, 200)
+      }
+
+      const data = await response.json()
+      
+      // Reddit JSON structure: data is array with [0] being the post
+      const postData = data[0]?.data?.children?.[0]?.data
+      
+      if (!postData) {
+        throw new Error('Could not parse Reddit post data')
+      }
+
+      const title = postData.title || ''
+      const content = postData.selftext || postData.body || ''
+      const author = postData.author || ''
+      const authorUsername = postData.author || ''
+      const publishDate = postData.created_utc ? new Date(postData.created_utc * 1000).toISOString() : ''
+      const subreddit = postData.subreddit || ''
+      const images: string[] = []
+
+      // Extract image if it's an image post
+      if (postData.url && (postData.url.includes('.jpg') || postData.url.includes('.png') || postData.url.includes('.gif'))) {
+        images.push(postData.url)
+      }
+
+      // Check for preview images
+      if (postData.preview?.images?.[0]?.source?.url) {
+        const imgUrl = postData.preview.images[0].source.url.replace(/&amp;/g, '&')
+        if (!images.includes(imgUrl)) {
+          images.push(imgUrl)
+        }
+      }
+
+      // Extract location (subreddit)
+      const location = subreddit ? `r/${subreddit}` : ''
+
+      console.log('Successfully parsed Reddit post')
+      console.log('Title:', title)
+      console.log('Content length:', content.length)
+      console.log('Author:', author)
+      console.log('Subreddit:', subreddit)
+
+      return c.json({
+        title,
+        content,
+        author,
+        authorUsername,
+        publishDate,
+        location,
+        images,
+        hashtags: [],
+        youtubeUrls: []
+      })
+    } catch (fetchError: any) {
+      console.error('Error fetching Reddit post:', fetchError)
+      return c.json({
+        error: 'Could not automatically fetch Reddit post content. Please manually copy the content.',
+        title: '',
+        content: 'Please copy the post content from Reddit and paste it here.',
+      }, 200)
+    }
+  } catch (error: any) {
+    console.error('Error parsing Reddit post:', error)
+    return c.json({ 
+      error: 'Failed to parse Reddit post', 
       details: error.message 
     }, 500)
   }

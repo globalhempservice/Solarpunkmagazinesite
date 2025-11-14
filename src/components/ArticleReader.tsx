@@ -331,7 +331,8 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                       <div className="absolute bottom-4 left-4 w-24 h-24 bg-cyan-400/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '4s', animationDelay: '1s' }} />
                     </div>
                     
-                    <CardContent className="relative p-5 md:p-6">
+                    <CardContent className="relative p-4 md:p-6">
+                      {/* Header with LinkedIn Icon and Label */}
                       <div className="flex items-center gap-2 mb-4">
                         <div className="p-2 bg-blue-500/20 rounded-lg">
                           <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
@@ -341,13 +342,22 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           LinkedIn Author
                         </span>
+                        
+                        {/* LinkedIn Badge - Desktop Only */}
+                        <Badge className="hidden md:flex bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg ml-auto">
+                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                          LinkedIn
+                        </Badge>
                       </div>
                       
-                      <div className="flex items-center gap-4">
+                      {/* Author Content - Responsive Layout */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         {/* Author Avatar */}
-                        <div className="relative group">
+                        <div className="relative group mx-auto sm:mx-0">
                           <div className="absolute -inset-1 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity" />
-                          <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-3 border-blue-500/30 bg-muted flex-shrink-0">
+                          <div className="relative w-20 h-20 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-3 border-blue-500/30 bg-muted flex-shrink-0">
                             {article.authorImage ? (
                               <img 
                                 src={article.authorImage} 
@@ -366,36 +376,36 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                         </div>
                         
                         {/* Author Info */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-lg md:text-xl text-foreground mb-1 truncate">
+                        <div className="flex-1 min-w-0 text-center sm:text-left w-full sm:w-auto">
+                          <h3 className="font-bold text-base sm:text-lg md:text-xl text-foreground mb-1">
                             {article.author || 'LinkedIn Author'}
                           </h3>
                           {article.authorTitle && (
-                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                            <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
                               {article.authorTitle}
                             </p>
                           )}
                           {article.publishDate && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              <span>
-                                Published: {new Date(article.publishDate).toLocaleDateString('en-US', { 
+                            <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">
+                                {new Date(article.publishDate).toLocaleDateString('en-US', { 
                                   year: 'numeric', 
-                                  month: 'long', 
+                                  month: 'short', 
                                   day: 'numeric' 
                                 })}
                               </span>
                             </div>
                           )}
+                          
+                          {/* LinkedIn Badge - Mobile Only */}
+                          <Badge className="md:hidden inline-flex mt-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                            </svg>
+                            LinkedIn
+                          </Badge>
                         </div>
-                        
-                        {/* LinkedIn Badge */}
-                        <Badge className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg flex-shrink-0">
-                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                          </svg>
-                          LinkedIn
-                        </Badge>
                       </div>
                     </CardContent>
                   </Card>

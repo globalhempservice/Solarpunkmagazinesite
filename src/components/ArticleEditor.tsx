@@ -1,19 +1,18 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card"
-import { Plus, Trash2, Youtube, Music, Image as ImageIcon, Sparkles, Target, Award, CheckCircle2, Circle, Link as LinkIcon, ExternalLink, Loader2, Star } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Badge } from "./ui/badge"
-import { Progress } from "./ui/progress"
-import { Alert, AlertDescription } from "./ui/alert"
-import { toast } from "sonner"
-import { projectId, publicAnonKey } from '../utils/supabase/info'
+import { Sparkles, Award, Target, CheckCircle2, Circle, Plus, Trash2, Music, Youtube, ImageIcon, Star, ExternalLink } from "lucide-react"
+import { GamifiedImporter } from './GamifiedImporter'
+
+// Clean version - no old LinkedIn importer code
 
 interface MediaItem {
-  type: 'youtube' | 'audio' | 'image'
+  type: 'youtube' | 'audio' | 'image' | 'spotify'
   url: string
   caption?: string
 }
@@ -95,94 +94,16 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
   const [media, setMedia] = useState<MediaItem[]>(initialData?.media || article?.media || [])
   const [coverImage, setCoverImage] = useState<string | undefined>(initialData?.coverImage || article?.coverImage)
   
-  // LinkedIn metadata state
+  // Author & Source metadata state
   const [author, setAuthor] = useState(initialData?.author || article?.author || '')
   const [authorImage, setAuthorImage] = useState(initialData?.authorImage || article?.authorImage || '')
   const [authorTitle, setAuthorTitle] = useState(initialData?.authorTitle || article?.authorTitle || '')
   const [publishDate, setPublishDate] = useState(initialData?.publishDate || article?.publishDate || '')
+  const [sourceUrl, setSourceUrl] = useState('')
   
-  const [newMediaType, setNewMediaType] = useState<'youtube' | 'audio' | 'image'>('youtube')
+  const [newMediaType, setNewMediaType] = useState<'youtube' | 'audio' | 'image' | 'spotify'>('youtube')
   const [newMediaUrl, setNewMediaUrl] = useState('')
   const [newMediaCaption, setNewMediaCaption] = useState('')
-
-  // LinkedIn importer state
-  const [linkedInUrl, setLinkedInUrl] = useState('')
-  const [parsing, setParsing] = useState(false)
-  const [showLinkedInImporter, setShowLinkedInImporter] = useState(false)
-  const [linkedInError, setLinkedInError] = useState('')
-
-  // LinkedIn parsing handler
-  const handleParseLinkedIn = async () => {
-    if (!linkedInUrl.trim()) {
-      setLinkedInError('Please enter a LinkedIn post URL')
-      return
-    }
-
-    // Validate LinkedIn URL
-    if (!linkedInUrl.includes('linkedin.com/posts/') && !linkedInUrl.includes('linkedin.com/feed/update/')) {
-      setLinkedInError('Please enter a valid LinkedIn post URL')
-      return
-    }
-
-    setLinkedInError('')
-    setParsing(true)
-
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/parse-linkedin`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: linkedInUrl }),
-        }
-      )
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to parse LinkedIn post')
-      }
-
-      // Auto-fill form fields
-      if (data.title) setTitle(data.title)
-      if (data.content) setContent(data.content)
-      if (data.content) setExcerpt(data.content.substring(0, 150))
-      
-      // LinkedIn metadata
-      if (data.author) setAuthor(data.author)
-      if (data.authorImage) setAuthorImage(data.authorImage)
-      if (data.authorTitle) setAuthorTitle(data.authorTitle)
-      if (data.publishDate) setPublishDate(data.publishDate)
-      
-      // Add images as media
-      if (data.images && data.images.length > 0) {
-        const imageMedia = data.images.map((url: string, index: number) => ({
-          type: 'image' as const,
-          url,
-          caption: `Image ${index + 1} from LinkedIn post`
-        }))
-        setMedia([...media, ...imageMedia])
-        toast.success(`✅ LinkedIn post imported! Found ${data.images.length} image(s)${data.author ? ` by ${data.author}` : ''}`)
-      } else if (data.content && data.content !== 'Please copy the post content from LinkedIn and paste it here.') {
-        toast.success(`✅ LinkedIn post imported!${data.author ? ` Author: ${data.author}` : ''}`)
-      } else {
-        toast.info('LinkedIn content ready - please paste post content manually')
-      }
-
-      // Collapse the importer after successful import
-      setShowLinkedInImporter(false)
-      setLinkedInUrl('')
-    } catch (err: any) {
-      console.error('Error parsing LinkedIn post:', err)
-      setLinkedInError(err.message || 'Failed to parse LinkedIn post. Please try again.')
-      toast.error('Failed to parse LinkedIn post')
-    } finally {
-      setParsing(false)
-    }
-  }
 
   // Calculate article quality score
   const calculateScore = () => {
@@ -250,10 +171,10 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
   }
 
   const getScoreMessage = (score: number) => {
-    if (score >= 90) return '🌟 Excellent! Your article is ready to publish!'
-    if (score >= 70) return '✨ Great progress! Almost there!'
-    if (score >= 50) return '💪 Good start! Keep going!'
-    return '🚀 Let\'s create something amazing!'
+    if (score >= 90) return 'Excellent! Your article is ready to publish!'
+    if (score >= 70) return 'Great progress! Almost there!'
+    if (score >= 50) return 'Good start! Keep going!'
+    return 'Let\'s create something amazing!'
   }
 
   const handleAddMedia = () => {
@@ -406,95 +327,31 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
         </Card>
       </div>
 
-      {/* LinkedIn Post Importer Card */}
-      <Card className="border-2 border-blue-500/30 bg-gradient-to-br from-blue-500/5 via-card/50 to-cyan-500/5 backdrop-blur-sm relative overflow-hidden transition-all duration-300">
-        {/* Animated background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10" />
-        
-        {/* Floating particles */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-4 right-4 w-20 h-20 bg-blue-400/20 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '3s' }} />
-          <div className="absolute bottom-4 left-4 w-24 h-24 bg-cyan-400/20 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '4s', animationDelay: '1s' }} />
-        </div>
-        
-        <CardHeader className="relative">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
-              <div className="relative bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-3">
-                <LinkIcon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <CardTitle className="flex items-center gap-2 flex-wrap">
-                LinkedIn Post Importer
-                <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400">
-                  Auto-fill
-                </Badge>
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Paste a LinkedIn post URL to automatically extract and fill content below
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="relative space-y-4">
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0">
-              ⚡ Auto-extract content
-            </Badge>
-            <Badge variant="secondary" className="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-0">
-              📝 Fill form fields
-            </Badge>
-            <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-0">
-              🖼️ Import images
-            </Badge>
-          </div>
+      {/* Gamified Universal Importer - STEP 1 */}
+      <GamifiedImporter 
+        onImport={(data) => {
+          // Auto-fill form fields from imported data
+          if (data.title) setTitle(data.title)
+          if (data.content) setContent(data.content)
+          if (data.excerpt) setExcerpt(data.excerpt)
+          
+          // Author metadata
+          if (data.author) setAuthor(data.author)
+          if (data.authorImage) setAuthorImage(data.authorImage)
+          if (data.authorTitle) setAuthorTitle(data.authorTitle)
+          if (data.publishDate) setPublishDate(data.publishDate)
+          
+          // Capture source URL
+          if (data.sourceUrl) setSourceUrl(data.sourceUrl)
+          
+          // Add all media from the data
+          if (data.media && data.media.length > 0) {
+            setMedia([...media, ...data.media])
+          }
+        }}
+      />
 
-          <div className="space-y-2">
-            <Label htmlFor="linkedin-url">LinkedIn Post URL</Label>
-            <div className="flex gap-2">
-              <Input
-                id="linkedin-url"
-                type="url"
-                value={linkedInUrl}
-                onChange={(e) => setLinkedInUrl(e.target.value)}
-                placeholder="https://www.linkedin.com/posts/..."
-                className="flex-1 h-11 border-2"
-                disabled={parsing}
-              />
-              <Button
-                type="button"
-                onClick={handleParseLinkedIn}
-                disabled={parsing || !linkedInUrl.trim()}
-                className="h-11 px-6 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              >
-                {parsing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Parsing...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Import
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {linkedInError && (
-            <Alert className="border-destructive/50 bg-destructive/10">
-              <Circle className="h-4 w-4 text-destructive" />
-              <AlertDescription>{linkedInError}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Media Attachments Card - MOVED UP */}
+      {/* Media Attachments Card - STEP 2 */}
       <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5" />
         
@@ -512,34 +369,141 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
         </CardHeader>
         <CardContent className="relative space-y-4">
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Media Type</Label>
-                <Select value={newMediaType} onValueChange={(value: any) => setNewMediaType(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="youtube">📹 YouTube Video</SelectItem>
-                    <SelectItem value="audio">🎵 Audio (MP3)</SelectItem>
-                    <SelectItem value="image">🖼️ Image</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Media Type Selection - Logo Icons */}
+            <div className="space-y-2">
+              <Label>Select Media Type</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* YouTube */}
+                <button
+                  type="button"
+                  onClick={() => setNewMediaType('youtube')}
+                  className={`relative p-4 rounded-2xl border-2 transition-all duration-300 group hover:scale-105 ${
+                    newMediaType === 'youtube'
+                      ? 'border-red-500 bg-red-500/10 shadow-lg shadow-red-500/20'
+                      : 'border-border/50 hover:border-red-500/30 bg-card/50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                      newMediaType === 'youtube' 
+                        ? 'bg-red-600' 
+                        : 'bg-red-600/20 group-hover:bg-red-600/40'
+                    }`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className={`w-6 h-6 ${
+                        newMediaType === 'youtube' ? 'text-white' : 'text-red-600'
+                      }`}>
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>
+                    </div>
+                    <span className={`text-xs font-semibold transition-colors ${
+                      newMediaType === 'youtube' ? 'text-red-600' : 'text-muted-foreground'
+                    }`}>
+                      YouTube
+                    </span>
+                  </div>
+                </button>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label>URL</Label>
-                <Input
-                  value={newMediaUrl}
-                  onChange={(e) => setNewMediaUrl(e.target.value)}
-                  placeholder={
-                    newMediaType === 'youtube' ? 'https://youtube.com/watch?v=...' :
-                    newMediaType === 'audio' ? 'https://example.com/audio.mp3' :
-                    'https://example.com/image.jpg'
-                  }
-                  className="border-2"
-                />
+                {/* Spotify */}
+                <button
+                  type="button"
+                  onClick={() => setNewMediaType('spotify')}
+                  className={`relative p-4 rounded-2xl border-2 transition-all duration-300 group hover:scale-105 ${
+                    newMediaType === 'spotify'
+                      ? 'border-[#1DB954] bg-[#1DB954]/10 shadow-lg shadow-[#1DB954]/20'
+                      : 'border-border/50 hover:border-[#1DB954]/30 bg-card/50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                      newMediaType === 'spotify' 
+                        ? 'bg-[#1DB954]' 
+                        : 'bg-[#1DB954]/20 group-hover:bg-[#1DB954]/40'
+                    }`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className={`w-6 h-6 ${
+                        newMediaType === 'spotify' ? 'text-white' : 'text-[#1DB954]'
+                      }`}>
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                      </svg>
+                    </div>
+                    <span className={`text-xs font-semibold transition-colors ${
+                      newMediaType === 'spotify' ? 'text-[#1DB954]' : 'text-muted-foreground'
+                    }`}>
+                      Spotify
+                    </span>
+                  </div>
+                </button>
+
+                {/* Audio/MP3 */}
+                <button
+                  type="button"
+                  onClick={() => setNewMediaType('audio')}
+                  className={`relative p-4 rounded-2xl border-2 transition-all duration-300 group hover:scale-105 ${
+                    newMediaType === 'audio'
+                      ? 'border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/20'
+                      : 'border-border/50 hover:border-purple-500/30 bg-card/50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                      newMediaType === 'audio' 
+                        ? 'bg-purple-600' 
+                        : 'bg-purple-600/20 group-hover:bg-purple-600/40'
+                    }`}>
+                      <Music className={`w-6 h-6 ${
+                        newMediaType === 'audio' ? 'text-white' : 'text-purple-600'
+                      }`} />
+                    </div>
+                    <span className={`text-xs font-semibold transition-colors ${
+                      newMediaType === 'audio' ? 'text-purple-600' : 'text-muted-foreground'
+                    }`}>
+                      Audio
+                    </span>
+                  </div>
+                </button>
+
+                {/* Image */}
+                <button
+                  type="button"
+                  onClick={() => setNewMediaType('image')}
+                  className={`relative p-4 rounded-2xl border-2 transition-all duration-300 group hover:scale-105 ${
+                    newMediaType === 'image'
+                      ? 'border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20'
+                      : 'border-border/50 hover:border-blue-500/30 bg-card/50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                      newMediaType === 'image' 
+                        ? 'bg-blue-600' 
+                        : 'bg-blue-600/20 group-hover:bg-blue-600/40'
+                    }`}>
+                      <ImageIcon className={`w-6 h-6 ${
+                        newMediaType === 'image' ? 'text-white' : 'text-blue-600'
+                      }`} />
+                    </div>
+                    <span className={`text-xs font-semibold transition-colors ${
+                      newMediaType === 'image' ? 'text-blue-600' : 'text-muted-foreground'
+                    }`}>
+                      Image
+                    </span>
+                  </div>
+                </button>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>URL</Label>
+              <Input
+                value={newMediaUrl}
+                onChange={(e) => setNewMediaUrl(e.target.value)}
+                placeholder={
+                  newMediaType === 'youtube' ? 'https://youtube.com/watch?v=...' :
+                  newMediaType === 'spotify' ? 'https://open.spotify.com/episode/...' :
+                  newMediaType === 'audio' ? 'https://example.com/audio.mp3' :
+                  'https://example.com/image.jpg'
+                }
+                className="border-2"
+              />
             </div>
 
             <div className="space-y-2">
@@ -563,13 +527,13 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
             </Button>
           </div>
 
-          {/* Media Library - Always Visible */}
+          {/* Media Library */}
           <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
               <Label>Media Library ({media.length})</Label>
               {coverImage && (
                 <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0">
-                  ✨ Cover Image Set
+                  Cover Image Set
                 </Badge>
               )}
             </div>
@@ -619,15 +583,9 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                             src={item.url} 
                             alt={item.caption || 'Media preview'} 
                             className="w-full h-full object-cover"
-                            onLoad={() => {
-                              console.log('Image loaded successfully:', item.url)
-                            }}
                             onError={(e) => {
-                              console.error('Failed to load image:', item.url)
-                              console.log('Falling back to placeholder image')
                               e.currentTarget.src = 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400'
                             }}
-                            crossOrigin="anonymous"
                           />
                         )}
                         
@@ -723,7 +681,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                   className="w-full hover:bg-slate-500/10 hover:border-slate-500/30 transition-all"
                 >
                   <Circle className="w-4 h-4 mr-2" />
-                  {coverImage ? 'Switch to Generic Vibe (No Cover Image)' : '✓ Using Generic Vibe'}
+                  {coverImage ? 'Switch to Generic Vibe (No Cover Image)' : 'Using Generic Vibe'}
                 </Button>
               </div>
             )}
@@ -821,7 +779,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
         </CardContent>
       </Card>
 
-      {/* LinkedIn Author Metadata Card - NEW */}
+      {/* Author & Source Information Card */}
       <Card className="border-2 border-blue-500/30 bg-gradient-to-br from-blue-500/5 via-card/50 to-cyan-500/5 backdrop-blur-sm relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10" />
         
@@ -830,7 +788,10 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
             <div className="relative">
               <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
               <div className="relative bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-3">
-                <LinkIcon className="w-5 h-5 text-white" />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-white">
+                  <circle cx="12" cy="8" r="5"/>
+                  <path d="M20 21a8 8 0 1 0-16 0"/>
+                </svg>
               </div>
             </div>
             <div className="flex-1">
@@ -841,123 +802,74 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                 </Badge>
               </CardTitle>
               <CardDescription className="mt-1">
-                Add author details and original source information (auto-filled from LinkedIn import)
+                Add author details and original source information
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         
         <CardContent className="relative space-y-5">
-          {/* Author Information Section */}
-          <div className="space-y-4 p-4 rounded-xl bg-muted/30 border border-border/50">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <h4 className="font-semibold text-sm">Author Details</h4>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="author" className="text-sm">Author Name</Label>
-                <Input
-                  id="author"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  placeholder="John Doe"
-                  className="h-11 border-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Name of the article author or LinkedIn post creator
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="authorTitle" className="text-sm">Author Title/Role</Label>
-                <Input
-                  id="authorTitle"
-                  value={authorTitle}
-                  onChange={(e) => setAuthorTitle(e.target.value)}
-                  placeholder="Sustainability Expert at DEWII"
-                  className="h-11 border-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Professional title or role of the author
-                </p>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="author" className="text-sm">Author Name</Label>
+              <Input
+                id="author"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                placeholder="John Doe"
+                className="h-11 border-2"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="authorImage" className="text-sm">Author Avatar URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="authorImage"
-                  value={authorImage}
-                  onChange={(e) => setAuthorImage(e.target.value)}
-                  placeholder="https://example.com/avatar.jpg"
-                  className="h-11 border-2 flex-1"
-                />
-                {authorImage && (
-                  <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-border flex-shrink-0">
-                    <img 
-                      src={authorImage} 
-                      alt="Author avatar" 
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Profile picture URL (LinkedIn profile image or other)
-              </p>
+              <Label htmlFor="authorTitle" className="text-sm">Author Title/Role</Label>
+              <Input
+                id="authorTitle"
+                value={authorTitle}
+                onChange={(e) => setAuthorTitle(e.target.value)}
+                placeholder="Sustainability Expert at DEWII"
+                className="h-11 border-2"
+              />
             </div>
           </div>
 
-          {/* Source Information Section */}
-          <div className="space-y-4 p-4 rounded-xl bg-muted/30 border border-border/50">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 rounded-full bg-cyan-500" />
-              <h4 className="font-semibold text-sm">Source Information</h4>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="source" className="text-sm">Source Platform</Label>
-                <Select value={author ? 'LinkedIn' : ''} onValueChange={(value) => {
-                  // This is just for display, actual source will be set when parsing
-                }}>
-                  <SelectTrigger id="source" className="h-11 border-2">
-                    <SelectValue placeholder="Select source..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                    <SelectItem value="Original">Original Content</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Where this content was originally published
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="publishDate" className="text-sm">Original Publish Date</Label>
-                <Input
-                  id="publishDate"
-                  type="datetime-local"
-                  value={publishDate ? new Date(publishDate).toISOString().slice(0, 16) : ''}
-                  onChange={(e) => setPublishDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
-                  className="h-11 border-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  When the original content was published
-                </p>
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="authorImage" className="text-sm">Author Avatar URL</Label>
+            <div className="flex gap-2">
+              <Input
+                id="authorImage"
+                value={authorImage}
+                onChange={(e) => setAuthorImage(e.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+                className="h-11 border-2 flex-1"
+              />
+              {authorImage && (
+                <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-border flex-shrink-0">
+                  <img 
+                    src={authorImage} 
+                    alt="Author avatar" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Preview Section */}
+          <div className="space-y-2">
+            <Label htmlFor="publishDate" className="text-sm">Original Publish Date</Label>
+            <Input
+              id="publishDate"
+              type="datetime-local"
+              value={publishDate ? new Date(publishDate).toISOString().slice(0, 16) : ''}
+              onChange={(e) => setPublishDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
+              className="h-11 border-2"
+            />
+          </div>
+
+          {/* Author Preview */}
           {(author || authorImage) && (
             <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-2 border-blue-500/30">
               <div className="flex items-center gap-2 mb-3">
@@ -986,14 +898,35 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                     </p>
                   )}
                 </div>
-                <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400">
-                  LinkedIn
-                </Badge>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Source URL Display at Bottom */}
+      {sourceUrl && (
+        <Card className="border-2 border-slate-500/30 bg-gradient-to-br from-slate-500/5 via-card/50 to-slate-600/5 backdrop-blur-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-slate-500/10">
+                <ExternalLink className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Original Source</p>
+                <a 
+                  href={sourceUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline truncate block"
+                >
+                  {sourceUrl}
+                </a>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Action Buttons */}
       <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 px-4">
@@ -1022,69 +955,72 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-end">
-                {/* Cancel Button */}
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={onCancel} 
-                  className="relative h-14 px-8 rounded-2xl border-2 overflow-hidden group hover:scale-105 transition-all duration-300"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 to-slate-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="relative z-10 text-base font-semibold">Cancel</span>
-                </Button>
-                
-                {/* Publish/Update Button */}
-                <Button 
-                  type="submit" 
-                  disabled={score < 50}
-                  className={`relative h-14 px-10 rounded-2xl overflow-hidden group transition-all duration-300 ${
-                    score >= 50 ? 'hover:scale-105' : 'opacity-50 cursor-not-allowed'
-                  }`}
-                >
-                  {/* Animated gradient background */}
-                  {score >= 50 && (
-                    <>
-                      <div className={`absolute inset-0 bg-gradient-to-r ${getScoreColor(score)} opacity-100`} />
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                      <div className={`absolute -inset-1 bg-gradient-to-r ${getScoreColor(score)} blur-xl opacity-50 group-hover:opacity-75 animate-pulse`} />
-                    </>
-                  )}
-                  
-                  {/* Button content */}
-                  <span className="relative z-10 flex items-center gap-2 text-base font-bold text-white drop-shadow-lg">
-                    {score >= 50 ? (
+              <div className="flex flex-col gap-3">
+                {/* Publish/Update Button - Center */}
+                <div className="flex justify-center">
+                  <Button 
+                    type="submit" 
+                    disabled={score < 50}
+                    className={`relative h-14 px-10 rounded-2xl overflow-hidden group transition-all duration-300 ${
+                      score >= 50 ? 'hover:scale-105' : 'opacity-50 cursor-not-allowed'
+                    }`}
+                  >
+                    {/* Animated gradient background */}
+                    {score >= 50 && (
                       <>
-                        {score >= 90 && <Award className="w-5 h-5" />}
-                        {score >= 70 && score < 90 && <Sparkles className="w-5 h-5" />}
-                        {score >= 50 && score < 70 && <Target className="w-5 h-5" />}
-                        {article ? 'Update Article' : 'Publish Article'}
-                      </>
-                    ) : (
-                      <>
-                        <Circle className="w-5 h-5" />
-                        Complete {50 - score}% more to publish
+                        <div className={`absolute inset-0 bg-gradient-to-r ${getScoreColor(score)} opacity-100`} />
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                        <div className={`absolute -inset-1 bg-gradient-to-r ${getScoreColor(score)} blur-xl opacity-50 group-hover:opacity-75 animate-pulse`} />
                       </>
                     )}
-                  </span>
-                  
-                  {/* Sparkle effects for high scores */}
-                  {score >= 90 && (
-                    <div className="absolute inset-0 overflow-hidden">
-                      {[...Array(5)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute w-1 h-1 bg-white rounded-full animate-sparkle"
-                          style={{
-                            left: `${20 + i * 15}%`,
-                            top: `${30 + (i % 2) * 40}%`,
-                            animationDelay: `${i * 0.2}s`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </Button>
+                    
+                    {/* Button content */}
+                    <span className="relative z-10 flex items-center gap-2 text-base font-bold text-white drop-shadow-lg">
+                      {score >= 50 ? (
+                        <>
+                          {score >= 90 && <Award className="w-5 h-5" />}
+                          {score >= 70 && score < 90 && <Sparkles className="w-5 h-5" />}
+                          {score >= 50 && score < 70 && <Target className="w-5 h-5" />}
+                          {article ? 'Update Article' : 'Publish Article'}
+                        </>
+                      ) : (
+                        <>
+                          <Circle className="w-5 h-5" />
+                          Complete {50 - score}% more to publish
+                        </>
+                      )}
+                    </span>
+                    
+                    {/* Sparkle effects for high scores */}
+                    {score >= 90 && (
+                      <div className="absolute inset-0 overflow-hidden">
+                        {[...Array(5)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="absolute w-1 h-1 bg-white rounded-full animate-sparkle"
+                            style={{
+                              left: `${20 + i * 15}%`,
+                              top: `${30 + (i % 2) * 40}%`,
+                              animationDelay: `${i * 0.2}s`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Cancel Button - Bottom & Smaller */}
+                <div className="flex justify-center">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={onCancel} 
+                    className="relative h-8 px-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1136,7 +1072,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
   )
 }
 
-function getMediaIcon(type: 'youtube' | 'audio' | 'image') {
+function getMediaIcon(type: 'youtube' | 'audio' | 'image' | 'spotify') {
   switch (type) {
     case 'youtube':
       return Youtube
@@ -1144,6 +1080,8 @@ function getMediaIcon(type: 'youtube' | 'audio' | 'image') {
       return Music
     case 'image':
       return ImageIcon
+    case 'spotify':
+      return Music
   }
 }
 

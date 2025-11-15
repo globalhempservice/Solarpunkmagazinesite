@@ -15,6 +15,7 @@ import { ReadingHistory } from './components/ReadingHistory'
 import { SwipeMode } from './components/SwipeMode'
 import { MatchedArticles } from './components/MatchedArticles'
 import { AchievementsPage } from './components/AchievementsPage'
+import { BrowsePage } from './components/BrowsePage'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
@@ -64,7 +65,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
@@ -587,94 +588,80 @@ export default function App() {
               </div>
             )}
 
-            {/* Divider - Only show in grid mode */}
+            {/* Create Article Card - Only show in grid mode */}
             {exploreMode === 'grid' && (
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border/50"></div>
-                </div>
-              </div>
-            )}
+              <div 
+                onClick={() => setCurrentView('editor')}
+                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-[2px] shadow-lg shadow-emerald-500/50 cursor-pointer group hover:shadow-xl hover:shadow-emerald-500/60 transition-all"
+              >
+                {/* Animated background shimmer */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                
+                <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4">
+                  {/* Main Content Row */}
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div className="relative flex-shrink-0">
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-cyan-600 blur-md opacity-50 animate-pulse" />
+                      <div className="relative bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
+                        <Zap className="w-6 h-6 fill-white" />
+                      </div>
+                    </div>
+                    
+                    {/* Text */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 bg-clip-text text-transparent">
+                          ✨ CREATE YOUR ARTICLE!
+                        </h3>
+                        <Sparkles className="w-5 h-5 text-emerald-500 animate-pulse" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Share your knowledge and earn massive points for every article you create
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Search and Filter Section - Only show in grid mode */}
-            {exploreMode === 'grid' && (
-              <div className="space-y-4">
-                {/* Browse Latest Title */}
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold">Browse Latest</h2>
-                  <div className="h-px flex-1 bg-gradient-to-r from-border/50 to-transparent"></div>
-                </div>
+                  {/* Feature Pills Row */}
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    {/* Points Pill */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-full text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
+                      </svg>
+                      +50 Points
+                    </div>
+                    
+                    {/* Rich Editor Pill */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-500/10 rounded-full text-xs font-medium text-teal-600 dark:text-teal-400">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13M18.5 2.5C18.8978 2.1022 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.1022 21.5 2.5C21.8978 2.8978 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.1022 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" 
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Rich Editor
+                    </div>
+                  </div>
 
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search articles by title, content, or topic..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-12 pr-12 h-14 text-base border-2 border-border/50 focus:border-primary/50 rounded-2xl bg-muted/30 backdrop-blur-sm"
-                  />
-                  {searchQuery && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-muted"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-
-                {/* Category Pills */}
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-1">
-                    {categories.map(category => {
-                      const isActive = selectedCategory === category
-                      const categoryCount = category === 'all' 
-                        ? articles.length
-                        : articles.filter(a => a.category === category).length
-                      
-                      return (
-                        <Badge
-                          key={category}
-                          variant={isActive ? "default" : "outline"}
-                          className={`cursor-pointer whitespace-nowrap px-4 py-2 transition-all hover:scale-105 ${
-                            isActive 
-                              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30' 
-                              : 'hover:bg-muted/70 hover:border-primary/30'
-                          }`}
-                          onClick={() => setSelectedCategory(category)}
-                        >
-                          {category} {categoryCount > 0 && `(${categoryCount})`}
-                        </Badge>
-                      )
-                    })}
+                  {/* Action Button - Centered */}
+                  <div className="mt-4 pt-4 border-t border-border/50 flex justify-center">
+                    <div className="flex items-center gap-2.5 px-6 py-3 bg-emerald-500/10 rounded-xl border-2 border-emerald-500/30 group-hover:border-emerald-500/50 transition-all shadow-lg shadow-emerald-500/20 group-hover:shadow-xl group-hover:shadow-emerald-500/30">
+                      <Zap className="w-5 h-5 text-emerald-500 animate-bounce fill-current" />
+                      <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">START WRITING</span>
+                      <svg className="w-5 h-5 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Articles Display */}
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="space-y-3">
-                    <Skeleton className="h-48 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                ))}
-              </div>
-            ) : filteredArticles.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No articles found. Be the first to write one!</p>
-              </div>
-            ) : exploreMode === 'swipe' ? (
+            {/* Swipe Mode View */}
+            {exploreMode === 'swipe' && (
               <SwipeMode 
                 articles={filteredArticles}
+                accessToken={accessToken}
                 onMatch={(article) => {
                   // Add to matched articles and save to localStorage (prevent duplicates)
                   const isDuplicate = matchedArticles.some(a => a.id === article.id)
@@ -689,16 +676,6 @@ export default function App() {
                 ref={swipeModeRef}
                 onRefReady={() => setSwipeRefReady(true)}
               />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredArticles.map(article => (
-                  <ArticleCard
-                    key={article.id}
-                    article={article}
-                    onClick={() => handleArticleClick(article)}
-                  />
-                ))}
-              </div>
             )}
           </div>
         )}
@@ -731,6 +708,7 @@ export default function App() {
             article={selectedArticle}
             userProgress={userProgress}
             allArticles={articles}
+            accessToken={accessToken}
             suggestedArticles={articles.filter(a => a.id !== selectedArticle.id && a.category === selectedArticle.category).slice(0, 2)}
             onArticleSelect={(article) => {
               setSelectedArticle(article)
@@ -808,6 +786,14 @@ export default function App() {
             onBack={() => setCurrentView('dashboard')}
             onProgressUpdate={(updatedProgress) => setUserProgress(updatedProgress)}
             accessToken={accessToken}
+          />
+        )}
+
+        {currentView === 'browse' && (
+          <BrowsePage
+            articles={articles}
+            onArticleClick={handleArticleClick}
+            loading={loading}
           />
         )}
       </main>

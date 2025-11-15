@@ -844,10 +844,15 @@ app.post('/make-server-053bcd80/claim-achievements', async (c) => {
     const achievementsToGrant: string[] = []
     let pointsToAdd = 0
     
-    // Reading achievements
+    // === READING ACHIEVEMENTS ===
     if (progress.total_articles_read >= 1 && !achievementIds.includes('first-read')) {
       achievementsToGrant.push('first-read')
       pointsToAdd += 10
+    }
+    
+    if (progress.total_articles_read >= 5 && !achievementIds.includes('reader-5')) {
+      achievementsToGrant.push('reader-5')
+      pointsToAdd += 25
     }
     
     if (progress.total_articles_read >= 10 && !achievementIds.includes('reader-10')) {
@@ -862,10 +867,15 @@ app.post('/make-server-053bcd80/claim-achievements', async (c) => {
     
     if (progress.total_articles_read >= 50 && !achievementIds.includes('reader-50')) {
       achievementsToGrant.push('reader-50')
-      pointsToAdd += 500
+      pointsToAdd += 300
     }
     
-    // Streak achievements
+    if (progress.total_articles_read >= 100 && !achievementIds.includes('reader-100')) {
+      achievementsToGrant.push('reader-100')
+      pointsToAdd += 750
+    }
+    
+    // === STREAK ACHIEVEMENTS ===
     if (progress.current_streak >= 3 && !achievementIds.includes('streak-3')) {
       achievementsToGrant.push('streak-3')
       pointsToAdd += 30
@@ -873,12 +883,110 @@ app.post('/make-server-053bcd80/claim-achievements', async (c) => {
     
     if (progress.current_streak >= 7 && !achievementIds.includes('streak-7')) {
       achievementsToGrant.push('streak-7')
-      pointsToAdd += 100
+      pointsToAdd += 75
+    }
+    
+    if (progress.current_streak >= 14 && !achievementIds.includes('streak-14')) {
+      achievementsToGrant.push('streak-14')
+      pointsToAdd += 200
     }
     
     if (progress.current_streak >= 30 && !achievementIds.includes('streak-30')) {
       achievementsToGrant.push('streak-30')
-      pointsToAdd += 1000
+      pointsToAdd += 500
+    }
+    
+    if (progress.current_streak >= 100 && !achievementIds.includes('streak-100')) {
+      achievementsToGrant.push('streak-100')
+      pointsToAdd += 2000
+    }
+    
+    // === SOCIAL ACHIEVEMENTS (Sharing) ===
+    const articlesShared = progress.articles_shared || 0
+    
+    if (articlesShared >= 1 && !achievementIds.includes('first-share')) {
+      achievementsToGrant.push('first-share')
+      pointsToAdd += 15
+    }
+    
+    if (articlesShared >= 10 && !achievementIds.includes('sharer-10')) {
+      achievementsToGrant.push('sharer-10')
+      pointsToAdd += 100
+    }
+    
+    if (articlesShared >= 25 && !achievementIds.includes('sharer-25')) {
+      achievementsToGrant.push('sharer-25')
+      pointsToAdd += 250
+    }
+    
+    if (articlesShared >= 50 && !achievementIds.includes('sharer-50')) {
+      achievementsToGrant.push('sharer-50')
+      pointsToAdd += 600
+    }
+    
+    // === EXPLORER ACHIEVEMENTS (Swipe Mode) ===
+    const articlesSwiped = progress.articles_swiped || 0
+    const articlesLiked = progress.articles_liked || 0
+    
+    if (articlesSwiped >= 10 && !achievementIds.includes('swiper-10')) {
+      achievementsToGrant.push('swiper-10')
+      pointsToAdd += 20
+    }
+    
+    if (articlesSwiped >= 50 && !achievementIds.includes('swiper-50')) {
+      achievementsToGrant.push('swiper-50')
+      pointsToAdd += 80
+    }
+    
+    if (articlesSwiped >= 100 && !achievementIds.includes('swiper-100')) {
+      achievementsToGrant.push('swiper-100')
+      pointsToAdd += 200
+    }
+    
+    if (articlesLiked >= 10 && !achievementIds.includes('matches-10')) {
+      achievementsToGrant.push('matches-10')
+      pointsToAdd += 60
+    }
+    
+    // === CREATION ACHIEVEMENTS (Most Valuable!) ===
+    const articlesCreated = progress.articles_created || 0
+    
+    if (articlesCreated >= 1 && !achievementIds.includes('first-article')) {
+      achievementsToGrant.push('first-article')
+      pointsToAdd += 100
+    }
+    
+    if (articlesCreated >= 5 && !achievementIds.includes('creator-5')) {
+      achievementsToGrant.push('creator-5')
+      pointsToAdd += 350
+    }
+    
+    if (articlesCreated >= 10 && !achievementIds.includes('creator-10')) {
+      achievementsToGrant.push('creator-10')
+      pointsToAdd += 800
+    }
+    
+    if (articlesCreated >= 25 && !achievementIds.includes('creator-25')) {
+      achievementsToGrant.push('creator-25')
+      pointsToAdd += 2500
+    }
+    
+    // === SPECIAL POINT MILESTONES ===
+    const totalPoints = progress.points + pointsToAdd
+    
+    if (totalPoints >= 500 && !achievementIds.includes('points-500')) {
+      achievementsToGrant.push('points-500')
+      pointsToAdd += 50
+    }
+    
+    if (totalPoints >= 1000 && !achievementIds.includes('points-1000')) {
+      achievementsToGrant.push('points-1000')
+      pointsToAdd += 150
+    }
+    
+    if (totalPoints >= 5000 && !achievementIds.includes('points-5000')) {
+      achievementsToGrant.push('points-5000')
+      pointsToAdd += 500
     }
     
     // Grant new achievements
@@ -901,13 +1009,38 @@ app.post('/make-server-053bcd80/claim-achievements', async (c) => {
       
       // Get achievement details for notifications
       const achievementData: Record<string, any> = {
+        // Reading
         'first-read': { name: 'First Steps', description: 'Read your first article', points: 10 },
+        'reader-5': { name: 'Getting Started', description: 'Read 5 articles', points: 25 },
         'reader-10': { name: 'Curious Mind', description: 'Read 10 articles', points: 50 },
         'reader-25': { name: 'Knowledge Seeker', description: 'Read 25 articles', points: 150 },
-        'reader-50': { name: 'Master Reader', description: 'Read 50 articles', points: 500 },
-        'streak-3': { name: '3-Day Streak', description: 'Read for 3 consecutive days', points: 30 },
-        'streak-7': { name: 'Weekly Warrior', description: 'Read for 7 consecutive days', points: 100 },
-        'streak-30': { name: 'Legendary Streak', description: 'Read for 30 consecutive days', points: 1000 }
+        'reader-50': { name: 'Voracious Reader', description: 'Read 50 articles', points: 300 },
+        'reader-100': { name: 'Scholar Supreme', description: 'Read 100 articles', points: 750 },
+        // Streaks
+        'streak-3': { name: 'Hot Start', description: 'Read for 3 consecutive days', points: 30 },
+        'streak-7': { name: 'Weekly Warrior', description: 'Read for 7 consecutive days', points: 75 },
+        'streak-14': { name: 'Two Week Champion', description: 'Read for 14 consecutive days', points: 200 },
+        'streak-30': { name: 'Monthly Legend', description: 'Read for 30 consecutive days', points: 500 },
+        'streak-100': { name: 'Unstoppable Force', description: 'Read for 100 consecutive days', points: 2000 },
+        // Social
+        'first-share': { name: 'Generous Soul', description: 'Share your first article', points: 15 },
+        'sharer-10': { name: 'Knowledge Spreader', description: 'Share 10 articles', points: 100 },
+        'sharer-25': { name: 'Community Champion', description: 'Share 25 articles', points: 250 },
+        'sharer-50': { name: 'Influence Master', description: 'Share 50 articles', points: 600 },
+        // Explorer
+        'swiper-10': { name: 'Explorer Novice', description: 'Swipe through 10 articles', points: 20 },
+        'swiper-50': { name: 'Discovery Hunter', description: 'Swipe through 50 articles', points: 80 },
+        'swiper-100': { name: 'Swipe Master', description: 'Swipe through 100 articles', points: 200 },
+        'matches-10': { name: 'Good Taste', description: 'Like 10 articles in swipe mode', points: 60 },
+        // Creation
+        'first-article': { name: 'Creator Awakened', description: 'Publish your first article', points: 100 },
+        'creator-5': { name: 'Rising Creator', description: 'Publish 5 articles', points: 350 },
+        'creator-10': { name: 'Master Creator', description: 'Publish 10 articles', points: 800 },
+        'creator-25': { name: 'Content Titan', description: 'Publish 25 articles', points: 2500 },
+        // Special
+        'points-500': { name: 'Point Collector', description: 'Earn 500 points', points: 50 },
+        'points-1000': { name: 'Point Master', description: 'Earn 1000 points', points: 150 },
+        'points-5000': { name: 'Point Legend', description: 'Earn 5000 points', points: 500 }
       }
       
       achievementsToGrant.forEach(aid => {
@@ -990,6 +1123,182 @@ app.get('/make-server-053bcd80/leaderboard', async (c) => {
   } catch (error) {
     console.log('Error fetching leaderboard:', error)
     return c.json({ error: 'Failed to fetch leaderboard', details: error.message }, 500)
+  }
+})
+
+// ===== GAMIFICATION TRACKING ROUTES =====
+
+// Track article share
+app.post('/make-server-053bcd80/track-share', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    
+    if (authError || !user) {
+      return c.json({ error: 'Invalid access token' }, 401)
+    }
+    
+    const userId = user.id
+    
+    // Get current progress
+    const { data: progress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (!progress) {
+      return c.json({ error: 'Progress not found' }, 404)
+    }
+    
+    // Increment shares counter and add points (5 points per share)
+    const newShares = (progress.articles_shared || 0) + 1
+    const newPoints = progress.points + 5
+    
+    await supabase
+      .from('user_progress')
+      .update({ 
+        articles_shared: newShares,
+        points: newPoints
+      })
+      .eq('user_id', userId)
+    
+    console.log(`User ${userId} shared an article (total: ${newShares})`)
+    
+    return c.json({ 
+      success: true, 
+      articlesShared: newShares,
+      pointsEarned: 5,
+      totalPoints: newPoints
+    })
+  } catch (error) {
+    console.error('Error tracking share:', error)
+    return c.json({ error: 'Failed to track share', details: error?.message }, 500)
+  }
+})
+
+// Track article swipe
+app.post('/make-server-053bcd80/track-swipe', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    
+    if (authError || !user) {
+      return c.json({ error: 'Invalid access token' }, 401)
+    }
+    
+    const userId = user.id
+    const { liked } = await c.req.json()
+    
+    // Get current progress
+    const { data: progress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (!progress) {
+      return c.json({ error: 'Progress not found' }, 404)
+    }
+    
+    // Increment swipes counter (1 point per swipe)
+    const newSwipes = (progress.articles_swiped || 0) + 1
+    let newLikes = progress.articles_liked || 0
+    let pointsEarned = 1
+    
+    // If liked, also increment likes (2 extra points for liking)
+    if (liked) {
+      newLikes += 1
+      pointsEarned += 2
+    }
+    
+    const newPoints = progress.points + pointsEarned
+    
+    await supabase
+      .from('user_progress')
+      .update({ 
+        articles_swiped: newSwipes,
+        articles_liked: newLikes,
+        points: newPoints
+      })
+      .eq('user_id', userId)
+    
+    console.log(`User ${userId} swiped (total: ${newSwipes}, liked: ${newLikes})`)
+    
+    return c.json({ 
+      success: true, 
+      articlesSwiped: newSwipes,
+      articlesLiked: newLikes,
+      pointsEarned,
+      totalPoints: newPoints
+    })
+  } catch (error) {
+    console.error('Error tracking swipe:', error)
+    return c.json({ error: 'Failed to track swipe', details: error?.message }, 500)
+  }
+})
+
+// Track article creation
+app.post('/make-server-053bcd80/track-creation', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    
+    if (authError || !user) {
+      return c.json({ error: 'Invalid access token' }, 401)
+    }
+    
+    const userId = user.id
+    
+    // Get current progress
+    const { data: progress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (!progress) {
+      return c.json({ error: 'Progress not found' }, 404)
+    }
+    
+    // Increment creation counter and add BIG points (50 points per article created!)
+    const newCreations = (progress.articles_created || 0) + 1
+    const newPoints = progress.points + 50
+    
+    await supabase
+      .from('user_progress')
+      .update({ 
+        articles_created: newCreations,
+        points: newPoints
+      })
+      .eq('user_id', userId)
+    
+    console.log(`User ${userId} created an article (total: ${newCreations})`)
+    
+    return c.json({ 
+      success: true, 
+      articlesCreated: newCreations,
+      pointsEarned: 50,
+      totalPoints: newPoints
+    })
+  } catch (error) {
+    console.error('Error tracking creation:', error)
+    return c.json({ error: 'Failed to track creation', details: error?.message }, 500)
   }
 })
 

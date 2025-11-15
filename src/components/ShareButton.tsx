@@ -6,6 +6,7 @@ import { Label } from './ui/label'
 import { Share2, Link2, Twitter, Facebook, Linkedin, Mail, QrCode, Check, Copy } from 'lucide-react'
 import { toast } from 'sonner@2.0.3'
 import { useEffect, useRef } from 'react'
+import { projectId } from '../utils/supabase/info'
 
 interface ShareButtonProps {
   article: {
@@ -16,9 +17,10 @@ interface ShareButtonProps {
   }
   compact?: boolean
   children?: React.ReactNode
+  accessToken?: string
 }
 
-export function ShareButton({ article, compact = false, children }: ShareButtonProps) {
+export function ShareButton({ article, compact = false, children, accessToken }: ShareButtonProps) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showQR, setShowQR] = useState(false)
@@ -37,19 +39,47 @@ export function ShareButton({ article, compact = false, children }: ShareButtonP
   const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`
   const emailUrl = `mailto:?subject=${encodedTitle}&body=${encodedText}%0A%0A${encodedUrl}`
 
-  // Copy to clipboard
+  // Track share action
+  const trackShare = async () => {
+    if (!accessToken) return
+    
+    try {
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/track-share`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      const data = await response.json()
+      if (data.success) {
+        toast.success(`+${data.pointsEarned} points! 🎉`, {
+          description: `${data.articlesShared} articles shared`,
+          duration: 2000
+        })
+      }
+    } catch (error) {
+      console.error('Failed to track share:', error)
+    }
+  }
+
+  // Copy to clipboard with tracking
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl)
       setCopied(true)
       toast.success('Link copied to clipboard!')
       setTimeout(() => setCopied(false), 2000)
+      
+      // Track the share
+      await trackShare()
     } catch (error) {
       toast.error('Failed to copy link')
     }
   }
 
-  // Native Web Share API
+  // Native Web Share API with tracking
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
@@ -58,12 +88,26 @@ export function ShareButton({ article, compact = false, children }: ShareButtonP
           text: articleExcerpt,
           url: shareUrl,
         })
+        
+        // Track the share
+        await trackShare()
         toast.success('Shared successfully!')
       } catch (error) {
         // User cancelled or share failed
         console.log('Share cancelled or failed:', error)
       }
     }
+  }
+
+  // Social media share handlers with tracking
+  const handleSocialShare = async (url: string) => {
+    window.open(url, '_blank', 'width=600,height=400')
+    await trackShare()
+  }
+
+  const handleEmailShare = async () => {
+    window.location.href = emailUrl
+    await trackShare()
   }
 
   // Generate QR Code
@@ -157,7 +201,7 @@ export function ShareButton({ article, compact = false, children }: ShareButtonP
               <Button
                 variant="outline"
                 className="gap-2 hover:bg-[#1DA1F2] hover:text-white hover:border-[#1DA1F2] transition-colors"
-                onClick={() => window.open(twitterUrl, '_blank', 'width=600,height=400')}
+                onClick={() => handleSocialShare(twitterUrl)}
               >
                 <Twitter className="w-4 h-4" />
                 Twitter
@@ -165,7 +209,7 @@ export function ShareButton({ article, compact = false, children }: ShareButtonP
               <Button
                 variant="outline"
                 className="gap-2 hover:bg-[#1877F2] hover:text-white hover:border-[#1877F2] transition-colors"
-                onClick={() => window.open(facebookUrl, '_blank', 'width=600,height=400')}
+                onClick={() => handleSocialShare(facebookUrl)}
               >
                 <Facebook className="w-4 h-4" />
                 Facebook
@@ -173,7 +217,7 @@ export function ShareButton({ article, compact = false, children }: ShareButtonP
               <Button
                 variant="outline"
                 className="gap-2 hover:bg-[#0A66C2] hover:text-white hover:border-[#0A66C2] transition-colors"
-                onClick={() => window.open(linkedinUrl, '_blank', 'width=600,height=400')}
+                onClick={() => handleSocialShare(linkedinUrl)}
               >
                 <Linkedin className="w-4 h-4" />
                 LinkedIn
@@ -181,7 +225,7 @@ export function ShareButton({ article, compact = false, children }: ShareButtonP
               <Button
                 variant="outline"
                 className="gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
-                onClick={() => window.location.href = emailUrl}
+                onClick={handleEmailShare}
               >
                 <Mail className="w-4 h-4" />
                 Email

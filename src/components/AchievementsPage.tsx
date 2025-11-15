@@ -31,12 +31,13 @@ const achievementData: Record<string, {
   description: string
   icon: any
   color: string
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'mythic'
   points: number
-  category: 'reading' | 'streak' | 'special'
+  category: 'reading' | 'streak' | 'social' | 'creation' | 'explorer' | 'special'
   requirement: string
   tips?: string
 }> = {
+  // === READING ACHIEVEMENTS (Progressive Levels) ===
   'first-read': {
     name: 'First Steps',
     description: 'Read your first article',
@@ -46,7 +47,18 @@ const achievementData: Record<string, {
     points: 10,
     category: 'reading',
     requirement: 'Complete 1 article',
-    tips: 'Start your reading journey by completing any article!'
+    tips: 'Every journey begins with a single step!'
+  },
+  'reader-5': {
+    name: 'Getting Started',
+    description: 'Read 5 articles',
+    icon: Book,
+    color: 'from-emerald-400 to-teal-500',
+    rarity: 'common',
+    points: 25,
+    category: 'reading',
+    requirement: 'Complete 5 articles',
+    tips: 'You\'re building momentum!'
   },
   'reader-10': {
     name: 'Curious Mind',
@@ -57,7 +69,7 @@ const achievementData: Record<string, {
     points: 50,
     category: 'reading',
     requirement: 'Complete 10 articles',
-    tips: 'Keep exploring different topics to reach 10 articles!'
+    tips: 'Keep exploring different topics!'
   },
   'reader-25': {
     name: 'Knowledge Seeker',
@@ -71,48 +83,267 @@ const achievementData: Record<string, {
     tips: 'You\'re building an impressive knowledge base!'
   },
   'reader-50': {
-    name: 'Master Reader',
+    name: 'Voracious Reader',
     description: 'Read 50 articles',
     icon: Medal,
     color: 'from-amber-400 to-yellow-300',
     rarity: 'legendary',
-    points: 500,
+    points: 300,
     category: 'reading',
     requirement: 'Complete 50 articles',
-    tips: 'Only the most dedicated readers reach this milestone!'
+    tips: 'Your dedication is inspiring!'
   },
+  'reader-100': {
+    name: 'Scholar Supreme',
+    description: 'Read 100 articles',
+    icon: Crown,
+    color: 'from-purple-600 to-pink-600',
+    rarity: 'mythic',
+    points: 750,
+    category: 'reading',
+    requirement: 'Complete 100 articles',
+    tips: 'You\'ve achieved true mastery!'
+  },
+
+  // === STREAK ACHIEVEMENTS (Daily Consistency) ===
   'streak-3': {
-    name: '3-Day Streak',
+    name: 'Hot Start',
     description: 'Read for 3 consecutive days',
     icon: Flame,
     color: 'from-orange-400 to-red-500',
-    rarity: 'rare',
+    rarity: 'common',
     points: 30,
     category: 'streak',
     requirement: 'Read at least 1 article for 3 days in a row',
-    tips: 'Build a daily reading habit! Come back tomorrow to keep your streak alive.'
+    tips: 'Consistency is key! Come back tomorrow.'
   },
   'streak-7': {
     name: 'Weekly Warrior',
     description: 'Read for 7 consecutive days',
     icon: Trophy,
     color: 'from-amber-400 to-orange-500',
-    rarity: 'epic',
-    points: 100,
+    rarity: 'rare',
+    points: 75,
     category: 'streak',
     requirement: 'Read at least 1 article for 7 days in a row',
-    tips: 'A week of consistent reading shows true dedication!'
+    tips: 'A week of consistent reading - great habit!'
+  },
+  'streak-14': {
+    name: 'Two Week Champion',
+    description: 'Read for 14 consecutive days',
+    icon: Star,
+    color: 'from-purple-400 to-pink-500',
+    rarity: 'epic',
+    points: 200,
+    category: 'streak',
+    requirement: 'Read at least 1 article for 14 days in a row',
+    tips: 'You\'re building a powerful habit!'
   },
   'streak-30': {
-    name: 'Legendary Streak',
+    name: 'Monthly Legend',
     description: 'Read for 30 consecutive days',
     icon: Crown,
     color: 'from-amber-400 to-yellow-300',
     rarity: 'legendary',
-    points: 1000,
+    points: 500,
     category: 'streak',
     requirement: 'Read at least 1 article for 30 days in a row',
-    tips: 'The ultimate achievement! A month of daily reading creates lasting change.'
+    tips: 'The ultimate achievement - a month of daily reading!'
+  },
+  'streak-100': {
+    name: 'Unstoppable Force',
+    description: 'Read for 100 consecutive days',
+    icon: Zap,
+    color: 'from-purple-600 to-pink-600',
+    rarity: 'mythic',
+    points: 2000,
+    category: 'streak',
+    requirement: 'Read at least 1 article for 100 days in a row',
+    tips: 'Your dedication is legendary!'
+  },
+
+  // === SOCIAL ACHIEVEMENTS (Sharing & Engagement) ===
+  'first-share': {
+    name: 'Generous Soul',
+    description: 'Share your first article',
+    icon: Gift,
+    color: 'from-pink-400 to-rose-500',
+    rarity: 'common',
+    points: 15,
+    category: 'social',
+    requirement: 'Share 1 article',
+    tips: 'Spread the knowledge! Share what you love.'
+  },
+  'sharer-10': {
+    name: 'Knowledge Spreader',
+    description: 'Share 10 articles',
+    icon: TrendingUp,
+    color: 'from-blue-400 to-cyan-500',
+    rarity: 'rare',
+    points: 100,
+    category: 'social',
+    requirement: 'Share 10 articles',
+    tips: 'You\'re helping others discover great content!'
+  },
+  'sharer-25': {
+    name: 'Community Champion',
+    description: 'Share 25 articles',
+    icon: Medal,
+    color: 'from-purple-400 to-pink-500',
+    rarity: 'epic',
+    points: 250,
+    category: 'social',
+    requirement: 'Share 25 articles',
+    tips: 'Your recommendations are valuable!'
+  },
+  'sharer-50': {
+    name: 'Influence Master',
+    description: 'Share 50 articles',
+    icon: Crown,
+    color: 'from-amber-400 to-yellow-300',
+    rarity: 'legendary',
+    points: 600,
+    category: 'social',
+    requirement: 'Share 50 articles',
+    tips: 'You\'re a true community leader!'
+  },
+
+  // === EXPLORER ACHIEVEMENTS (Swipe Mode) ===
+  'swiper-10': {
+    name: 'Explorer Novice',
+    description: 'Swipe through 10 articles',
+    icon: Target,
+    color: 'from-cyan-400 to-blue-500',
+    rarity: 'common',
+    points: 20,
+    category: 'explorer',
+    requirement: 'Swipe 10 articles',
+    tips: 'Keep exploring to find your perfect matches!'
+  },
+  'swiper-50': {
+    name: 'Discovery Hunter',
+    description: 'Swipe through 50 articles',
+    icon: Award,
+    color: 'from-blue-400 to-purple-500',
+    rarity: 'rare',
+    points: 80,
+    category: 'explorer',
+    requirement: 'Swipe 50 articles',
+    tips: 'You\'re getting good at finding great content!'
+  },
+  'swiper-100': {
+    name: 'Swipe Master',
+    description: 'Swipe through 100 articles',
+    icon: Star,
+    color: 'from-purple-400 to-pink-500',
+    rarity: 'epic',
+    points: 200,
+    category: 'explorer',
+    requirement: 'Swipe 100 articles',
+    tips: 'You know what you like!'
+  },
+  'matches-10': {
+    name: 'Good Taste',
+    description: 'Like 10 articles in swipe mode',
+    icon: Sparkles,
+    color: 'from-pink-400 to-rose-500',
+    rarity: 'rare',
+    points: 60,
+    category: 'explorer',
+    requirement: 'Like 10 articles',
+    tips: 'Building your perfect reading list!'
+  },
+
+  // === CREATION ACHIEVEMENTS (Most Valuable!) ===
+  'first-article': {
+    name: 'Creator Awakened',
+    description: 'Publish your first article',
+    icon: Sparkles,
+    color: 'from-emerald-400 to-teal-500',
+    rarity: 'rare',
+    points: 100,
+    category: 'creation',
+    requirement: 'Create 1 article',
+    tips: 'Your voice matters! Share your thoughts with the world.'
+  },
+  'creator-5': {
+    name: 'Rising Creator',
+    description: 'Publish 5 articles',
+    icon: Star,
+    color: 'from-purple-400 to-pink-500',
+    rarity: 'epic',
+    points: 350,
+    category: 'creation',
+    requirement: 'Create 5 articles',
+    tips: 'You\'re becoming a valued contributor!'
+  },
+  'creator-10': {
+    name: 'Master Creator',
+    description: 'Publish 10 articles',
+    icon: Crown,
+    color: 'from-amber-400 to-yellow-300',
+    rarity: 'legendary',
+    points: 800,
+    category: 'creation',
+    requirement: 'Create 10 articles',
+    tips: 'Your impact on the community is significant!'
+  },
+  'creator-25': {
+    name: 'Content Titan',
+    description: 'Publish 25 articles',
+    icon: Zap,
+    color: 'from-purple-600 to-pink-600',
+    rarity: 'mythic',
+    points: 2500,
+    category: 'creation',
+    requirement: 'Create 25 articles',
+    tips: 'You\'re a pillar of the DEWII community!'
+  },
+
+  // === SPECIAL ACHIEVEMENTS (Unique Milestones) ===
+  'points-500': {
+    name: 'Point Collector',
+    description: 'Earn 500 points',
+    icon: Award,
+    color: 'from-blue-400 to-cyan-500',
+    rarity: 'rare',
+    points: 50,
+    category: 'special',
+    requirement: 'Reach 500 total points',
+    tips: 'Points reflect your engagement with DEWII!'
+  },
+  'points-1000': {
+    name: 'Point Master',
+    description: 'Earn 1000 points',
+    icon: Star,
+    color: 'from-purple-400 to-pink-500',
+    rarity: 'epic',
+    points: 150,
+    category: 'special',
+    requirement: 'Reach 1000 total points',
+    tips: 'You\'re making great progress!'
+  },
+  'points-5000': {
+    name: 'Point Legend',
+    description: 'Earn 5000 points',
+    icon: Crown,
+    color: 'from-amber-400 to-yellow-300',
+    rarity: 'legendary',
+    points: 500,
+    category: 'special',
+    requirement: 'Reach 5000 total points',
+    tips: 'Elite status achieved!'
+  },
+  'completionist': {
+    name: 'The Completionist',
+    description: 'Unlock all other achievements',
+    icon: Trophy,
+    color: 'from-purple-600 to-pink-600',
+    rarity: 'mythic',
+    points: 5000,
+    category: 'special',
+    requirement: 'Unlock every achievement',
+    tips: 'The ultimate DEWII master!'
   },
 }
 
@@ -148,11 +379,19 @@ const rarityConfig = {
     border: 'border-amber-500/30',
     glow: 'bg-amber-500/20',
     textColor: 'text-amber-600 dark:text-amber-400'
+  },
+  mythic: {
+    label: 'Mythic',
+    gradient: 'from-purple-600 via-pink-600 to-purple-700',
+    shadow: 'shadow-purple-700/50',
+    border: 'border-purple-700/30',
+    glow: 'bg-purple-700/20',
+    textColor: 'text-purple-700 dark:text-purple-500'
   }
 }
 
 export function AchievementsPage({ progress, onBack, onProgressUpdate, accessToken }: AchievementsPageProps) {
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'reading' | 'streak' | 'special'>('all')
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'reading' | 'streak' | 'social' | 'creation' | 'explorer' | 'special'>('all')
   const [hoveredAchievement, setHoveredAchievement] = useState<string | null>(null)
   const [isClaiming, setIsClaiming] = useState(false)
   const [currentProgress, setCurrentProgress] = useState(progress)
@@ -224,10 +463,6 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
   const unlockedAchievements = currentProgress.achievements
     .map(id => ({ id, ...achievementData[id] }))
     .filter(a => a.name)
-
-  console.log('Current progress:', currentProgress)
-  console.log('Unlocked achievements:', unlockedAchievements)
-  console.log('Achievement IDs in progress:', currentProgress.achievements)
 
   // Get locked achievements with progress
   const lockedAchievements = Object.keys(achievementData)
@@ -395,40 +630,66 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
 
       {/* Category Tabs */}
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-auto">
-          <TabsTrigger 
-            value="all" 
-            onClick={() => setSelectedCategory('all')}
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            All
-          </TabsTrigger>
-          <TabsTrigger 
-            value="reading"
-            onClick={() => setSelectedCategory('reading')}
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white"
-          >
-            <Book className="w-4 h-4 mr-2" />
-            Reading
-          </TabsTrigger>
-          <TabsTrigger 
-            value="streak"
-            onClick={() => setSelectedCategory('streak')}
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white"
-          >
-            <Flame className="w-4 h-4 mr-2" />
-            Streaks
-          </TabsTrigger>
-          <TabsTrigger 
-            value="special"
-            onClick={() => setSelectedCategory('special')}
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white"
-          >
-            <Crown className="w-4 h-4 mr-2" />
-            Special
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex w-auto min-w-full h-auto">
+            <TabsTrigger 
+              value="all" 
+              onClick={() => setSelectedCategory('all')}
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              All
+            </TabsTrigger>
+            <TabsTrigger 
+              value="reading"
+              onClick={() => setSelectedCategory('reading')}
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white"
+            >
+              <Book className="w-4 h-4 mr-2" />
+              Reading
+            </TabsTrigger>
+            <TabsTrigger 
+              value="streak"
+              onClick={() => setSelectedCategory('streak')}
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white"
+            >
+              <Flame className="w-4 h-4 mr-2" />
+              Streaks
+            </TabsTrigger>
+            <TabsTrigger 
+              value="creation"
+              onClick={() => setSelectedCategory('creation')}
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Creation
+            </TabsTrigger>
+            <TabsTrigger 
+              value="social"
+              onClick={() => setSelectedCategory('social')}
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              Social
+            </TabsTrigger>
+            <TabsTrigger 
+              value="explorer"
+              onClick={() => setSelectedCategory('explorer')}
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white"
+            >
+              <Target className="w-4 h-4 mr-2" />
+              Explorer
+            </TabsTrigger>
+            <TabsTrigger 
+              value="special"
+              onClick={() => setSelectedCategory('special')}
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white"
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Special
+            </TabsTrigger>
+          </TabsList>
+        </div>
       </Tabs>
 
       {/* Claim Achievements Button */}

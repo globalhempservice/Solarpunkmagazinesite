@@ -45,9 +45,10 @@ interface ArticleReaderProps {
   } | null
   suggestedArticles?: Article[]
   onArticleSelect?: (article: Article) => void
+  accessToken?: string
 }
 
-export function ArticleReader({ article, onBack, allArticles = [], userProgress, suggestedArticles, onArticleSelect }: ArticleReaderProps) {
+export function ArticleReader({ article, onBack, allArticles = [], userProgress, suggestedArticles, onArticleSelect, accessToken }: ArticleReaderProps) {
   const [isSliding, setIsSliding] = useState(false)
 
   const handleExploreMore = () => {
@@ -265,7 +266,7 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
             <CardContent className="relative p-5 md:p-6">
               <div className="flex items-center gap-4">
                 {/* Clickable Icon */}
-                <ShareButton article={article}>
+                <ShareButton article={article} accessToken={accessToken}>
                   <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
                     <Share2 className="w-6 h-6 text-white" />
                   </button>
@@ -493,7 +494,7 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
               <CardContent className="relative p-5 md:p-6">
                 <div className="flex items-center gap-4">
                   {/* Clickable Icon */}
-                  <ShareButton article={article}>
+                  <ShareButton article={article} accessToken={accessToken}>
                     <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
                       <Share2 className="w-6 h-6 text-white" />
                     </button>

@@ -5,6 +5,8 @@ import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
 import { PreviewCard } from './PreviewCard'
 import { Heart, X, Sparkles, RefreshCw, Clock, User, Grid } from 'lucide-react'
+import { projectId, publicAnonKey } from '../utils/supabase/info'
+import { toast } from 'sonner@2.0.3'
 
 interface Article {
   id: string
@@ -35,6 +37,7 @@ interface SwipeModeProps {
   onReset?: () => void
   isAnimating?: boolean
   onRefReady?: () => void
+  accessToken?: string
 }
 
 export interface SwipeModeRef {
@@ -44,7 +47,7 @@ export interface SwipeModeRef {
   isAnimating: boolean
 }
 
-export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, onMatch, onReadArticle, onSwitchToGrid, onRefReady }, ref) => {
+export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, onMatch, onReadArticle, onSwitchToGrid, onRefReady, accessToken }, ref) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
   const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null)
@@ -83,6 +86,31 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     setMatchedArticles([...matchedArticles, currentArticle])
     onMatch(currentArticle)
     
+    // Track the swipe with "liked" = true for matches
+    if (accessToken) {
+      fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/track-swipe`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ liked: true })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            // Show subtle toast for points
+            toast.success(`+${data.pointsEarned} points! 🎉`, {
+              description: `${data.articlesSwiped} swipes, ${data.articlesLiked} matches`,
+              duration: 2000
+            })
+          }
+        })
+        .catch(error => {
+          console.error('Failed to track swipe:', error)
+        })
+    }
+    
     setTimeout(() => {
       setCurrentIndex(prev => prev + 1)
       setExitDirection(null)
@@ -96,6 +124,28 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     
     setIsAnimating(true)
     setExitDirection('left')
+    
+    // Track the swipe with "liked" = false for skips
+    if (accessToken) {
+      fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/track-swipe`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ liked: false })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            // Silent tracking for skips - no toast
+            console.log(`Swipe tracked: ${data.articlesSwiped} total swipes`)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to track swipe:', error)
+        })
+    }
     
     setTimeout(() => {
       setCurrentIndex(prev => prev + 1)

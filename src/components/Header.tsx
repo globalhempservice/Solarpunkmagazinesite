@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sparkles, Grid, Flame, ArrowLeft } from 'lucide-react'
+import { Sparkles, Grid, Flame, ArrowLeft, BookOpen } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 
 interface HeaderProps {
-  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements'
-  onNavigate: (view: 'feed' | 'dashboard' | 'editor' | 'admin') => void
+  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'linkedin-importer'
+  onNavigate: (view: 'feed' | 'dashboard' | 'editor' | 'admin' | 'browse') => void
   isAuthenticated: boolean
   onLogout: () => void
   userPoints?: number
@@ -137,11 +137,25 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
           </div>
         </button>
         
-        {/* Right: Switch to Grid View Button - Only in Swipe Mode */}
-        <div className="flex-1 flex items-center justify-end">
+        {/* Right: Browse Button OR Switch to Grid View Button */}
+        <div className="flex-1 flex items-center justify-end gap-2">
+          {/* Browse button - show on feed and swipe mode */}
+          {(currentView === 'feed' || (currentView === 'feed' && exploreMode === 'swipe')) && (
+            <Button
+              onClick={() => onNavigate('browse')}
+              size="sm"
+              variant="outline"
+              className="gap-2 border-2 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Browse</span>
+            </Button>
+          )}
+          
+          {/* Switch to Browse button in swipe mode */}
           {currentView === 'feed' && exploreMode === 'swipe' && onSwitchToGrid && (
             <Button
-              onClick={onSwitchToGrid}
+              onClick={() => onNavigate('browse')}
               size="sm"
               variant="outline"
               className="gap-2 border-2 hover:bg-pink-500/10 hover:border-pink-500/50 hover:text-pink-600 transition-all"

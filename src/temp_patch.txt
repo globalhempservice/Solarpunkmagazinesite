@@ -1,0 +1,4 @@
+Lines to remove from App.tsx:
+
+590-597: Streak Banner section in swipe mode
+599-611: Switch to Grid View button in swipe mode

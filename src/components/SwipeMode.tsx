@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { motion, useMotionValue, useTransform, PanInfo } from 'motion/react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
 import { PreviewCard } from './PreviewCard'
-import { Heart, X, Sparkles, RefreshCw, Clock, User } from 'lucide-react'
+import { Heart, X, Sparkles, RefreshCw, Clock, User, Grid } from 'lucide-react'
 
 interface Article {
   id: string
@@ -30,9 +30,21 @@ interface SwipeModeProps {
   articles: Article[]
   onMatch: (article: Article) => void
   onReadArticle: (article: Article) => void
+  onSwitchToGrid?: () => void
+  onSkip?: () => void
+  onReset?: () => void
+  isAnimating?: boolean
+  onRefReady?: () => void
 }
 
-export function SwipeMode({ articles, onMatch, onReadArticle }: SwipeModeProps) {
+export interface SwipeModeRef {
+  handleSkip: () => void
+  handleMatch: () => void
+  handleReset: () => void
+  isAnimating: boolean
+}
+
+export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, onMatch, onReadArticle, onSwitchToGrid, onRefReady }, ref) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
   const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null)
@@ -153,26 +165,24 @@ export function SwipeMode({ articles, onMatch, onReadArticle }: SwipeModeProps) 
     )
   }
 
-  return (
-    <div className="max-w-md mx-auto space-y-6">
-      {/* Stats Bar */}
-      <div className="flex items-center justify-between px-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1.5">
-            <Sparkles className="w-3 h-3" />
-            {articles.length - currentIndex} left
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-            <Heart className="w-3 h-3 fill-emerald-500" />
-            {matchedArticles.length} matches
-          </Badge>
-        </div>
-      </div>
+  useImperativeHandle(ref, () => ({
+    handleSkip,
+    handleMatch,
+    handleReset,
+    isAnimating
+  }))
 
-      {/* Card Stack */}
-      <div className="relative h-[600px]">
+  // Notify parent when ref is ready
+  useEffect(() => {
+    if (onRefReady) {
+      onRefReady()
+    }
+  }, [onRefReady])
+
+  return (
+    <div className="max-w-md mx-auto">
+      {/* Card Stack - Moved higher and made taller */}
+      <div className="relative h-[calc(100vh-280px)] md:h-[650px] max-h-[750px] mb-4">
         {/* Background cards for depth - Show next 2 cards with PreviewCard component */}
         {visibleCards.slice(1, 3).map((article, index) => (
           <PreviewCard
@@ -210,9 +220,9 @@ export function SwipeMode({ articles, onMatch, onReadArticle }: SwipeModeProps) 
               transition: { duration: 0.3, ease: 'easeOut' }
             }}
           >
-            <div className="h-full rounded-3xl border-2 border-border bg-card shadow-2xl overflow-hidden">
+            <div className="h-full rounded-3xl border-2 border-border bg-card shadow-2xl overflow-hidden flex flex-col">
               {/* Cover Image */}
-              <div className="relative h-72 bg-gradient-to-br from-emerald-500/20 to-sky-500/20 overflow-hidden">
+              <div className="relative h-64 bg-gradient-to-br from-emerald-500/20 to-sky-500/20 overflow-hidden flex-shrink-0">
                 {currentArticle.coverImage ? (
                   <img
                     src={currentArticle.coverImage}
@@ -246,8 +256,8 @@ export function SwipeMode({ articles, onMatch, onReadArticle }: SwipeModeProps) 
                 </Badge>
               </div>
 
-              {/* Content */}
-              <div className="p-6 space-y-4">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div>
                   <h2 className="text-2xl font-bold mb-2 line-clamp-2">
                     {currentArticle.title}
@@ -308,40 +318,19 @@ export function SwipeMode({ articles, onMatch, onReadArticle }: SwipeModeProps) 
         )}
       </div>
 
-      {/* Control Buttons */}
-      <div className="flex items-center justify-center gap-6 pb-4">
-        {/* Skip Button */}
-        <Button
-          onClick={handleSkip}
-          disabled={isAnimating}
-          size="lg"
-          variant="outline"
-          className="w-16 h-16 rounded-full border-2 border-red-500/30 hover:border-red-500 hover:bg-red-500/10 p-0 transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <X className="w-8 h-8 text-red-500" />
-        </Button>
-
-        {/* Match Button */}
-        <Button
-          onClick={handleMatch}
-          disabled={isAnimating}
-          size="lg"
-          className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 p-0 shadow-lg shadow-emerald-500/30 transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Heart className="w-10 h-10 text-white fill-white" />
-        </Button>
-
-        {/* Reset Button */}
-        <Button
-          onClick={handleReset}
-          disabled={isAnimating}
-          size="lg"
-          variant="outline"
-          className="w-16 h-16 rounded-full border-2 hover:border-primary p-0 transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <RefreshCw className="w-6 h-6" />
-        </Button>
+      {/* Stats Bar - Moved below cards, positioned above navbar buttons */}
+      <div className="flex items-center justify-between px-8 pb-2">
+        <Badge variant="secondary" className="gap-1.5 text-sm px-3 py-1.5">
+          <Sparkles className="w-3.5 h-3.5" />
+          {articles.length - currentIndex} left
+        </Badge>
+        <Badge variant="secondary" className="gap-1.5 text-sm px-3 py-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+          <Heart className="w-3.5 h-3.5 fill-emerald-500" />
+          {matchedArticles.length} matches
+        </Badge>
       </div>
     </div>
   )
-}
+})
+
+SwipeMode.displayName = 'SwipeMode'

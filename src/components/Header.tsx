@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Grid, Flame } from 'lucide-react'
+import { Button } from './ui/button'
+import { Badge } from './ui/badge'
 
 interface HeaderProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin'
@@ -8,11 +10,14 @@ interface HeaderProps {
   isAuthenticated: boolean
   onLogout: () => void
   userPoints?: number
+  exploreMode?: 'grid' | 'swipe'
+  onSwitchToGrid?: () => void
+  currentStreak?: number
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
 
@@ -74,9 +79,22 @@ export function Header({ currentView, onNavigate, isAuthenticated }: HeaderProps
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/60 backdrop-blur-lg">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-center">
-        {/* Centered Logo with Theme Switcher */}
+    <header className="sticky top-0 z-50 w-full bg-background/60 backdrop-blur-lg border-b border-border/50">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        {/* Left: Streak Badge - Only in Swipe Mode */}
+        <div className="flex-1 flex items-center">
+          {currentView === 'feed' && exploreMode === 'swipe' && currentStreak !== undefined && (
+            <Badge
+              variant="secondary"
+              className="gap-1.5 bg-gradient-to-r from-orange-500/20 to-red-500/20 border-orange-500/30 text-orange-600 dark:text-orange-400 animate-pulse"
+            >
+              <Flame className="w-4 h-4 fill-orange-500" />
+              <span className="font-bold">{currentStreak} day streak</span>
+            </Badge>
+          )}
+        </div>
+        
+        {/* Center: Logo with Theme Switcher */}
         <button
           onClick={cycleTheme}
           className="group relative flex items-center justify-center py-2 px-6 rounded-2xl transition-all hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95"
@@ -103,6 +121,21 @@ export function Header({ currentView, onNavigate, isAuthenticated }: HeaderProps
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
           </div>
         </button>
+        
+        {/* Right: Switch to Grid View Button - Only in Swipe Mode */}
+        <div className="flex-1 flex items-center justify-end">
+          {currentView === 'feed' && exploreMode === 'swipe' && onSwitchToGrid && (
+            <Button
+              onClick={onSwitchToGrid}
+              size="sm"
+              variant="outline"
+              className="gap-2 border-2 hover:bg-pink-500/10 hover:border-pink-500/50 hover:text-pink-600 transition-all"
+            >
+              <Grid className="w-4 h-4" />
+              <span className="hidden sm:inline">Grid View</span>
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   )

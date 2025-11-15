@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
 import { AuthForm } from './components/AuthForm'
@@ -76,11 +76,22 @@ export default function App() {
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
   const [exploreMode, setExploreMode] = useState<'grid' | 'swipe'>('grid')
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
+  const [swipeRefReady, setSwipeRefReady] = useState(false)
+  const [previousExploreMode, setPreviousExploreMode] = useState<'grid' | 'swipe'>('grid')
+  const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
   const supabase = createClient()
   const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`
 
   const categories = ['all', 'Renewable Energy', 'Sustainable Tech', 'Green Cities', 'Eco Innovation', 'Climate Action', 'Community', 'Future Vision']
+
+  // Reset swipeRefReady when switching away from swipe mode
+  useEffect(() => {
+    if (exploreMode !== 'swipe') {
+      setSwipeRefReady(false)
+      swipeModeRef.current = null
+    }
+  }, [exploreMode])
 
   // Load matched articles from localStorage on mount
   useEffect(() => {
@@ -279,6 +290,9 @@ export default function App() {
   }
 
   const handleArticleClick = async (article: Article) => {
+    // Save current explore mode before switching to article view
+    setPreviousExploreMode(exploreMode)
+    
     setSelectedArticle(article)
     setCurrentView('article')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -459,13 +473,16 @@ export default function App() {
         isAuthenticated={isAuthenticated}
         onLogout={handleLogout}
         userPoints={userProgress?.points}
+        exploreMode={currentView === 'feed' ? exploreMode : undefined}
+        onSwitchToGrid={() => setExploreMode('grid')}
+        currentStreak={currentView === 'feed' && exploreMode === 'swipe' ? userProgress?.currentStreak : undefined}
       />
 
       <main className="container mx-auto px-4 py-8 pb-32">
         {/* Increased pb-32 (128px) to account for bottom navbar height on all devices */}
         {currentView === 'feed' && (
           <div className="space-y-6">
-            {/* Streak Banner - Show at top only in grid mode */}
+            {/* Streak Banner - Only show in grid mode */}
             {exploreMode === 'grid' && userProgress && userProgress.currentStreak > 0 && (
               <StreakBanner
                 currentStreak={userProgress.currentStreak}
@@ -474,30 +491,19 @@ export default function App() {
               />
             )}
 
-            {/* Mode Toggle Button - Always Prominent */}
-            <div className="flex justify-center">
-              <Button
-                onClick={() => setExploreMode(exploreMode === 'grid' ? 'swipe' : 'grid')}
-                size="lg"
-                className={`h-16 px-8 border-2 transition-all shadow-lg ${
-                  exploreMode === 'swipe'
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 border-pink-500/50 text-white hover:from-pink-600 hover:to-rose-600 shadow-pink-500/30'
-                    : 'bg-gradient-to-r from-primary to-sky-500 border-primary/50 text-white hover:from-primary/90 hover:to-sky-500/90 shadow-primary/30'
-                }`}
-              >
-                {exploreMode === 'swipe' ? (
-                  <>
-                    <Sparkles className="w-6 h-6 mr-2" />
-                    <span className="font-bold text-lg">Switch to Grid View</span>
-                  </>
-                ) : (
-                  <>
-                    <Heart className="w-6 h-6 mr-2" />
-                    <span className="font-bold text-lg">Switch to Swipe Mode</span>
-                  </>
-                )}
-              </Button>
-            </div>
+            {/* Mode Toggle Button - Only show in grid mode */}
+            {exploreMode === 'grid' && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => setExploreMode('swipe')}
+                  size="lg"
+                  className="h-16 px-8 border-2 transition-all shadow-lg bg-gradient-to-r from-primary to-sky-500 border-primary/50 text-white hover:from-primary/90 hover:to-sky-500/90 shadow-primary/30"
+                >
+                  <Heart className="w-6 h-6 mr-2" />
+                  <span className="font-bold text-lg">Switch to Swipe Mode</span>
+                </Button>
+              </div>
+            )}
 
             {/* Search and Filter Section - Only show in grid mode */}
             {exploreMode === 'grid' && (
@@ -579,6 +585,9 @@ export default function App() {
                   localStorage.setItem('matchedArticles', JSON.stringify(updatedMatches))
                 }}
                 onReadArticle={handleArticleClick}
+                onSwitchToGrid={() => setExploreMode('grid')}
+                ref={swipeModeRef}
+                onRefReady={() => setSwipeRefReady(true)}
               />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -590,15 +599,6 @@ export default function App() {
                   />
                 ))}
               </div>
-            )}
-
-            {/* Streak Banner - Show at bottom only in swipe mode */}
-            {exploreMode === 'swipe' && userProgress && userProgress.currentStreak > 0 && (
-              <StreakBanner
-                currentStreak={userProgress.currentStreak}
-                longestStreak={userProgress.longestStreak}
-                points={userProgress.points}
-              />
             )}
           </div>
         )}
@@ -639,6 +639,8 @@ export default function App() {
             onBack={() => {
               setCurrentView('feed')
               setSelectedArticle(null)
+              // Restore the previous explore mode (grid or swipe)
+              setExploreMode(previousExploreMode)
             }}
           />
         )}
@@ -713,6 +715,13 @@ export default function App() {
         currentView={currentView}
         onNavigate={setCurrentView}
         isAuthenticated={isAuthenticated}
+        exploreMode={currentView === 'feed' ? exploreMode : undefined}
+        swipeControls={currentView === 'feed' && exploreMode === 'swipe' ? {
+          onSkip: () => swipeModeRef.current?.handleSkip(),
+          onMatch: () => swipeModeRef.current?.handleMatch(),
+          onReset: () => swipeModeRef.current?.handleReset(),
+          isAnimating: swipeModeRef.current?.isAnimating || false
+        } : undefined}
       />
     </div>
   )

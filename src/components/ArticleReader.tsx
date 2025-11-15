@@ -257,15 +257,10 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
             </Card>
           )}
           
-          {/* Separate Share Card */}
+          {/* Separate Share Card - Top */}
           <Card className="relative overflow-hidden border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-fuchsia-500/10 shadow-lg">
             {/* Subtle shimmer */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" 
-                 style={{ 
-                   backgroundSize: '200% 100%',
-                   animation: 'shimmer 3s infinite linear'
-                 }} 
-            />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
             
             <CardContent className="relative p-5 md:p-6">
               <div className="flex items-center gap-4">
@@ -288,13 +283,6 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                 </Badge>
               </div>
             </CardContent>
-
-            <style>{`
-              @keyframes shimmer {
-                0% { background-position: -200% 0; }
-                100% { background-position: 200% 0; }
-              }
-            `}</style>
           </Card>
           
           {/* Article Content */}
@@ -456,33 +444,11 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
           </Card>
           
           {/* Navigation & Next Article Suggestions */}
-          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5">
-            <CardContent className="p-6">
-              {/* Navigation Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                    onBack()
-                  }}
-                  className="flex-1 h-12 border-2 hover:bg-primary/10"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Feed
-                </Button>
-                <Button 
-                  className="flex-1 h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
-                  onClick={handleExploreMore}
-                >
-                  Explore More
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-              
-              {/* Next Article Suggestion */}
-              {suggestedArticles && suggestedArticles.length > 0 && (
-                <div className="pt-6 border-t border-border">
+          <div className="space-y-6">
+            {/* Continue Reading - 2 Suggestions */}
+            {suggestedArticles && suggestedArticles.length > 0 && (
+              <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5">
+                <CardContent className="p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Sparkles className="w-5 h-5 text-primary" />
                     <h3 className="text-lg font-bold">Continue Reading</h3>
@@ -515,10 +481,38 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Share Card - Bottom (identical to top) */}
+            <Card className="relative overflow-hidden border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-fuchsia-500/10 shadow-lg">
+              {/* Subtle shimmer */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+              
+              <CardContent className="relative p-5 md:p-6">
+                <div className="flex items-center gap-4">
+                  {/* Clickable Icon */}
+                  <ShareButton article={article}>
+                    <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      <Share2 className="w-6 h-6 text-white" />
+                    </button>
+                  </ShareButton>
+                  
+                  {/* Text Content */}
+                  <div className="flex-1">
+                    <h3 className="font-bold text-foreground text-lg">Share to Inspire</h3>
+                  </div>
+                  
+                  {/* Bonus Badge */}
+                  <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-2 shadow-lg">
+                    <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                    +5 pts
+                  </Badge>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
         
         {/* CSS for animations */}
@@ -534,6 +528,11 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
             100% { transform: translateY(-100px); opacity: 0; }
           }
           
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+          
           .animate-gradient-xy {
             background-size: 400% 400%;
             animation: gradient-xy 15s ease infinite;
@@ -541,6 +540,11 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
           
           .animate-float {
             animation: float 5s infinite ease-in-out;
+          }
+          
+          .animate-shimmer {
+            background-size: 200% 100%;
+            animation: shimmer 3s infinite linear;
           }
         `}</style>
       </motion.div>

@@ -44,11 +44,7 @@ export function BrandLogo({ size = 'md', showAnimation = true, className = '', o
         <div className="relative w-full h-full rounded-full bg-gradient-to-br from-emerald-500/90 via-teal-500/90 to-emerald-600/90 dark:from-emerald-600/90 dark:via-teal-700/90 dark:to-emerald-800/90 hempin:from-amber-600/90 hempin:via-emerald-600/90 hempin:to-teal-700/90 flex items-center justify-center overflow-hidden">
           {/* Animated background shimmer */}
           {showAnimation && (
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" 
-                 style={{ 
-                   backgroundSize: '200% 100%',
-                   animation: 'shimmer 3s infinite linear'
-                 }} />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
           )}
           
           {/* Hemp Branch SVG Icon */}
@@ -82,13 +78,6 @@ export function BrandLogo({ size = 'md', showAnimation = true, className = '', o
           </svg>
         </div>
       </div>
-
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-      `}</style>
     </div>
   )
 }

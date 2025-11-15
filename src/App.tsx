@@ -517,12 +517,7 @@ export default function App() {
                 className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
               >
                 {/* Animated background shimmer */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
-                     style={{ 
-                       backgroundSize: '200% 100%',
-                       animation: 'shimmer 3s infinite linear'
-                     }} 
-                />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                 
                 <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4">
                   {/* Main Content Row */}
@@ -807,10 +802,12 @@ export default function App() {
           />
         )}
 
-        {currentView === 'achievements' && userProgress && (
+        {currentView === 'achievements' && userProgress && accessToken && (
           <AchievementsPage
             progress={userProgress}
             onBack={() => setCurrentView('dashboard')}
+            onProgressUpdate={(updatedProgress) => setUserProgress(updatedProgress)}
+            accessToken={accessToken}
           />
         )}
       </main>

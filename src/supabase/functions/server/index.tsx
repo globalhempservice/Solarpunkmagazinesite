@@ -699,39 +699,42 @@ app.post('/make-server-053bcd80/users/:userId/read', async (c) => {
     // Check achievement conditions
     const achievementsToGrant: string[] = []
     
-    if (newTotalRead === 1 && !achievementIds.includes('first-read')) {
+    // First read achievement
+    if (newTotalRead >= 1 && !achievementIds.includes('first-read')) {
       achievementsToGrant.push('first-read')
+      newPoints += 10
+    }
+    
+    // Reading milestones - check in order to grant all that apply
+    if (newTotalRead >= 10 && !achievementIds.includes('reader-10')) {
+      achievementsToGrant.push('reader-10')
       newPoints += 50
     }
     
-    if (newTotalRead === 10 && !achievementIds.includes('reader-10')) {
-      achievementsToGrant.push('reader-10')
-      newPoints += 100
-    }
-    
-    if (newTotalRead === 50 && !achievementIds.includes('reader-50')) {
-      achievementsToGrant.push('reader-50')
-      newPoints += 300
-    }
-    
-    if (newTotalRead === 100 && !achievementIds.includes('reader-100')) {
-      achievementsToGrant.push('reader-100')
-      newPoints += 500
-    }
-    
-    if (newStreak === 3 && !achievementIds.includes('streak-3')) {
-      achievementsToGrant.push('streak-3')
-      newPoints += 75
-    }
-    
-    if (newStreak === 7 && !achievementIds.includes('streak-7')) {
-      achievementsToGrant.push('streak-7')
+    if (newTotalRead >= 25 && !achievementIds.includes('reader-25')) {
+      achievementsToGrant.push('reader-25')
       newPoints += 150
     }
     
-    if (newStreak === 30 && !achievementIds.includes('streak-30')) {
-      achievementsToGrant.push('streak-30')
+    if (newTotalRead >= 50 && !achievementIds.includes('reader-50')) {
+      achievementsToGrant.push('reader-50')
       newPoints += 500
+    }
+    
+    // Streak achievements - check in order to grant all that apply
+    if (newStreak >= 3 && !achievementIds.includes('streak-3')) {
+      achievementsToGrant.push('streak-3')
+      newPoints += 30
+    }
+    
+    if (newStreak >= 7 && !achievementIds.includes('streak-7')) {
+      achievementsToGrant.push('streak-7')
+      newPoints += 100
+    }
+    
+    if (newStreak >= 30 && !achievementIds.includes('streak-30')) {
+      achievementsToGrant.push('streak-30')
+      newPoints += 1000
     }
     
     // Grant new achievements
@@ -782,6 +785,177 @@ app.post('/make-server-053bcd80/users/:userId/read', async (c) => {
   } catch (error) {
     console.log('Error updating user progress:', error)
     return c.json({ error: 'Failed to update user progress', details: error.message }, 500)
+  }
+})
+
+// Check and claim all eligible achievements
+app.post('/make-server-053bcd80/claim-achievements', async (c) => {
+  try {
+    console.log('Claim achievements endpoint called')
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    
+    if (!accessToken) {
+      console.log('No access token provided')
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    console.log('Authenticating user...')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    
+    if (authError || !user) {
+      console.log('Auth error:', authError)
+      return c.json({ error: 'Invalid access token', details: authError?.message }, 401)
+    }
+    
+    const userId = user.id
+    console.log('User authenticated:', userId)
+    
+    // Get current progress
+    console.log('Fetching user progress...')
+    const { data: progress, error: progressError } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (progressError) {
+      console.log('Progress fetch error:', progressError)
+      return c.json({ error: 'Failed to fetch progress', details: progressError.message }, 500)
+    }
+    
+    if (!progress) {
+      console.log('No progress found for user')
+      return c.json({ error: 'No progress record found' }, 404)
+    }
+    
+    console.log('Progress found:', progress)
+    
+    // Get existing achievements
+    console.log('Fetching existing achievements...')
+    const { data: existingAchievements } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId)
+    
+    const achievementIds = (existingAchievements || []).map((a: any) => a.achievement_id)
+    console.log('Existing achievements:', achievementIds)
+    
+    // Check all achievement conditions
+    const achievementsToGrant: string[] = []
+    let pointsToAdd = 0
+    
+    // Reading achievements
+    if (progress.total_articles_read >= 1 && !achievementIds.includes('first-read')) {
+      achievementsToGrant.push('first-read')
+      pointsToAdd += 10
+    }
+    
+    if (progress.total_articles_read >= 10 && !achievementIds.includes('reader-10')) {
+      achievementsToGrant.push('reader-10')
+      pointsToAdd += 50
+    }
+    
+    if (progress.total_articles_read >= 25 && !achievementIds.includes('reader-25')) {
+      achievementsToGrant.push('reader-25')
+      pointsToAdd += 150
+    }
+    
+    if (progress.total_articles_read >= 50 && !achievementIds.includes('reader-50')) {
+      achievementsToGrant.push('reader-50')
+      pointsToAdd += 500
+    }
+    
+    // Streak achievements
+    if (progress.current_streak >= 3 && !achievementIds.includes('streak-3')) {
+      achievementsToGrant.push('streak-3')
+      pointsToAdd += 30
+    }
+    
+    if (progress.current_streak >= 7 && !achievementIds.includes('streak-7')) {
+      achievementsToGrant.push('streak-7')
+      pointsToAdd += 100
+    }
+    
+    if (progress.current_streak >= 30 && !achievementIds.includes('streak-30')) {
+      achievementsToGrant.push('streak-30')
+      pointsToAdd += 1000
+    }
+    
+    // Grant new achievements
+    const newAchievements = []
+    if (achievementsToGrant.length > 0) {
+      const achievementRecords = achievementsToGrant.map(aid => ({
+        user_id: userId,
+        achievement_id: aid
+      }))
+      
+      await supabase
+        .from('user_achievements')
+        .insert(achievementRecords)
+      
+      // Update points
+      await supabase
+        .from('user_progress')
+        .update({ points: progress.points + pointsToAdd })
+        .eq('user_id', userId)
+      
+      // Get achievement details for notifications
+      const achievementData: Record<string, any> = {
+        'first-read': { name: 'First Steps', description: 'Read your first article', points: 10 },
+        'reader-10': { name: 'Curious Mind', description: 'Read 10 articles', points: 50 },
+        'reader-25': { name: 'Knowledge Seeker', description: 'Read 25 articles', points: 150 },
+        'reader-50': { name: 'Master Reader', description: 'Read 50 articles', points: 500 },
+        'streak-3': { name: '3-Day Streak', description: 'Read for 3 consecutive days', points: 30 },
+        'streak-7': { name: 'Weekly Warrior', description: 'Read for 7 consecutive days', points: 100 },
+        'streak-30': { name: 'Legendary Streak', description: 'Read for 30 consecutive days', points: 1000 }
+      }
+      
+      achievementsToGrant.forEach(aid => {
+        newAchievements.push({
+          id: aid,
+          ...achievementData[aid]
+        })
+      })
+    }
+    
+    // Get updated progress
+    const { data: updatedProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    // Get all achievements
+    const { data: allAchievements } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId)
+    
+    const transformedProgress = {
+      userId: updatedProgress.user_id,
+      totalArticlesRead: updatedProgress.total_articles_read,
+      points: updatedProgress.points,
+      currentStreak: updatedProgress.current_streak,
+      longestStreak: updatedProgress.longest_streak,
+      lastReadDate: updatedProgress.last_read_date,
+      achievements: (allAchievements || []).map((ua: any) => ua.achievement_id),
+      readArticles: []
+    }
+    
+    console.log('Claiming complete!', {
+      claimedCount: achievementsToGrant.length,
+      newAchievements: achievementsToGrant,
+      totalAchievements: transformedProgress.achievements.length
+    })
+    
+    return c.json({ 
+      progress: transformedProgress, 
+      newAchievements,
+      claimedCount: achievementsToGrant.length
+    })
+  } catch (error) {
+    console.log('Error claiming achievements:', error)
+    return c.json({ error: 'Failed to claim achievements', details: error?.message || 'Unknown error' }, 500)
   }
 })
 

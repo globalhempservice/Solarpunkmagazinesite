@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Award, Book, Flame, Trophy, Star, Medal, Crown, Target, Sparkles, Lock, ChevronRight, TrendingUp, Zap } from "lucide-react"
+import { useState, useEffect } from 'react'
+import { Award, Book, Flame, Trophy, Star, Medal, Crown, Target, Sparkles, Lock, ChevronRight, TrendingUp, Zap, Gift } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
 import { Button } from "./ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs"
+import { projectId, publicAnonKey } from '../utils/supabase/info'
+import { toast } from 'sonner@2.0.3'
 
 interface UserProgress {
   userId: string
@@ -20,6 +22,8 @@ interface UserProgress {
 interface AchievementsPageProps {
   progress: UserProgress
   onBack: () => void
+  onProgressUpdate?: (progress: UserProgress) => void
+  accessToken: string
 }
 
 const achievementData: Record<string, { 
@@ -147,18 +151,87 @@ const rarityConfig = {
   }
 }
 
-export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
+export function AchievementsPage({ progress, onBack, onProgressUpdate, accessToken }: AchievementsPageProps) {
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'reading' | 'streak' | 'special'>('all')
   const [hoveredAchievement, setHoveredAchievement] = useState<string | null>(null)
+  const [isClaiming, setIsClaiming] = useState(false)
+  const [currentProgress, setCurrentProgress] = useState(progress)
+
+  // Sync local state when progress prop changes
+  useEffect(() => {
+    setCurrentProgress(progress)
+  }, [progress])
+
+  const handleClaimAchievements = async () => {
+    setIsClaiming(true)
+    try {
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/claim-achievements`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const data = await response.json()
+      
+      console.log('Claim achievements response:', response.status, data)
+
+      if (response.ok) {
+        if (data.claimedCount > 0) {
+          // Update local progress
+          setCurrentProgress(data.progress)
+          
+          // Notify parent component
+          if (onProgressUpdate) {
+            onProgressUpdate(data.progress)
+          }
+
+          // Show success toasts for each new achievement
+          data.newAchievements.forEach((achievement: any) => {
+            toast.success(`🎉 Achievement Unlocked: ${achievement.name}!`, {
+              description: `${achievement.description} (+${achievement.points} pts)`,
+              duration: 5000
+            })
+          })
+
+          toast.success(`Claimed ${data.claimedCount} achievement${data.claimedCount > 1 ? 's' : ''}!`, {
+            description: `Check out your new rewards below!`,
+            duration: 3000
+          })
+        } else {
+          toast.info('No new achievements to claim', {
+            description: 'Keep reading to unlock more!'
+          })
+        }
+      } else {
+        console.error('Failed to claim achievements:', data)
+        toast.error('Failed to claim achievements', {
+          description: data.error || 'Please try again'
+        })
+      }
+    } catch (error) {
+      console.error('Error claiming achievements:', error)
+      toast.error('Something went wrong', {
+        description: 'Check console for details'
+      })
+    } finally {
+      setIsClaiming(false)
+    }
+  }
 
   // Get unlocked achievements
-  const unlockedAchievements = progress.achievements
+  const unlockedAchievements = currentProgress.achievements
     .map(id => ({ id, ...achievementData[id] }))
     .filter(a => a.name)
 
+  console.log('Current progress:', currentProgress)
+  console.log('Unlocked achievements:', unlockedAchievements)
+  console.log('Achievement IDs in progress:', currentProgress.achievements)
+
   // Get locked achievements with progress
   const lockedAchievements = Object.keys(achievementData)
-    .filter(id => !progress.achievements.includes(id))
+    .filter(id => !currentProgress.achievements.includes(id))
     .map(id => {
       const achievement = achievementData[id]
       let progressPercent = 0
@@ -166,12 +239,12 @@ export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
       
       if (achievement.category === 'reading') {
         const required = parseInt(id.split('-')[1])
-        progressPercent = Math.min((progress.totalArticlesRead / required) * 100, 100)
-        progressText = `${progress.totalArticlesRead}/${required}`
+        progressPercent = Math.min((currentProgress.totalArticlesRead / required) * 100, 100)
+        progressText = `${currentProgress.totalArticlesRead}/${required}`
       } else if (achievement.category === 'streak') {
         const required = parseInt(id.split('-')[1])
-        progressPercent = Math.min((progress.currentStreak / required) * 100, 100)
-        progressText = `${progress.currentStreak}/${required}`
+        progressPercent = Math.min((currentProgress.currentStreak / required) * 100, 100)
+        progressText = `${currentProgress.currentStreak}/${required}`
       }
       
       return {
@@ -198,17 +271,7 @@ export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button 
-          onClick={onBack}
-          variant="outline"
-        >
-          ← Back to Dashboard
-        </Button>
-      </div>
-
-      {/* Hero Section */}
+      {/* Hero Section - Updated Design */}
       <div className="relative overflow-hidden rounded-3xl">
         {/* Animated gradient background */}
         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 via-purple-500/20 to-pink-500/20 animate-gradient-xy" />
@@ -232,62 +295,98 @@ export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
         </div>
 
         <div className="relative backdrop-blur-xl bg-card/80 border-2 border-purple-500/30 rounded-3xl p-8 shadow-2xl">
-          <div className="text-center space-y-4">
-            {/* Icon */}
-            <div className="relative inline-block">
-              <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 rounded-full blur-2xl opacity-50 animate-pulse" />
-              <div className="relative bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-3xl p-6">
-                <Trophy className="w-16 h-16 text-white drop-shadow-lg" />
-              </div>
-            </div>
-
-            {/* Title */}
-            <div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2">
-                Achievement Gallery
-              </h1>
-              <p className="text-xl text-muted-foreground">
-                Unlock rewards and track your reading journey
-              </p>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto pt-4">
-              <div className="bg-muted/50 backdrop-blur-sm rounded-2xl p-4 border-2 border-border/50">
-                <div className="text-4xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent">
-                  {unlockedAchievements.length}/{totalAchievements}
+          {/* Top Section - Icon & Title */}
+          <div className="flex items-center justify-between gap-6 flex-wrap mb-6">
+            {/* Left: Icon Badge */}
+            <div className="flex items-center gap-6">
+              <div className="relative group">
+                {/* Rotating glow ring */}
+                <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 rounded-full blur-2xl opacity-50 group-hover:opacity-75 animate-spin-slow" />
+                
+                {/* Main badge */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 blur-xl opacity-75 animate-pulse" />
+                  <div className="relative bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-3xl p-6 transform group-hover:scale-110 transition-transform duration-300">
+                    <Trophy className="w-14 h-14 text-white drop-shadow-lg" />
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground font-semibold">Achievements</div>
               </div>
               
-              <div className="bg-muted/50 backdrop-blur-sm rounded-2xl p-4 border-2 border-border/50">
-                <div className="text-4xl font-bold bg-gradient-to-br from-amber-500 to-yellow-500 bg-clip-text text-transparent">
-                  {Math.round(completionPercent)}%
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                    Achievement Gallery
+                  </h1>
+                  <div className="flex gap-1">
+                    {[...Array(3)].map((_, i) => (
+                      <Sparkles key={i} className="w-6 h-6 text-purple-500 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
+                    ))}
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground font-semibold">Complete</div>
-              </div>
-              
-              <div className="bg-muted/50 backdrop-blur-sm rounded-2xl p-4 border-2 border-border/50">
-                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-                  {totalPointsEarned}
-                </div>
-                <div className="text-sm text-muted-foreground font-semibold">Points Earned</div>
+                <p className="text-xl text-muted-foreground">Unlock rewards and track your reading journey</p>
               </div>
             </div>
 
-            {/* Overall Progress Bar */}
-            <div className="max-w-2xl mx-auto pt-4">
-              <div className="relative h-6 bg-muted/50 rounded-full overflow-hidden border-2 border-border/50">
-                <div 
-                  className="absolute inset-0 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 transition-all duration-1000 ease-out flex items-center justify-end pr-3"
-                  style={{ width: `${completionPercent}%` }}
-                >
-                  {completionPercent > 10 && (
-                    <span className="text-xs font-bold text-white drop-shadow-lg">
-                      {Math.round(completionPercent)}%
-                    </span>
-                  )}
+            {/* Right: Points Display */}
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 rounded-2xl blur-md group-hover:blur-lg transition-all" />
+              <div className="relative bg-muted/50 backdrop-blur-sm rounded-2xl px-8 py-4 border-2 border-emerald-500/30 group-hover:border-emerald-500/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Zap className="w-8 h-8 text-emerald-500 animate-pulse" />
+                  <div>
+                    <div className="text-sm text-muted-foreground">Points Earned</div>
+                    <div className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                      {totalPointsEarned}
+                    </div>
+                  </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+                <Medal className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-foreground">{unlockedAchievements.length}/{totalAchievements}</div>
+              </div>
+            </div>
+            
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-foreground">{Math.round(completionPercent)}%</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Overall Progress Bar */}
+          <div className="pt-6 border-t border-border/50">
+            <div className="flex items-center justify-between text-sm mb-3">
+              <span className="text-muted-foreground">Overall Completion</span>
+              <span className="font-bold text-foreground">{unlockedAchievements.length} of {totalAchievements} unlocked</span>
+            </div>
+            
+            <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/50">
+              {/* Animated background shimmer */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+              
+              {/* Progress fill */}
+              <div 
+                className="relative h-full bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 transition-all duration-1000 ease-out rounded-full"
+                style={{ width: `${completionPercent}%` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                {completionPercent > 10 && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-white drop-shadow-lg">
+                    {Math.round(completionPercent)}%
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -332,6 +431,19 @@ export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
         </TabsList>
       </Tabs>
 
+      {/* Claim Achievements Button */}
+      <div className="flex justify-center">
+        <Button
+          onClick={handleClaimAchievements}
+          disabled={isClaiming}
+          size="lg"
+          className="bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 hover:from-amber-500 hover:via-purple-600 hover:to-pink-600 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+        >
+          <Gift className="w-5 h-5 mr-2" />
+          {isClaiming ? 'Checking...' : 'Claim Eligible Achievements'}
+        </Button>
+      </div>
+
       {/* Unlocked Achievements */}
       {filteredUnlocked.length > 0 && (
         <div>
@@ -352,45 +464,111 @@ export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
                   onMouseEnter={() => setHoveredAchievement(achievement.id)}
                   onMouseLeave={() => setHoveredAchievement(null)}
                 >
-                  {/* Glow effect */}
-                  <div className={`absolute -inset-1 bg-gradient-to-br ${rarity.gradient} rounded-2xl blur-lg opacity-30 group-hover:opacity-60 transition-all duration-300`} />
+                  {/* Outer glow effect */}
+                  <div className={`absolute -inset-1 bg-gradient-to-br ${rarity.gradient} rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition-all duration-500 animate-pulse`} />
                   
-                  <Card className={`relative overflow-hidden border-2 ${rarity.border} transform group-hover:scale-105 transition-all duration-300`}>
-                    {/* Animated background */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${rarity.gradient} opacity-5 group-hover:opacity-10 transition-opacity`} />
+                  <Card className={`relative overflow-hidden border-4 ${rarity.border} bg-gradient-to-br ${rarity.gradient} transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-500 shadow-2xl`}>
+                    {/* Animated geometric background art */}
+                    <div className="absolute inset-0 overflow-hidden">
+                      {/* Floating circles */}
+                      {[...Array(8)].map((_, i) => (
+                        <div
+                          key={`circle-${i}`}
+                          className="absolute rounded-full bg-white/20"
+                          style={{
+                            width: `${30 + Math.random() * 80}px`,
+                            height: `${30 + Math.random() * 80}px`,
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            animation: `float-random-${i % 4} ${4 + Math.random() * 4}s ease-in-out infinite`,
+                            animationDelay: `${Math.random() * 2}s`
+                          }}
+                        />
+                      ))}
+                      
+                      {/* Animated lines */}
+                      {[...Array(5)].map((_, i) => (
+                        <div
+                          key={`line-${i}`}
+                          className="absolute h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                          style={{
+                            width: '150%',
+                            left: '-25%',
+                            top: `${i * 25}%`,
+                            animation: `slide-horizontal ${3 + i}s linear infinite`,
+                            animationDelay: `${i * 0.3}s`
+                          }}
+                        />
+                      ))}
+                      
+                      {/* Rotating gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/10 animate-spin-slow" />
+                      
+                      {/* Sparkle effect */}
+                      {hoveredAchievement === achievement.id && (
+                        <>
+                          {[...Array(12)].map((_, i) => (
+                            <div
+                              key={`sparkle-${i}`}
+                              className="absolute w-1 h-1 bg-white rounded-full animate-sparkle"
+                              style={{
+                                left: `${Math.random() * 100}%`,
+                                top: `${Math.random() * 100}%`,
+                                animationDelay: `${Math.random() * 2}s`,
+                                boxShadow: '0 0 10px 2px rgba(255,255,255,0.8)'
+                              }}
+                            />
+                          ))}
+                        </>
+                      )}
+                    </div>
                     
-                    {/* Shine effect on hover */}
-                    {hoveredAchievement === achievement.id && (
-                      <div className="absolute inset-0 overflow-hidden">
-                        <div className={`absolute -inset-full top-0 ${rarity.glow} blur-2xl animate-spin-slow`} />
-                      </div>
-                    )}
-                    
-                    <CardContent className="relative p-6 space-y-4">
-                      {/* Rarity Badge */}
+                    <CardContent className="relative p-6 space-y-4 bg-card/90 backdrop-blur-sm">
+                      {/* Rarity Badge with shine */}
                       <div className="flex items-center justify-between">
-                        <Badge className={`bg-gradient-to-r ${rarity.gradient} text-white border-0 ${rarity.shadow} shadow-lg`}>
-                          {rarity.label}
+                        <Badge className={`relative overflow-hidden bg-white/95 text-transparent bg-clip-text bg-gradient-to-r ${rarity.gradient} border-2 ${rarity.border} ${rarity.shadow} shadow-xl font-bold`}>
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer" />
+                          <span className="relative">{rarity.label}</span>
                         </Badge>
-                        <div className={`px-3 py-1 rounded-full ${rarity.glow} border ${rarity.border}`}>
-                          <span className={`text-sm font-bold ${rarity.textColor}`}>+{achievement.points} pts</span>
+                        <div className={`relative px-3 py-1 rounded-full bg-gradient-to-r ${rarity.gradient} border-2 border-white/50 shadow-lg`}>
+                          <span className="text-sm font-bold text-white drop-shadow-lg">+{achievement.points} pts</span>
                         </div>
                       </div>
 
-                      {/* Icon */}
-                      <div className="relative">
-                        <div className={`absolute inset-0 ${rarity.glow} blur-xl rounded-full`} />
-                        <div className={`relative w-20 h-20 mx-auto bg-gradient-to-br ${rarity.gradient} rounded-2xl flex items-center justify-center ${rarity.shadow} shadow-xl transform group-hover:rotate-12 transition-transform duration-300`}>
-                          <Icon className="w-10 h-10 text-white drop-shadow-lg" />
+                      {/* Icon with elaborate animation */}
+                      <div className="relative py-4">
+                        {/* Pulsing rings */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          {[...Array(3)].map((_, i) => (
+                            <div
+                              key={`ring-${i}`}
+                              className={`absolute w-20 h-20 rounded-full border-2 ${rarity.border} animate-ping`}
+                              style={{
+                                animationDuration: `${2 + i}s`,
+                                animationDelay: `${i * 0.3}s`,
+                                opacity: 0.3
+                              }}
+                            />
+                          ))}
+                        </div>
+                        
+                        {/* Main icon container */}
+                        <div className="relative">
+                          <div className={`absolute -inset-4 bg-gradient-to-br ${rarity.gradient} blur-2xl opacity-60 animate-pulse`} />
+                          <div className={`relative w-24 h-24 mx-auto bg-gradient-to-br ${rarity.gradient} rounded-3xl flex items-center justify-center ${rarity.shadow} shadow-2xl border-4 border-white/30 transform group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
+                            {/* Inner glow */}
+                            <div className="absolute inset-2 bg-white/20 rounded-2xl blur-md" />
+                            <Icon className="relative w-12 h-12 text-white drop-shadow-2xl animate-float" />
+                          </div>
                         </div>
                       </div>
 
                       {/* Content */}
                       <div className="text-center space-y-2">
-                        <h3 className="text-xl font-bold text-foreground">
+                        <h3 className={`text-2xl font-bold bg-gradient-to-br ${rarity.gradient} bg-clip-text text-transparent drop-shadow-sm`}>
                           {achievement.name}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-foreground/80 font-medium">
                           {achievement.description}
                         </p>
                       </div>
@@ -403,10 +581,12 @@ export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
                         </div>
                       </div>
 
-                      {/* Unlocked Badge */}
-                      <div className={`flex items-center justify-center gap-2 py-2 rounded-lg ${rarity.glow} border ${rarity.border}`}>
-                        <Sparkles className={`w-4 h-4 ${rarity.textColor}`} />
-                        <span className={`text-sm font-bold ${rarity.textColor}`}>UNLOCKED!</span>
+                      {/* Unlocked Badge with celebration animation */}
+                      <div className={`relative overflow-hidden flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r ${rarity.gradient} border-2 border-white/30 shadow-lg`}>
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                        <Sparkles className="relative w-5 h-5 text-white drop-shadow-lg animate-spin-slow" />
+                        <span className="relative text-sm font-bold text-white drop-shadow-lg tracking-wider">✨ UNLOCKED ✨</span>
+                        <Sparkles className="relative w-5 h-5 text-white drop-shadow-lg animate-spin-slow" style={{ animationDirection: 'reverse' }} />
                       </div>
                     </CardContent>
                   </Card>
@@ -541,6 +721,41 @@ export function AchievementsPage({ progress, onBack }: AchievementsPageProps) {
         
         .animate-spin-slow {
           animation: spin-slow 8s linear infinite;
+        }
+        
+        @keyframes float-random-0 {
+          0%, 100% { transform: translateY(0px); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-100px); opacity: 0; }
+        }
+        
+        @keyframes float-random-1 {
+          0%, 100% { transform: translateY(0px); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-100px); opacity: 0; }
+        }
+        
+        @keyframes float-random-2 {
+          0%, 100% { transform: translateY(0px); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-100px); opacity: 0; }
+        }
+        
+        @keyframes float-random-3 {
+          0%, 100% { transform: translateY(0px); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-100px); opacity: 0; }
+        }
+        
+        @keyframes slide-horizontal {
+          0% { left: '-25%'; }
+          100% { left: '125%'; }
+        }
+        
+        @keyframes sparkle {
+          0% { transform: scale(0.5); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: scale(1.5); opacity: 0; }
         }
       `}</style>
     </div>

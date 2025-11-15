@@ -278,11 +278,32 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
             </div>
           </div>
+
+          {/* Streak Stats - Icon + Number */}
+          <div className="mt-6 pt-6 border-t border-border/50">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Current Streak */}
+              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg">
+                  <Flame className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-3xl font-bold text-foreground">{progress.currentStreak}</div>
+              </div>
+              
+              {/* Best Streak */}
+              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-lg">
+                  <Trophy className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-3xl font-bold text-foreground">{progress.longestStreak}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* STATS GRID - MEGA ENHANCED */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Articles Read */}
         <div 
           className="relative group cursor-pointer"
@@ -369,76 +390,6 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
           </Card>
         </div>
 
-        {/* Current Streak */}
-        <div 
-          className="relative group cursor-pointer"
-          onMouseEnter={() => setHoveredStat('streak')}
-          onMouseLeave={() => setHoveredStat(null)}
-        >
-          <div className={`absolute -inset-1 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'streak' ? 'animate-pulse' : ''}`} />
-          
-          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-orange-500/40 overflow-hidden transform group-hover:scale-105 group-hover:rotate-1 transition-all duration-300">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-400/30 to-transparent rounded-bl-full" />
-            
-            {hoveredStat === 'streak' && (
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-orange-400/20 rounded-full animate-ping" />
-              </div>
-            )}
-            
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full animate-pulse" />
-                  <Flame className="relative w-10 h-10 text-orange-500 drop-shadow-lg animate-pulse" />
-                </div>
-                <Zap className="w-5 h-5 text-orange-400/50" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold bg-gradient-to-br from-orange-500 to-red-500 bg-clip-text text-transparent mb-1">
-                {progress.currentStreak}
-              </div>
-              <div className="text-sm text-muted-foreground">Day Streak 🔥</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Best Streak */}
-        <div 
-          className="relative group cursor-pointer"
-          onMouseEnter={() => setHoveredStat('best')}
-          onMouseLeave={() => setHoveredStat(null)}
-        >
-          <div className={`absolute -inset-1 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'best' ? 'animate-pulse' : ''}`} />
-          
-          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-amber-500/40 overflow-hidden transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-400/30 to-transparent rounded-bl-full" />
-            
-            {hoveredStat === 'best' && (
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-amber-400/20 rounded-full animate-ping" />
-              </div>
-            )}
-            
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
-                  <Trophy className="relative w-10 h-10 text-amber-500 drop-shadow-lg" />
-                </div>
-                <Star className="w-5 h-5 text-amber-400/50 animate-pulse" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold bg-gradient-to-br from-amber-500 to-yellow-500 bg-clip-text text-transparent mb-1">
-                {progress.longestStreak}
-              </div>
-              <div className="text-sm text-muted-foreground">Best Streak 🏆</div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Achievements */}
         <div 
           className="relative group cursor-pointer"
@@ -463,14 +414,19 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                   <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
                   <Medal className="relative w-10 h-10 text-purple-500 drop-shadow-lg" />
                 </div>
-                <Sparkles className="w-5 h-5 text-purple-400/50 animate-pulse" />
+                <ChevronRight className="w-5 h-5 text-purple-400/50 group-hover:translate-x-1 transition-transform" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent mb-1">
                 {progress.achievements.length}
               </div>
-              <div className="text-sm text-muted-foreground">Achievements ⭐</div>
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                Achievements
+                <Badge variant="outline" className="text-xs bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400">
+                  View All
+                </Badge>
+              </div>
             </CardContent>
           </Card>
         </div>

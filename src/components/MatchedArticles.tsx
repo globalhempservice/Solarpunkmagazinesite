@@ -33,14 +33,6 @@ export function MatchedArticles({ articles, onArticleClick, onBack }: MatchedArt
   if (articles.length === 0) {
     return (
       <div className="max-w-4xl mx-auto">
-        <Button 
-          onClick={onBack}
-          variant="outline"
-          className="mb-6"
-        >
-          ← Back to Dashboard
-        </Button>
-
         <div className="text-center py-16 space-y-6">
           <div className="relative w-32 h-32 mx-auto">
             <div className="absolute inset-0 bg-gradient-to-br from-pink-400 to-rose-400 rounded-full opacity-20 animate-pulse" />
@@ -70,31 +62,57 @@ export function MatchedArticles({ articles, onArticleClick, onBack }: MatchedArt
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button 
-          onClick={onBack}
-          variant="outline"
-        >
-          ← Back to Dashboard
-        </Button>
+      {/* Exciting Hero Header */}
+      <div className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 p-[2px] shadow-lg shadow-pink-500/50">
+        {/* Animated background shimmer */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
+             style={{ 
+               backgroundSize: '200% 100%',
+               animation: 'shimmer 3s infinite linear'
+             }} 
+        />
+        
+        <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            {/* Icon - with glow effect */}
+            <div className="relative flex-shrink-0">
+              <div className="absolute -inset-2 bg-gradient-to-r from-pink-400 via-rose-500 to-fuchsia-500 rounded-2xl blur-xl opacity-50 animate-pulse" />
+              <div className="relative bg-gradient-to-br from-pink-500 via-rose-500 to-fuchsia-500 rounded-2xl p-4 shadow-xl group-hover:scale-110 transition-transform">
+                <Heart className="w-8 h-8 text-white drop-shadow-lg fill-white" />
+              </div>
+            </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1.5 bg-pink-500/10 text-pink-600 border-pink-500/20 px-4 py-2 text-base">
-            <Heart className="w-4 h-4 fill-pink-500" />
-            {articles.length} Reading {articles.length === 1 ? 'Match' : 'Matches'}
-          </Badge>
+            {/* Title & Count */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent drop-shadow-sm">
+                  💖 Reading Matches
+                </h1>
+                <Sparkles className="w-5 h-5 text-fuchsia-500 animate-pulse flex-shrink-0" />
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Articles you've matched with in Swipe Mode
+              </p>
+              
+              {/* Count with glowing icon */}
+              <div className="flex items-center gap-2 text-lg">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-pink-500/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Heart className="relative w-5 h-5 text-pink-500 fill-pink-500" />
+                </div>
+                <span className="font-bold text-pink-600 dark:text-pink-400">{articles.length}</span>
+                <span className="text-muted-foreground">{articles.length === 1 ? 'match' : 'matches'} saved</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Title */}
-      <div className="text-center pb-4">
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
-          Your Reading Matches 💚
-        </h1>
-        <p className="text-muted-foreground">
-          Articles you've matched with in Swipe Mode
-        </p>
+        <style>{`
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+        `}</style>
       </div>
 
       {/* Matched Articles Grid */}
@@ -142,7 +160,7 @@ export function MatchedArticles({ articles, onArticleClick, onBack }: MatchedArt
               </div>
               
               {/* Category Badge */}
-              <Badge className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm border-2">
+              <Badge className="absolute top-3 left-3 bg-background/95 backdrop-blur-sm border-2 border-border/80 text-foreground font-semibold shadow-lg px-3 py-1">
                 {article.category}
               </Badge>
             </div>

@@ -180,9 +180,9 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
   }, [onRefReady])
 
   return (
-    <div className="max-w-md mx-auto">
-      {/* Card Stack - Moved higher and made taller */}
-      <div className="relative h-[calc(100vh-280px)] md:h-[650px] max-h-[750px] mb-4">
+    <div className="max-w-md mx-auto h-[calc(100vh-64px-160px)] flex flex-col overflow-hidden">
+      {/* Card Stack - Responsive height that fills available space */}
+      <div className="relative flex-1 min-h-0 mb-3">
         {/* Background cards for depth - Show next 2 cards with PreviewCard component */}
         {visibleCards.slice(1, 3).map((article, index) => (
           <PreviewCard
@@ -222,7 +222,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
           >
             <div className="h-full rounded-3xl border-2 border-border bg-card shadow-2xl overflow-hidden flex flex-col">
               {/* Cover Image */}
-              <div className="relative h-64 bg-gradient-to-br from-emerald-500/20 to-sky-500/20 overflow-hidden flex-shrink-0">
+              <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-emerald-500/20 to-sky-500/20 overflow-hidden flex-shrink-0">
                 {currentArticle.coverImage ? (
                   <img
                     src={currentArticle.coverImage}
@@ -257,12 +257,12 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
               </div>
 
               {/* Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2 line-clamp-2">
+                  <h2 className="text-xl sm:text-2xl font-bold mb-2 line-clamp-2">
                     {currentArticle.title}
                   </h2>
-                  <p className="text-muted-foreground line-clamp-3 text-base">
+                  <p className="text-muted-foreground line-clamp-3 text-sm sm:text-base">
                     {currentArticle.excerpt}
                   </p>
                 </div>
@@ -285,7 +285,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                 <Button
                   onClick={handleReadNow}
                   variant="outline"
-                  className="w-full h-12 border-2 border-primary/20 hover:bg-primary/5"
+                  className="w-full h-11 sm:h-12 border-2 border-primary/20 hover:bg-primary/5"
                 >
                   Read Full Article
                 </Button>
@@ -293,24 +293,24 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
 
               {/* Swipe Indicators */}
               <motion.div
-                className="absolute top-32 left-8 rotate-[-25deg]"
+                className="absolute top-24 sm:top-32 left-6 sm:left-8 rotate-[-25deg]"
                 style={{
                   opacity: useTransform(x, [0, 100], [0, 1])
                 }}
               >
-                <div className="px-8 py-4 rounded-2xl border-4 border-emerald-500 bg-emerald-500/20 backdrop-blur-sm">
-                  <span className="text-3xl font-black text-emerald-500">MATCH</span>
+                <div className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl border-4 border-emerald-500 bg-emerald-500/20 backdrop-blur-sm">
+                  <span className="text-2xl sm:text-3xl font-black text-emerald-500">MATCH</span>
                 </div>
               </motion.div>
 
               <motion.div
-                className="absolute top-32 right-8 rotate-[25deg]"
+                className="absolute top-24 sm:top-32 right-6 sm:right-8 rotate-[25deg]"
                 style={{
                   opacity: useTransform(x, [-100, 0], [1, 0])
                 }}
               >
-                <div className="px-8 py-4 rounded-2xl border-4 border-red-500 bg-red-500/20 backdrop-blur-sm">
-                  <span className="text-3xl font-black text-red-500">SKIP</span>
+                <div className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl border-4 border-red-500 bg-red-500/20 backdrop-blur-sm">
+                  <span className="text-2xl sm:text-3xl font-black text-red-500">SKIP</span>
                 </div>
               </motion.div>
             </div>
@@ -318,14 +318,14 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
         )}
       </div>
 
-      {/* Stats Bar - Moved below cards, positioned above navbar buttons */}
-      <div className="flex items-center justify-between px-8 pb-2">
-        <Badge variant="secondary" className="gap-1.5 text-sm px-3 py-1.5">
-          <Sparkles className="w-3.5 h-3.5" />
+      {/* Stats Bar - Fixed position above navbar with proper spacing */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-8 pb-28">
+        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-2.5 sm:px-3 py-1.5">
+          <Sparkles className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
           {articles.length - currentIndex} left
         </Badge>
-        <Badge variant="secondary" className="gap-1.5 text-sm px-3 py-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-          <Heart className="w-3.5 h-3.5 fill-emerald-500" />
+        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+          <Heart className="w-3 sm:w-3.5 h-3 sm:h-3.5 fill-emerald-500" />
           {matchedArticles.length} matches
         </Badge>
       </div>

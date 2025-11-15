@@ -178,7 +178,7 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
         
         <div className="max-w-3xl mx-auto px-4 py-6 md:py-8 space-y-6 relative z-10">
           
-          {/* Gamified Share & Points Card */}
+          {/* Clean Points & Stats Card */}
           {userProgress && (
             <Card className="relative overflow-hidden border-0 shadow-2xl">
               {/* Multi-layer gradient background */}
@@ -205,8 +205,8 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
               </div>
 
               <CardContent className="relative p-6 md:p-8">
-                {/* Top Section: Points Display */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
+                {/* Header with Points */}
+                <div className="flex items-center justify-between gap-4 mb-6">
                   <div className="text-white">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
@@ -217,84 +217,85 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                     <p className="text-white/90 text-sm md:text-base">Complete this article to level up!</p>
                   </div>
                   
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    {/* Points to Earn */}
-                    <div className="relative flex-1 sm:flex-none group">
-                      <div className="absolute -inset-1 bg-white/40 rounded-2xl blur-md group-hover:blur-lg transition-all" />
-                      <div className="relative bg-gradient-to-br from-white/95 to-white/80 backdrop-blur-md rounded-2xl p-4 border border-white/50 shadow-xl">
-                        <div className="text-xs text-emerald-700 dark:text-emerald-800 hempin:text-amber-800 font-semibold mb-1">You'll Earn</div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 hempin:from-amber-600 hempin:to-orange-600 bg-clip-text text-transparent">+10</span>
-                          <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-600 hempin:text-amber-700">pts</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Current Points */}
-                    <div className="relative flex-1 sm:flex-none">
-                      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/30">
-                        <div className="text-xs text-white/80 font-semibold mb-1">Your Total</div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold text-white">{userProgress.points}</span>
-                          <span className="text-sm font-semibold text-white/80">pts</span>
-                        </div>
+                  {/* Points to Earn - Compact */}
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-white/40 rounded-2xl blur-md group-hover:blur-lg transition-all" />
+                    <div className="relative bg-gradient-to-br from-white/95 to-white/80 backdrop-blur-md rounded-2xl p-4 border border-white/50 shadow-xl">
+                      <div className="text-xs text-emerald-700 dark:text-emerald-800 hempin:text-amber-800 font-semibold mb-1">You'll Earn</div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 hempin:from-amber-600 hempin:to-orange-600 bg-clip-text text-transparent">+10</span>
+                        <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-600 hempin:text-amber-700">pts</span>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* Share Section */}
-                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 mb-6">
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-white">
-                      <div className="p-2 bg-white/20 rounded-lg">
-                        <Share2 className="w-4 h-4" />
-                      </div>
-                      <span className="font-semibold">Share & Inspire Others</span>
+                {/* Stats Grid - Icon + Number Only */}
+                <div className="grid grid-cols-3 gap-3 md:gap-4">
+                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg">
+                      <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-3 py-1 shadow-lg">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      +5 bonus
-                    </Badge>
-                  </div>
-                  <ShareButton article={article} compact={true} />
-                </div>
-                
-                {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 text-center">
-                    <div className="flex justify-center mb-2">
-                      <div className="p-2 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg">
-                        <Sparkles className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold text-white mb-1">{userProgress.currentStreak}</div>
-                    <div className="text-xs text-white/80 font-semibold">Day Streak</div>
+                    <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.currentStreak}</div>
                   </div>
                   
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 text-center">
-                    <div className="flex justify-center mb-2">
-                      <div className="p-2 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg">
-                        <TrendingUp className="w-5 h-5 text-white" />
-                      </div>
+                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg">
+                      <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <div className="text-2xl font-bold text-white mb-1">{userProgress.totalArticlesRead}</div>
-                    <div className="text-xs text-white/80 font-semibold">Articles Read</div>
+                    <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.totalArticlesRead}</div>
                   </div>
                   
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 text-center">
-                    <div className="flex justify-center mb-2">
-                      <div className="p-2 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-lg">
-                        <Award className="w-5 h-5 text-white" />
-                      </div>
+                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-lg">
+                      <Award className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <div className="text-2xl font-bold text-white mb-1">{userProgress.longestStreak}</div>
-                    <div className="text-xs text-white/80 font-semibold">Best Streak</div>
+                    <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.longestStreak}</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
+          
+          {/* Separate Share Card */}
+          <Card className="relative overflow-hidden border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-fuchsia-500/10 shadow-lg">
+            {/* Subtle shimmer */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" 
+                 style={{ 
+                   backgroundSize: '200% 100%',
+                   animation: 'shimmer 3s infinite linear'
+                 }} 
+            />
+            
+            <CardContent className="relative p-5 md:p-6">
+              <div className="flex items-center gap-4">
+                {/* Clickable Icon */}
+                <ShareButton article={article}>
+                  <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                    <Share2 className="w-6 h-6 text-white" />
+                  </button>
+                </ShareButton>
+                
+                {/* Text Content */}
+                <div className="flex-1">
+                  <h3 className="font-bold text-foreground text-lg">Share to Inspire</h3>
+                </div>
+                
+                {/* Bonus Badge */}
+                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-2 shadow-lg">
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  +5 pts
+                </Badge>
+              </div>
+            </CardContent>
+
+            <style>{`
+              @keyframes shimmer {
+                0% { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
+              }
+            `}</style>
+          </Card>
           
           {/* Article Content */}
           <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm shadow-xl">

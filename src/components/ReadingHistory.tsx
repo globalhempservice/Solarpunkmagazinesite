@@ -1,4 +1,4 @@
-import { ArrowLeft, Search, Filter, Calendar, TrendingUp, Award, BookOpen, Clock, Eye, Target, Zap, CheckCircle2, Flame, Download, Share2, Trophy, Star, Medal, Crown, Rocket, Sparkles, Library, Bookmark, Link2 } from 'lucide-react'
+import { ArrowLeft, Search, Filter, Calendar, TrendingUp, Award, BookOpen, Clock, Eye, Target, Zap, CheckCircle2, Flame, Download, Share2, Trophy, Star, Medal, Crown, Rocket, Sparkles, Library, Bookmark, Link2, X } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -7,8 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
 import { ImageWithFallback } from './figma/ImageWithFallback'
 import { PlaceholderArt } from './PlaceholderArt'
-import { toast } from 'sonner'
+import { toast } from 'sonner@2.0.3'
 import { useState, useMemo } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog'
 
 interface Article {
   id: string
@@ -46,8 +53,17 @@ export function ReadingHistory({
 }: ReadingHistoryProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedMedal, setSelectedMedal] = useState<{
+    title: string
+    description: string
+    milestone: number
+    icon: string
+    color: string
+    isUnlocked: boolean
+    progress: number
+  } | null>(null)
 
-  // Filter to get only read articles
+  // Filter to get only read articles - Redesigned cards with emerald theme
   const readArticles = allArticles.filter(article => readArticleIds.includes(article.id))
 
   // Get all unique categories
@@ -65,420 +81,380 @@ export function ReadingHistory({
   const totalReadingTime = readArticles.reduce((sum, article) => sum + article.readingTime, 0)
   const categoriesRead = new Set(readArticles.map(a => a.category)).size
 
+  // Define medals
+  const medals = [
+    {
+      title: 'Bronze Reader',
+      description: 'First steps in knowledge',
+      milestone: 10,
+      icon: 'medal',
+      color: 'from-orange-400 to-amber-500',
+      textColor: 'text-amber-500',
+      bgColor: 'bg-amber-500',
+      isUnlocked: totalArticlesRead >= 10,
+      progress: Math.min((totalArticlesRead / 10) * 100, 100)
+    },
+    {
+      title: 'Silver Scholar',
+      description: 'Growing expertise',
+      milestone: 25,
+      icon: 'award',
+      color: 'from-slate-400 to-zinc-400',
+      textColor: 'text-slate-500',
+      bgColor: 'bg-slate-500',
+      isUnlocked: totalArticlesRead >= 25,
+      progress: Math.min((totalArticlesRead / 25) * 100, 100)
+    },
+    {
+      title: 'Gold Master',
+      description: 'Impressive dedication',
+      milestone: 50,
+      icon: 'crown',
+      color: 'from-yellow-400 to-amber-500',
+      textColor: 'text-yellow-500',
+      bgColor: 'bg-yellow-500',
+      isUnlocked: totalArticlesRead >= 50,
+      progress: Math.min((totalArticlesRead / 50) * 100, 100)
+    },
+    {
+      title: 'Diamond Legend',
+      description: 'Ultimate achievement',
+      milestone: 100,
+      icon: 'rocket',
+      color: 'from-cyan-400 via-blue-500 to-purple-600',
+      textColor: 'text-cyan-500',
+      bgColor: 'bg-gradient-to-r from-cyan-500 to-purple-500',
+      isUnlocked: totalArticlesRead >= 100,
+      progress: Math.min((totalArticlesRead / 100) * 100, 100)
+    }
+  ]
+
   return (
-    <div className="space-y-8">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl">
-        {/* Animated background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-pink-500/20 animate-gradient-xy" />
+    <div className="space-y-6">
+      {/* Exciting Hero Header - Inspired by Swipe Mode Card */}
+      <div className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 p-[2px] shadow-lg shadow-fuchsia-500/50">
+        {/* Animated background shimmer */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
+             style={{ 
+               backgroundSize: '200% 100%',
+               animation: 'shimmer 3s infinite linear'
+             }} 
+        />
         
-        {/* Floating particles */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full animate-float"
-              style={{
-                width: `${Math.random() * 8 + 4}px`,
-                height: `${Math.random() * 8 + 4}px`,
-                background: `hsl(${Math.random() * 360}, 70%, 60%)`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${3 + Math.random() * 4}s`
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="relative backdrop-blur-xl bg-card/80 border-2 border-primary/30 rounded-3xl p-8 shadow-2xl">
-          {/* Back Button */}
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            className="mb-6 gap-2 hover:bg-primary/10 hover:text-primary transition-all group"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="hidden sm:inline">Back to Dashboard</span>
-          </Button>
-
-          <div className="flex items-center gap-6 flex-wrap">
-            {/* Book Icon */}
-            <div className="relative group">
-              <div className="absolute -inset-4 bg-gradient-to-r from-violet-400 via-fuchsia-500 to-pink-500 rounded-full blur-2xl opacity-60 group-hover:opacity-90 animate-pulse" />
-              <div className="relative bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 rounded-3xl p-6 shadow-2xl">
-                <Library className="w-14 h-14 text-white drop-shadow-2xl" />
+        <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            {/* Icon - with glow effect */}
+            <div className="relative flex-shrink-0">
+              <div className="absolute -inset-2 bg-gradient-to-r from-violet-400 via-fuchsia-500 to-pink-500 rounded-2xl blur-xl opacity-50 animate-pulse" />
+              <div className="relative bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 rounded-2xl p-4 shadow-xl group-hover:scale-110 transition-transform">
+                <Library className="w-8 h-8 text-white drop-shadow-lg" />
               </div>
             </div>
 
             {/* Title & Stats */}
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent drop-shadow-lg">
-                  Reading Journey
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent drop-shadow-sm">
+                  📚 Reading Journey
                 </h1>
-                <Sparkles className="w-7 h-7 text-fuchsia-500 animate-pulse" />
+                <Sparkles className="w-5 h-5 text-fuchsia-500 animate-pulse flex-shrink-0" />
               </div>
-              <p className="text-lg text-muted-foreground mb-4">
-                Explore your path through knowledge and discovery ✨
+              <p className="text-sm text-muted-foreground mb-4">
+                Track your progress through knowledge ✨
               </p>
               
-              {/* Quick Stats Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* Articles Stat */}
-                <div className="relative group/stat">
-                  <div className="absolute -inset-1 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl blur opacity-25 group-hover/stat:opacity-50 transition" />
-                  <div className="relative bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-4 py-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <BookOpen className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{totalArticlesRead}</span>
-                    </div>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Articles Read</p>
+              {/* Stats inline with glowing icons */}
+              <div className="flex flex-wrap items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5 group">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <BookOpen className="relative w-4 h-4 text-emerald-500" />
                   </div>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{totalArticlesRead}</span>
+                  <span className="text-muted-foreground">read</span>
                 </div>
-
-                {/* Time Stat */}
-                <div className="relative group/stat">
-                  <div className="absolute -inset-1 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl blur opacity-25 group-hover/stat:opacity-50 transition" />
-                  <div className="relative bg-blue-500/10 border-2 border-blue-500/30 rounded-xl px-4 py-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalReadingTime}</span>
-                    </div>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">Minutes</p>
+                <span className="text-muted-foreground/50">•</span>
+                <div className="flex items-center gap-1.5 group">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-500/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Clock className="relative w-4 h-4 text-blue-500" />
                   </div>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{totalReadingTime}</span>
+                  <span className="text-muted-foreground">min</span>
                 </div>
-
-                {/* Points Stat */}
-                <div className="relative group/stat">
-                  <div className="absolute -inset-1 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl blur opacity-25 group-hover/stat:opacity-50 transition" />
-                  <div className="relative bg-amber-500/10 border-2 border-amber-500/30 rounded-xl px-4 py-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Zap className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                      <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">{points}</span>
-                    </div>
-                    <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Points</p>
+                <span className="text-muted-foreground/50">•</span>
+                <div className="flex items-center gap-1.5 group">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-amber-500/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Zap className="relative w-4 h-4 text-amber-500" />
                   </div>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{points}</span>
+                  <span className="text-muted-foreground">pts</span>
                 </div>
-
-                {/* Categories Stat */}
-                <div className="relative group/stat">
-                  <div className="absolute -inset-1 bg-gradient-to-br from-purple-400 to-violet-500 rounded-xl blur opacity-25 group-hover/stat:opacity-50 transition" />
-                  <div className="relative bg-purple-500/10 border-2 border-purple-500/30 rounded-xl px-4 py-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                      <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">{categoriesRead}</span>
-                    </div>
-                    <p className="text-xs text-purple-700 dark:text-purple-300 font-medium">Categories</p>
+                <span className="text-muted-foreground/50">•</span>
+                <div className="flex items-center gap-1.5 group">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-purple-500/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Target className="relative w-4 h-4 text-purple-500" />
                   </div>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">{categoriesRead}</span>
+                  <span className="text-muted-foreground">categories</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        <style>{`
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+        `}</style>
       </div>
 
-      {/* Milestone Progress */}
-      {totalArticlesRead > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-amber-500/30 blur-xl rounded-full" />
-              <Trophy className="relative w-8 h-8 text-amber-500" />
-            </div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-              Achievement Milestones
-            </h2>
-            <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* 10 Articles - Bronze */}
-            {(() => {
-              const milestone = 10
-              const isCompleted = totalArticlesRead >= milestone
-              const isCurrent = !isCompleted && totalArticlesRead >= 0
-              const progress = isCurrent ? Math.min((totalArticlesRead / milestone) * 100, 100) : isCompleted ? 100 : 0
-              
-              return (
-                <div className="relative group/milestone">
-                  <div className={`absolute -inset-1 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl blur-lg transition-all ${isCompleted ? 'opacity-50' : isCurrent ? 'opacity-30 group-hover/milestone:opacity-50' : 'opacity-10'}`} />
-                  
-                  <Card className={`relative border-2 transition-all transform ${
-                    isCompleted 
-                      ? 'bg-gradient-to-br from-orange-500/20 via-amber-500/20 to-yellow-500/20 border-amber-500/50 shadow-lg shadow-amber-500/20' 
-                      : isCurrent
-                      ? 'bg-card/80 backdrop-blur-sm border-amber-400/40 group-hover/milestone:scale-105'
-                      : 'bg-muted/30 border-border/30'
-                  }`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="relative">
-                          <div className={`absolute -inset-2 rounded-full blur-md ${isCompleted ? 'bg-amber-400/40' : 'bg-amber-400/20'}`} />
-                          <Medal className={`relative w-10 h-10 ${isCompleted ? 'text-amber-500 fill-amber-500/20' : 'text-amber-500/50'}`} />
-                        </div>
-                        {isCompleted && <CheckCircle2 className="w-6 h-6 text-amber-500 fill-amber-500" />}
-                      </div>
-                      <CardTitle className="text-lg">Bronze Reader</CardTitle>
-                      <p className="text-sm text-muted-foreground">First steps in knowledge</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className={`text-3xl font-bold ${isCompleted ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                          {milestone}
-                        </span>
-                        <span className="text-sm text-muted-foreground">articles</span>
-                      </div>
-                      {!isCompleted && (
-                        <>
-                          <div className="h-2 bg-muted/50 rounded-full overflow-hidden mb-2">
-                            <div 
-                              className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {milestone - totalArticlesRead} more to go!
-                          </p>
-                        </>
-                      )}
-                      {isCompleted && (
-                        <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 mt-1">
-                          <Star className="w-3 h-3 mr-1 fill-amber-500" />
-                          Unlocked!
-                        </Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              )
-            })()}
-
-            {/* 25 Articles - Silver */}
-            {(() => {
-              const milestone = 25
-              const isCompleted = totalArticlesRead >= milestone
-              const isCurrent = !isCompleted && totalArticlesRead >= 10
-              const progress = isCurrent ? Math.min((totalArticlesRead / milestone) * 100, 100) : isCompleted ? 100 : 0
-              
-              return (
-                <div className="relative group/milestone">
-                  <div className={`absolute -inset-1 bg-gradient-to-br from-slate-400 to-zinc-400 rounded-2xl blur-lg transition-all ${isCompleted ? 'opacity-50' : isCurrent ? 'opacity-30 group-hover/milestone:opacity-50' : 'opacity-10'}`} />
-                  
-                  <Card className={`relative border-2 transition-all transform ${
-                    isCompleted 
-                      ? 'bg-gradient-to-br from-slate-500/20 via-zinc-500/20 to-gray-500/20 border-slate-400/50 shadow-lg shadow-slate-400/20' 
-                      : isCurrent
-                      ? 'bg-card/80 backdrop-blur-sm border-slate-400/40 group-hover/milestone:scale-105'
-                      : 'bg-muted/30 border-border/30'
-                  }`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="relative">
-                          <div className={`absolute -inset-2 rounded-full blur-md ${isCompleted ? 'bg-slate-400/40' : 'bg-slate-400/20'}`} />
-                          <Award className={`relative w-10 h-10 ${isCompleted ? 'text-slate-500 fill-slate-500/20' : 'text-slate-500/50'}`} />
-                        </div>
-                        {isCompleted && <CheckCircle2 className="w-6 h-6 text-slate-500 fill-slate-500" />}
-                      </div>
-                      <CardTitle className="text-lg">Silver Scholar</CardTitle>
-                      <p className="text-sm text-muted-foreground">Growing expertise</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className={`text-3xl font-bold ${isCompleted ? 'text-slate-600 dark:text-slate-400' : 'text-muted-foreground'}`}>
-                          {milestone}
-                        </span>
-                        <span className="text-sm text-muted-foreground">articles</span>
-                      </div>
-                      {!isCompleted && (
-                        <>
-                          <div className="h-2 bg-muted/50 rounded-full overflow-hidden mb-2">
-                            <div 
-                              className="h-full bg-gradient-to-r from-slate-500 to-zinc-500 transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {milestone - totalArticlesRead} more to go!
-                          </p>
-                        </>
-                      )}
-                      {isCompleted && (
-                        <Badge className="bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30 mt-1">
-                          <Star className="w-3 h-3 mr-1 fill-slate-500" />
-                          Unlocked!
-                        </Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              )
-            })()}
-
-            {/* 50 Articles - Gold */}
-            {(() => {
-              const milestone = 50
-              const isCompleted = totalArticlesRead >= milestone
-              const isCurrent = !isCompleted && totalArticlesRead >= 25
-              const progress = isCurrent ? Math.min((totalArticlesRead / milestone) * 100, 100) : isCompleted ? 100 : 0
-              
-              return (
-                <div className="relative group/milestone">
-                  <div className={`absolute -inset-1 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl blur-lg transition-all ${isCompleted ? 'opacity-60' : isCurrent ? 'opacity-40 group-hover/milestone:opacity-60' : 'opacity-10'}`} />
-                  
-                  <Card className={`relative border-2 transition-all transform ${
-                    isCompleted 
-                      ? 'bg-gradient-to-br from-yellow-500/20 via-amber-500/20 to-orange-500/20 border-yellow-500/50 shadow-xl shadow-yellow-500/30' 
-                      : isCurrent
-                      ? 'bg-card/80 backdrop-blur-sm border-yellow-400/40 group-hover/milestone:scale-105'
-                      : 'bg-muted/30 border-border/30'
-                  }`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="relative">
-                          <div className={`absolute -inset-2 rounded-full blur-md ${isCompleted ? 'bg-yellow-400/50 animate-pulse' : 'bg-yellow-400/20'}`} />
-                          <Crown className={`relative w-10 h-10 ${isCompleted ? 'text-yellow-500 fill-yellow-500/20' : 'text-yellow-500/50'}`} />
-                        </div>
-                        {isCompleted && <CheckCircle2 className="w-6 h-6 text-yellow-600 fill-yellow-600" />}
-                      </div>
-                      <CardTitle className="text-lg">Gold Master</CardTitle>
-                      <p className="text-sm text-muted-foreground">Impressive dedication</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className={`text-3xl font-bold ${isCompleted ? 'text-yellow-600 dark:text-yellow-400' : 'text-muted-foreground'}`}>
-                          {milestone}
-                        </span>
-                        <span className="text-sm text-muted-foreground">articles</span>
-                      </div>
-                      {!isCompleted && (
-                        <>
-                          <div className="h-2 bg-muted/50 rounded-full overflow-hidden mb-2">
-                            <div 
-                              className="h-full bg-gradient-to-r from-yellow-500 to-amber-500 transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {milestone - totalArticlesRead} more to go!
-                          </p>
-                        </>
-                      )}
-                      {isCompleted && (
-                        <Badge className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30 mt-1">
-                          <Star className="w-3 h-3 mr-1 fill-yellow-500" />
-                          Unlocked!
-                        </Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              )
-            })()}
-
-            {/* 100 Articles - Diamond */}
-            {(() => {
-              const milestone = 100
-              const isCompleted = totalArticlesRead >= milestone
-              const isCurrent = !isCompleted && totalArticlesRead >= 50
-              const progress = isCurrent ? Math.min((totalArticlesRead / milestone) * 100, 100) : isCompleted ? 100 : 0
-              
-              return (
-                <div className="relative group/milestone">
-                  <div className={`absolute -inset-1 bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 rounded-2xl blur-xl transition-all ${isCompleted ? 'opacity-70 animate-pulse' : isCurrent ? 'opacity-40 group-hover/milestone:opacity-60' : 'opacity-10'}`} />
-                  
-                  <Card className={`relative border-2 transition-all transform ${
-                    isCompleted 
-                      ? 'bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 border-cyan-500/60 shadow-2xl shadow-cyan-500/40' 
-                      : isCurrent
-                      ? 'bg-card/80 backdrop-blur-sm border-cyan-400/40 group-hover/milestone:scale-105'
-                      : 'bg-muted/30 border-border/30'
-                  }`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="relative">
-                          <div className={`absolute -inset-2 rounded-full blur-lg ${isCompleted ? 'bg-gradient-to-r from-cyan-400 to-purple-500 opacity-60 animate-pulse' : 'bg-cyan-400/20'}`} />
-                          <Rocket className={`relative w-10 h-10 ${isCompleted ? 'text-cyan-500 fill-cyan-500/20' : 'text-cyan-500/50'}`} />
-                        </div>
-                        {isCompleted && <CheckCircle2 className="w-6 h-6 text-cyan-500 fill-cyan-500" />}
-                      </div>
-                      <CardTitle className="text-lg bg-gradient-to-r from-cyan-500 to-purple-500 bg-clip-text text-transparent">
-                        Diamond Legend
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">Ultimate achievement</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className={`text-3xl font-bold ${isCompleted ? 'bg-gradient-to-r from-cyan-500 to-purple-500 bg-clip-text text-transparent' : 'text-muted-foreground'}`}>
-                          {milestone}
-                        </span>
-                        <span className="text-sm text-muted-foreground">articles</span>
-                      </div>
-                      {!isCompleted && (
-                        <>
-                          <div className="h-2 bg-muted/50 rounded-full overflow-hidden mb-2">
-                            <div 
-                              className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {milestone - totalArticlesRead} more to go!
-                          </p>
-                        </>
-                      )}
-                      {isCompleted && (
-                        <Badge className="bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 mt-1">
-                          <Star className="w-3 h-3 mr-1 fill-cyan-500" />
-                          Legendary!
-                        </Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              )
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* Search and Filter */}
-      <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm">
+      {/* Achievement Medals Collection */}
+      <Card className="border-2 border-border/50 bg-card/90 backdrop-blur-sm">
         <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Trophy className="w-5 h-5 text-amber-500" />
+            <h2 className="text-lg font-bold">Achievement Medals</h2>
+            <Badge variant="outline" className="ml-auto text-xs">
+              {medals.filter(m => m.isUnlocked).length}/{medals.length}
+            </Badge>
+          </div>
+
+          {/* Medal avatars */}
+          <div className="flex flex-wrap gap-4">
+            {medals.map((medal, idx) => {
+              const Icon = medal.icon === 'medal' ? Medal :
+                          medal.icon === 'award' ? Award :
+                          medal.icon === 'crown' ? Crown :
+                          Rocket
+
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedMedal(medal)}
+                  className="group relative flex flex-col items-center gap-2 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 border-2 border-border/50 hover:border-primary/30 transition-all cursor-pointer"
+                >
+                  {/* Medal icon */}
+                  <div className="relative">
+                    {medal.isUnlocked ? (
+                      <>
+                        <div className={`absolute -inset-3 bg-gradient-to-br ${medal.color} rounded-full blur-lg opacity-50 group-hover:opacity-70 transition-all`} />
+                        <div className={`relative w-16 h-16 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                          <Icon className="w-8 h-8 text-white drop-shadow-lg" />
+                        </div>
+                        {/* Checkmark badge */}
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-card shadow-lg">
+                          <CheckCircle2 className="w-4 h-4 text-white fill-emerald-500" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="relative w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-border/50 group-hover:border-border transition-all">
+                          <span className="text-2xl text-muted-foreground/30">?</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Label */}
+                  <div className="text-center">
+                    <div className={`text-xs font-semibold ${medal.isUnlocked ? medal.textColor : 'text-muted-foreground/50'}`}>
+                      {medal.milestone}
+                    </div>
+                    {!medal.isUnlocked && totalArticlesRead > 0 && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {medal.milestone - totalArticlesRead} more
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Medal Details Modal */}
+      <Dialog open={selectedMedal !== null} onOpenChange={() => setSelectedMedal(null)}>
+        <DialogContent className="sm:max-w-md">
+          {selectedMedal && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="relative">
+                    {selectedMedal.isUnlocked ? (
+                      <>
+                        <div className={`absolute -inset-4 bg-gradient-to-br ${selectedMedal.color} rounded-full blur-xl opacity-60 animate-pulse`} />
+                        <div className={`relative w-20 h-20 rounded-full bg-gradient-to-br ${selectedMedal.color} flex items-center justify-center shadow-2xl`}>
+                          {selectedMedal.icon === 'medal' && <Medal className="w-10 h-10 text-white drop-shadow-lg" />}
+                          {selectedMedal.icon === 'award' && <Award className="w-10 h-10 text-white drop-shadow-lg" />}
+                          {selectedMedal.icon === 'crown' && <Crown className="w-10 h-10 text-white drop-shadow-lg" />}
+                          {selectedMedal.icon === 'rocket' && <Rocket className="w-10 h-10 text-white drop-shadow-lg" />}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-border">
+                        <span className="text-4xl text-muted-foreground/30">?</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <DialogTitle className={selectedMedal.isUnlocked ? selectedMedal.textColor : 'text-muted-foreground'}>
+                      {selectedMedal.title}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {selectedMedal.description}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                {/* Progress */}
+                <div>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <span className="text-sm font-medium">Progress</span>
+                    <span className="text-sm text-muted-foreground">
+                      {totalArticlesRead} / {selectedMedal.milestone} articles
+                    </span>
+                  </div>
+                  <div className="h-3 bg-muted/50 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 ${selectedMedal.isUnlocked ? selectedMedal.bgColor : 'bg-muted-foreground'}`}
+                      style={{ width: `${selectedMedal.progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                  <span className="text-sm font-medium">Status</span>
+                  {selectedMedal.isUnlocked ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
+                      <Star className="w-3 h-3 mr-1 fill-emerald-500" />
+                      Unlocked!
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      {selectedMedal.milestone - totalArticlesRead} articles to go
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                onClick={() => setSelectedMedal(null)}
+                className="w-full"
+                variant="outline"
+              >
+                Close
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Search and Filter - Mobile Friendly */}
+      <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3">
             {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
               <Input
                 type="text"
                 placeholder="Search articles..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+                className="pl-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all h-11"
               />
+              {searchQuery && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
             </div>
 
-            {/* Category Filter */}
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-muted-foreground hidden sm:block" />
-              <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full sm:w-auto">
-                <TabsList className="grid grid-cols-2 sm:flex gap-1">
-                  {categories.slice(0, 4).map(cat => (
-                    <TabsTrigger 
-                      key={cat} 
-                      value={cat}
-                      className="capitalize text-xs sm:text-sm"
-                    >
-                      {cat}
-                    </TabsTrigger>
+            {/* Category Filter - Mobile Friendly Select */}
+            <div className="flex items-center gap-2 w-full">
+              <Filter className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="h-11 bg-background/50 border-border/50 focus:border-primary/50">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat} className="capitalize">
+                      {cat === 'all' ? 'All Categories' : cat}
+                      {cat !== 'all' && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({readArticles.filter(a => a.category === cat).length})
+                        </span>
+                      )}
+                    </SelectItem>
                   ))}
-                  {categories.length > 4 && (
-                    <Badge variant="outline" className="ml-2 hidden sm:flex">
-                      +{categories.length - 4}
-                    </Badge>
-                  )}
-                </TabsList>
-              </Tabs>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Active Filters Display */}
+            {(searchQuery || selectedCategory !== 'all') && (
+              <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border/50">
+                <span className="text-xs text-muted-foreground">Active filters:</span>
+                {searchQuery && (
+                  <Badge 
+                    variant="secondary" 
+                    className="gap-1.5 text-xs"
+                  >
+                    Search: "{searchQuery}"
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="ml-1 hover:text-destructive transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                )}
+                {selectedCategory !== 'all' && (
+                  <Badge 
+                    variant="secondary" 
+                    className="gap-1.5 text-xs capitalize"
+                  >
+                    {selectedCategory}
+                    <button
+                      onClick={() => setSelectedCategory('all')}
+                      className="ml-1 hover:text-destructive transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSelectedCategory('all')
+                  }}
+                  className="text-xs h-6 px-2 ml-auto"
+                >
+                  Clear all
+                </Button>
+              </div>
+            )}
+
+            {/* Results count */}
+            <div className="text-xs text-muted-foreground">
+              Showing {filteredArticles.length} of {readArticles.length} articles
             </div>
           </div>
         </CardContent>
@@ -527,22 +503,22 @@ export function ReadingHistory({
                 className="group relative"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
+                {/* Gradient border wrapper */}
+                <div className="absolute -inset-[2px] bg-gradient-to-br from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
+                
                 <Card 
-                  className="h-full border-2 border-border/50 bg-card/90 backdrop-blur-sm hover:border-primary/50 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20 transform hover:scale-102 cursor-pointer overflow-hidden group-hover:border-primary/60"
+                  className="relative h-full border-2 border-border/50 bg-card/95 backdrop-blur-sm hover:border-emerald-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/10 cursor-pointer overflow-hidden rounded-2xl"
                   onClick={() => onArticleClick?.(article.id)}
                 >
-                  {/* Animated gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/5 to-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                  
                   {/* Cover Image or Placeholder */}
-                  <div className="relative h-56 overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-background">
+                  <div className="relative h-48 overflow-hidden bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-background">
                     {article.coverImage ? (
                       <>
-                        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent z-10" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent z-10" />
                         <ImageWithFallback
                           src={article.coverImage}
                           alt={article.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                         />
                       </>
                     ) : (
@@ -550,83 +526,90 @@ export function ReadingHistory({
                         articleId={article.id}
                         category={article.category}
                         title={article.title}
-                        className="w-full h-full group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full group-hover:scale-105 transition-transform duration-700"
                         useCategoryArt={true}
                       />
                     )}
                     
-                    {/* Read Badge */}
-                    <div className="absolute top-4 right-4 z-20">
-                      <Badge className="bg-emerald-500/90 backdrop-blur-sm text-white border-0 shadow-lg px-3 py-1 gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Read
-                      </Badge>
+                    {/* Read Badge - Redesigned */}
+                    <div className="absolute top-3 right-3 z-20">
+                      <div className="relative">
+                        <div className="absolute -inset-1 bg-emerald-500/30 blur-md rounded-full" />
+                        <Badge className="relative bg-emerald-500/95 backdrop-blur-md text-white border-0 shadow-lg px-3 py-1.5 gap-1.5 rounded-full">
+                          <CheckCircle2 className="w-3.5 h-3.5 fill-white" />
+                          <span className="font-semibold text-xs">Read</span>
+                        </Badge>
+                      </div>
                     </div>
 
-                    {/* Quick Share Actions */}
-                    <div className="absolute bottom-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                    {/* Quick Share Actions - Redesigned */}
+                    <div className="absolute bottom-3 right-3 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
                       {/* Copy Link Button */}
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-9 w-9 p-0 rounded-full bg-background/90 backdrop-blur-md border-2 border-primary/20 hover:border-primary/40 hover:bg-background shadow-lg hover:shadow-primary/20 transition-all"
-                        onClick={handleCopyLink}
-                        title="Copy link"
-                      >
-                        <Link2 className="w-4 h-4 text-primary" />
-                      </Button>
+                      <div className="relative">
+                        <div className="absolute -inset-1 bg-primary/20 blur-md rounded-full" />
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="relative h-9 w-9 p-0 rounded-full bg-background/95 backdrop-blur-xl border-2 border-primary/30 hover:border-primary/50 hover:bg-background shadow-lg hover:shadow-primary/30 transition-all hover:scale-110"
+                          onClick={handleCopyLink}
+                          title="Copy link"
+                        >
+                          <Link2 className="w-4 h-4 text-primary" />
+                        </Button>
+                      </div>
 
                       {/* Native Share Button */}
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-9 w-9 p-0 rounded-full bg-background/90 backdrop-blur-md border-2 border-primary/20 hover:border-primary/40 hover:bg-background shadow-lg hover:shadow-primary/20 transition-all"
-                        onClick={handleNativeShare}
-                        title="Share"
-                      >
-                        <Share2 className="w-4 h-4 text-primary" />
-                      </Button>
+                      <div className="relative">
+                        <div className="absolute -inset-1 bg-primary/20 blur-md rounded-full" />
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="relative h-9 w-9 p-0 rounded-full bg-background/95 backdrop-blur-xl border-2 border-primary/30 hover:border-primary/50 hover:bg-background shadow-lg hover:shadow-primary/30 transition-all hover:scale-110"
+                          onClick={handleNativeShare}
+                          title="Share"
+                        >
+                          <Share2 className="w-4 h-4 text-primary" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   
                   {/* Content Section */}
-                  <div className="relative p-5 space-y-4">
+                  <div className="relative p-5 space-y-3">
+                    {/* Category Badge - Moved to top */}
+                    <Badge 
+                      className="bg-primary/10 text-primary border-primary/20 px-2.5 py-1 gap-1.5 rounded-full font-medium text-xs"
+                    >
+                      <Bookmark className="w-3 h-3" />
+                      {article.category}
+                    </Badge>
+
                     {/* Title */}
-                    <div className="space-y-2">
-                      <CardTitle className="text-xl leading-tight group-hover:text-primary transition-colors line-clamp-2 min-h-[3.5rem]">
-                        {article.title}
-                      </CardTitle>
-                    </div>
+                    <h3 className="text-lg font-bold leading-tight group-hover:text-primary transition-colors line-clamp-2 min-h-[3.5rem]">
+                      {article.title}
+                    </h3>
 
                     {/* Excerpt */}
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 min-h-[4.5rem]">
+                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
                       {article.excerpt}
                     </p>
                     
-                    {/* Badges */}
-                    <div className="flex flex-wrap items-center gap-2 pt-2">
-                      <Badge 
-                        className="bg-primary/10 text-primary border-primary/30 px-2.5 py-1 gap-1.5"
-                      >
-                        <Bookmark className="w-3 h-3" />
-                        {article.category}
-                      </Badge>
-                      <Badge variant="outline" className="px-2.5 py-1 gap-1.5 bg-background/50">
-                        <Clock className="w-3 h-3" />
-                        {article.readingTime} min
-                      </Badge>
-                      <Badge variant="outline" className="px-2.5 py-1 gap-1.5 bg-background/50">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(article.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </Badge>
+                    {/* Meta Info */}
+                    <div className="flex items-center gap-3 pt-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{article.readingTime} min</span>
+                      </div>
+                      <span className="text-muted-foreground/50">•</span>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{new Date(article.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Decorative corner accent */}
-                  <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-primary/10 via-primary/5 to-transparent rounded-tl-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  {/* Bottom shine effect */}
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {/* Bottom accent line */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </Card>
               </div>
             )

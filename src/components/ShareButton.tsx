@@ -15,9 +15,10 @@ interface ShareButtonProps {
     excerpt?: string
   }
   compact?: boolean
+  children?: React.ReactNode
 }
 
-export function ShareButton({ article, compact = false }: ShareButtonProps) {
+export function ShareButton({ article, compact = false, children }: ShareButtonProps) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showQR, setShowQR] = useState(false)
@@ -87,10 +88,12 @@ export function ShareButton({ article, compact = false }: ShareButtonProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Share2 className="w-4 h-4" />
-          Share
-        </Button>
+        {children || (
+          <Button variant="outline" size="sm" className="gap-2">
+            <Share2 className="w-4 h-4" />
+            Share
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>

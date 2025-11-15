@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sparkles, Grid, Flame } from 'lucide-react'
+import { Sparkles, Grid, Flame, ArrowLeft } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 
 interface HeaderProps {
-  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin'
+  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements'
   onNavigate: (view: 'feed' | 'dashboard' | 'editor' | 'admin') => void
   isAuthenticated: boolean
   onLogout: () => void
@@ -13,11 +13,12 @@ interface HeaderProps {
   exploreMode?: 'grid' | 'swipe'
   onSwitchToGrid?: () => void
   currentStreak?: number
+  onBack?: () => void
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
 
@@ -81,8 +82,22 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   return (
     <header className="sticky top-0 z-50 w-full bg-background/60 backdrop-blur-lg border-b border-border/50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Left: Streak Badge - Only in Swipe Mode */}
+        {/* Left: Back Button OR Streak Badge */}
         <div className="flex-1 flex items-center">
+          {/* Back button for sub-pages */}
+          {(currentView === 'reading-history' || currentView === 'matched-articles' || currentView === 'achievements' || currentView === 'article') && onBack && (
+            <Button
+              onClick={onBack}
+              size="sm"
+              variant="ghost"
+              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span className="hidden sm:inline">Back</span>
+            </Button>
+          )}
+          
+          {/* Streak badge in swipe mode */}
           {currentView === 'feed' && exploreMode === 'swipe' && currentStreak !== undefined && (
             <Badge
               variant="secondary"

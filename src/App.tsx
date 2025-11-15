@@ -20,7 +20,7 @@ import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
 import { Skeleton } from './components/ui/skeleton'
 import { Alert, AlertDescription } from './components/ui/alert'
-import { Sparkles, Search, X, Filter, Heart } from 'lucide-react'
+import { Sparkles, Search, X, Filter, Heart, Zap } from 'lucide-react'
 import { Input } from './components/ui/input'
 import { Button } from './components/ui/button'
 import { Badge } from './components/ui/badge'
@@ -98,7 +98,16 @@ export default function App() {
     const savedMatches = localStorage.getItem('matchedArticles')
     if (savedMatches) {
       try {
-        setMatchedArticles(JSON.parse(savedMatches))
+        const parsedMatches = JSON.parse(savedMatches)
+        // Remove duplicates by filtering unique article IDs
+        const uniqueMatches = parsedMatches.filter((article: Article, index: number, self: Article[]) => 
+          index === self.findIndex((a) => a.id === article.id)
+        )
+        setMatchedArticles(uniqueMatches)
+        // Save back the deduplicated list
+        if (uniqueMatches.length !== parsedMatches.length) {
+          localStorage.setItem('matchedArticles', JSON.stringify(uniqueMatches))
+        }
       } catch (error) {
         console.error('Error loading matched articles:', error)
       }
@@ -476,38 +485,131 @@ export default function App() {
         exploreMode={currentView === 'feed' ? exploreMode : undefined}
         onSwitchToGrid={() => setExploreMode('grid')}
         currentStreak={currentView === 'feed' && exploreMode === 'swipe' ? userProgress?.currentStreak : undefined}
+        onBack={() => {
+          if (currentView === 'article') {
+            setCurrentView('feed')
+            setSelectedArticle(null)
+            setExploreMode(previousExploreMode)
+          } else {
+            setCurrentView('dashboard')
+          }
+        }}
       />
 
-      <main className="container mx-auto px-4 py-8 pb-32">
-        {/* Increased pb-32 (128px) to account for bottom navbar height on all devices */}
+      <main className={`container mx-auto px-4 ${currentView === 'feed' && exploreMode === 'swipe' ? 'py-8 h-[calc(100vh-64px)] overflow-hidden' : 'py-8 pb-32'}`}>
+        {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
         {currentView === 'feed' && (
-          <div className="space-y-6">
+          <div className={exploreMode === 'swipe' ? 'h-full' : 'space-y-6'}>
             {/* Streak Banner - Only show in grid mode */}
             {exploreMode === 'grid' && userProgress && userProgress.currentStreak > 0 && (
               <StreakBanner
                 currentStreak={userProgress.currentStreak}
                 longestStreak={userProgress.longestStreak}
                 points={userProgress.points}
+                onNavigateToDashboard={() => setCurrentView('dashboard')}
               />
             )}
 
-            {/* Mode Toggle Button - Only show in grid mode */}
+            {/* Swipe Mode Card - Only show in grid mode */}
             {exploreMode === 'grid' && (
-              <div className="flex justify-center">
-                <Button
-                  onClick={() => setExploreMode('swipe')}
-                  size="lg"
-                  className="h-16 px-8 border-2 transition-all shadow-lg bg-gradient-to-r from-primary to-sky-500 border-primary/50 text-white hover:from-primary/90 hover:to-sky-500/90 shadow-primary/30"
-                >
-                  <Heart className="w-6 h-6 mr-2" />
-                  <span className="font-bold text-lg">Switch to Swipe Mode</span>
-                </Button>
+              <div 
+                onClick={() => setExploreMode('swipe')}
+                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
+              >
+                {/* Animated background shimmer */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
+                     style={{ 
+                       backgroundSize: '200% 100%',
+                       animation: 'shimmer 3s infinite linear'
+                     }} 
+                />
+                
+                <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4">
+                  {/* Main Content Row */}
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div className="relative flex-shrink-0">
+                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-600 blur-md opacity-50 animate-pulse" />
+                      <div className="relative bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
+                        <Heart className="w-6 h-6 fill-white" />
+                      </div>
+                    </div>
+                    
+                    {/* Text */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 bg-clip-text text-transparent">
+                          💖 TRY SWIPE MODE!
+                        </h3>
+                        <Sparkles className="w-5 h-5 text-pink-500 animate-pulse" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Swipe through articles and create your reading list for later
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature Pills Row */}
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    {/* Match List Pill */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-500/10 rounded-full text-xs font-medium text-pink-600 dark:text-pink-400">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M9 12L11 14L15 10" 
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
+                      </svg>
+                      Match List
+                    </div>
+                    
+                    {/* Unlimited Rewind Pill */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 rounded-full text-xs font-medium text-purple-600 dark:text-purple-400">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 12C4 7.58172 7.58172 4 12 4C14.5264 4 16.7792 5.17107 18.2454 7M20 12C20 16.4183 16.4183 20 12 20C9.47362 20 7.22075 18.8289 5.75463 17M12 2V6M12 18V22" 
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M15 7L18 4L21 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Unlimited Rewind
+                    </div>
+                  </div>
+
+                  {/* Action Button - Centered */}
+                  <div className="mt-4 pt-4 border-t border-border/50 flex justify-center">
+                    <div className="flex items-center gap-2.5 px-6 py-3 bg-pink-500/10 rounded-xl border-2 border-pink-500/30 group-hover:border-pink-500/50 transition-all shadow-lg shadow-pink-500/20 group-hover:shadow-xl group-hover:shadow-pink-500/30">
+                      <Heart className="w-5 h-5 text-pink-500 animate-bounce fill-current" />
+                      <span className="text-base font-bold text-pink-600 dark:text-pink-400">START SWIPING</span>
+                      <svg className="w-5 h-5 text-pink-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <style>{`
+                  @keyframes shimmer {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                  }
+                `}</style>
+              </div>
+            )}
+
+            {/* Divider - Only show in grid mode */}
+            {exploreMode === 'grid' && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border/50"></div>
+                </div>
               </div>
             )}
 
             {/* Search and Filter Section - Only show in grid mode */}
             {exploreMode === 'grid' && (
               <div className="space-y-4">
+                {/* Browse Latest Title */}
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold">Browse Latest</h2>
+                  <div className="h-px flex-1 bg-gradient-to-r from-border/50 to-transparent"></div>
+                </div>
+
                 {/* Search Bar */}
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -579,10 +681,13 @@ export default function App() {
               <SwipeMode 
                 articles={filteredArticles}
                 onMatch={(article) => {
-                  // Add to matched articles and save to localStorage
-                  const updatedMatches = [...matchedArticles, article]
-                  setMatchedArticles(updatedMatches)
-                  localStorage.setItem('matchedArticles', JSON.stringify(updatedMatches))
+                  // Add to matched articles and save to localStorage (prevent duplicates)
+                  const isDuplicate = matchedArticles.some(a => a.id === article.id)
+                  if (!isDuplicate) {
+                    const updatedMatches = [...matchedArticles, article]
+                    setMatchedArticles(updatedMatches)
+                    localStorage.setItem('matchedArticles', JSON.stringify(updatedMatches))
+                  }
                 }}
                 onReadArticle={handleArticleClick}
                 onSwitchToGrid={() => setExploreMode('grid')}

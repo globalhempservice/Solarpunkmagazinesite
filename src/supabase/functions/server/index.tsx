@@ -13,7 +13,10 @@ app.use('*', logger(console.log))
 // Initialize Supabase client with SERVICE_ROLE_KEY for server operations
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
+// Create a separate client for auth validation
+const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey)
 
 // Initialize storage bucket for article media
 async function initStorage() {
@@ -30,9 +33,22 @@ initStorage()
 // Auth middleware
 async function requireAuth(c: any, next: any) {
   const accessToken = c.req.header('Authorization')?.split(' ')[1]
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken)
   
-  if (!user || error) {
+  if (!accessToken) {
+    console.log('No access token provided')
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  // Use the auth client to validate the user token
+  const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
+  
+  if (error) {
+    console.log('Auth error:', error)
+    return c.json({ error: 'Unauthorized', details: error.message }, 401)
+  }
+  
+  if (!user) {
+    console.log('No user found for token')
     return c.json({ error: 'Unauthorized' }, 401)
   }
   
@@ -549,6 +565,8 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       currentStreak: progress.current_streak,
       longestStreak: progress.longest_streak,
       lastReadDate: progress.last_read_date,
+      nickname: progress.nickname,
+      homeButtonTheme: progress.home_button_theme,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
@@ -785,6 +803,100 @@ app.post('/make-server-053bcd80/users/:userId/read', async (c) => {
   } catch (error) {
     console.log('Error updating user progress:', error)
     return c.json({ error: 'Failed to update user progress', details: error.message }, 500)
+  }
+})
+
+// Update user profile (nickname and theme)
+app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const { nickname, homeButtonTheme } = await c.req.json()
+    
+    console.log('Updating profile for user:', userId, { nickname, homeButtonTheme })
+    
+    // Verify access token
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    // Get current profile to check what's already set
+    const { data: currentProgress } = await supabase
+      .from('user_progress')
+      .select('nickname, home_button_theme, points')
+      .eq('user_id', userId)
+      .single()
+    
+    // Calculate points to award
+    let pointsAwarded = 0
+    const wasNicknameSet = Boolean(currentProgress?.nickname)
+    const wasThemeCustomized = Boolean(currentProgress?.home_button_theme && currentProgress.home_button_theme !== 'default')
+    const isNicknameNowSet = Boolean(nickname)
+    const isThemeNowCustomized = Boolean(homeButtonTheme && homeButtonTheme !== 'default')
+    
+    // Award 50 points for first-time nickname
+    if (!wasNicknameSet && isNicknameNowSet) {
+      pointsAwarded += 50
+    }
+    
+    // Award 30 points for first-time theme customization
+    if (!wasThemeCustomized && isThemeNowCustomized) {
+      pointsAwarded += 30
+    }
+    
+    // Update profile and points
+    const newPoints = (currentProgress?.points || 0) + pointsAwarded
+    
+    const { data: updatedProgress, error: updateError } = await supabase
+      .from('user_progress')
+      .update({ 
+        nickname, 
+        home_button_theme: homeButtonTheme,
+        points: newPoints
+      })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (updateError) {
+      console.log('Error updating profile:', updateError)
+      return c.json({ error: 'Failed to update profile', details: updateError.message }, 500)
+    }
+    
+    // Get user achievements and read articles
+    const { data: userAchievements } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId)
+    
+    const { data: readArticles } = await supabase
+      .from('read_articles')
+      .select('article_id')
+      .eq('user_id', userId)
+    
+    // Transform to camelCase for frontend
+    const transformedProgress = {
+      userId: updatedProgress.user_id,
+      totalArticlesRead: updatedProgress.total_articles_read,
+      points: updatedProgress.points,
+      currentStreak: updatedProgress.current_streak,
+      longestStreak: updatedProgress.longest_streak,
+      lastReadDate: updatedProgress.last_read_date,
+      nickname: updatedProgress.nickname,
+      homeButtonTheme: updatedProgress.home_button_theme,
+      achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
+      readArticles: (readArticles || []).map((ra: any) => ra.article_id)
+    }
+    
+    return c.json({ progress: transformedProgress, pointsAwarded })
+  } catch (error) {
+    console.log('Error updating profile:', error)
+    return c.json({ error: 'Failed to update profile', details: error.message }, 500)
   }
 })
 

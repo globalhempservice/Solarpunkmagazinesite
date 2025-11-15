@@ -16,6 +16,7 @@ import { SwipeMode } from './components/SwipeMode'
 import { MatchedArticles } from './components/MatchedArticles'
 import { AchievementsPage } from './components/AchievementsPage'
 import { BrowsePage } from './components/BrowsePage'
+import { AccountSettings } from './components/AccountSettings'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner@2.0.3'
@@ -59,13 +60,15 @@ interface UserProgress {
   achievements: string[]
   readArticles: string[]
   lastReadDate: string | null
+  nickname?: string
+  homeButtonTheme?: string
 }
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
@@ -75,10 +78,9 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [initializing, setInitializing] = useState(true)
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
-  const [exploreMode, setExploreMode] = useState<'grid' | 'swipe'>('grid')
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
   const [swipeRefReady, setSwipeRefReady] = useState(false)
-  const [previousExploreMode, setPreviousExploreMode] = useState<'grid' | 'swipe'>('grid')
+  const [previousView, setPreviousView] = useState<'feed' | 'swipe'>('feed')
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
   const supabase = createClient()
@@ -88,11 +90,11 @@ export default function App() {
 
   // Reset swipeRefReady when switching away from swipe mode
   useEffect(() => {
-    if (exploreMode !== 'swipe') {
+    if (currentView !== 'swipe') {
       setSwipeRefReady(false)
       swipeModeRef.current = null
     }
-  }, [exploreMode])
+  }, [currentView])
 
   // Load matched articles from localStorage on mount
   useEffect(() => {
@@ -301,7 +303,7 @@ export default function App() {
 
   const handleArticleClick = async (article: Article) => {
     // Save current explore mode before switching to article view
-    setPreviousExploreMode(exploreMode)
+    setPreviousView(currentView)
     
     setSelectedArticle(article)
     setCurrentView('article')
@@ -442,6 +444,40 @@ export default function App() {
     }
   }
 
+  const handleUpdateProfile = async (nickname: string, theme: string) => {
+    if (!userId || !accessToken) return
+
+    try {
+      const response = await fetch(`${serverUrl}/users/${userId}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ nickname, homeButtonTheme: theme })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update profile')
+      }
+
+      const data = await response.json()
+      setUserProgress(data.progress)
+      
+      // Show points toast if points were awarded
+      if (data.pointsAwarded && data.pointsAwarded > 0) {
+        toast.success(`Profile updated! +${data.pointsAwarded} points earned! 🎉`)
+      } else {
+        toast.success('Profile updated successfully!')
+      }
+    } catch (error: any) {
+      console.error('Error updating profile:', error)
+      toast.error('Failed to update profile: ' + error.message)
+      throw error
+    }
+  }
+
   const filteredArticles = articles.filter(article => {
     // Filter by category
     const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory
@@ -483,26 +519,27 @@ export default function App() {
         isAuthenticated={isAuthenticated}
         onLogout={handleLogout}
         userPoints={userProgress?.points}
-        exploreMode={currentView === 'feed' ? exploreMode : undefined}
-        onSwitchToGrid={() => setExploreMode('grid')}
-        currentStreak={currentView === 'feed' && exploreMode === 'swipe' ? userProgress?.currentStreak : undefined}
+        exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
+        onSwitchToGrid={() => setCurrentView('feed')}
+        currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
         onBack={() => {
           if (currentView === 'article') {
-            setCurrentView('feed')
+            setCurrentView(previousView === 'swipe' ? 'swipe' : 'feed')
             setSelectedArticle(null)
-            setExploreMode(previousExploreMode)
+          } else if (currentView === 'swipe') {
+            setCurrentView('feed')
           } else {
             setCurrentView('dashboard')
           }
         }}
       />
 
-      <main className={`container mx-auto px-4 ${currentView === 'feed' && exploreMode === 'swipe' ? 'py-8 h-[calc(100vh-64px)] overflow-hidden' : 'py-8 pb-32'}`}>
+      <main className={`container mx-auto px-4 ${currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : 'py-8 pb-32'}`}>
         {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
         {currentView === 'feed' && (
-          <div className={exploreMode === 'swipe' ? 'h-full' : 'space-y-6'}>
+          <div className="space-y-6">
             {/* Streak Banner - Only show in grid mode */}
-            {exploreMode === 'grid' && userProgress && userProgress.currentStreak > 0 && (
+            {userProgress && userProgress.currentStreak > 0 && (
               <StreakBanner
                 currentStreak={userProgress.currentStreak}
                 longestStreak={userProgress.longestStreak}
@@ -512,88 +549,88 @@ export default function App() {
             )}
 
             {/* Swipe Mode Card - Only show in grid mode */}
-            {exploreMode === 'grid' && (
-              <div 
-                onClick={() => setExploreMode('swipe')}
-                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
-              >
-                {/* Animated background shimmer */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                
-                <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4">
-                  {/* Main Content Row */}
-                  <div className="flex items-center gap-4">
-                    {/* Icon */}
-                    <div className="relative flex-shrink-0">
-                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-600 blur-md opacity-50 animate-pulse" />
-                      <div className="relative bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
-                        <Heart className="w-6 h-6 fill-white" />
-                      </div>
-                    </div>
-                    
-                    {/* Text */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 bg-clip-text text-transparent">
-                          💖 TRY SWIPE MODE!
-                        </h3>
-                        <Sparkles className="w-5 h-5 text-pink-500 animate-pulse" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Swipe through articles and create your reading list for later
-                      </p>
+            <div 
+              onClick={() => {
+                setPreviousView('feed')
+                setCurrentView('swipe')
+              }}
+              className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
+            >
+              {/* Animated background shimmer */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+              
+              <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4">
+                {/* Main Content Row */}
+                <div className="flex items-center gap-4">
+                  {/* Icon */}
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-600 blur-md opacity-50 animate-pulse" />
+                    <div className="relative bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
+                      <Heart className="w-6 h-6 fill-white" />
                     </div>
                   </div>
-
-                  {/* Feature Pills Row */}
-                  <div className="mt-4 flex items-center justify-center gap-2">
-                    {/* Match List Pill */}
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-500/10 rounded-full text-xs font-medium text-pink-600 dark:text-pink-400">
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M9 12L11 14L15 10" 
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
-                      </svg>
-                      Match List
+                  
+                  {/* Text */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 bg-clip-text text-transparent">
+                        💖 TRY SWIPE MODE!
+                      </h3>
+                      <Sparkles className="w-5 h-5 text-pink-500 animate-pulse" />
                     </div>
-                    
-                    {/* Unlimited Rewind Pill */}
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 rounded-full text-xs font-medium text-purple-600 dark:text-purple-400">
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 12C4 7.58172 7.58172 4 12 4C14.5264 4 16.7792 5.17107 18.2454 7M20 12C20 16.4183 16.4183 20 12 20C9.47362 20 7.22075 18.8289 5.75463 17M12 2V6M12 18V22" 
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M15 7L18 4L21 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      Unlimited Rewind
-                    </div>
-                  </div>
-
-                  {/* Action Button - Centered */}
-                  <div className="mt-4 pt-4 border-t border-border/50 flex justify-center">
-                    <div className="flex items-center gap-2.5 px-6 py-3 bg-pink-500/10 rounded-xl border-2 border-pink-500/30 group-hover:border-pink-500/50 transition-all shadow-lg shadow-pink-500/20 group-hover:shadow-xl group-hover:shadow-pink-500/30">
-                      <Heart className="w-5 h-5 text-pink-500 animate-bounce fill-current" />
-                      <span className="text-base font-bold text-pink-600 dark:text-pink-400">START SWIPING</span>
-                      <svg className="w-5 h-5 text-pink-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Swipe through articles and create your reading list for later
+                    </p>
                   </div>
                 </div>
 
-                <style>{`
-                  @keyframes shimmer {
-                    0% { background-position: -200% 0; }
-                    100% { background-position: 200% 0; }
-                  }
-                `}</style>
+                {/* Feature Pills Row */}
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  {/* Match List Pill */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-500/10 rounded-full text-xs font-medium text-pink-600 dark:text-pink-400">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M9 12L11 14L15 10" 
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
+                    </svg>
+                    Match List
+                  </div>
+                  
+                  {/* Unlimited Rewind Pill */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 rounded-full text-xs font-medium text-purple-600 dark:text-purple-400">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 12C4 7.58172 7.58172 4 12 4C14.5264 4 16.7792 5.17107 18.2454 7M20 12C20 16.4183 16.4183 20 12 20C9.47362 20 7.22075 18.8289 5.75463 17M12 2V6M12 18V22" 
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M15 7L18 4L21 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Unlimited Rewind
+                  </div>
+                </div>
+
+                {/* Action Button - Centered */}
+                <div className="mt-4 pt-4 border-t border-border/50 flex justify-center">
+                  <div className="flex items-center gap-2.5 px-6 py-3 bg-pink-500/10 rounded-xl border-2 border-pink-500/30 group-hover:border-pink-500/50 transition-all shadow-lg shadow-pink-500/20 group-hover:shadow-xl group-hover:shadow-pink-500/30">
+                    <Heart className="w-5 h-5 text-pink-500 animate-bounce fill-current" />
+                    <span className="text-base font-bold text-pink-600 dark:text-pink-400">START SWIPING</span>
+                    <svg className="w-5 h-5 text-pink-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </div>
+                </div>
               </div>
-            )}
+
+              <style>{`
+                @keyframes shimmer {
+                  0% { background-position: -200% 0; }
+                  100% { background-position: 200% 0; }
+                }
+              `}</style>
+            </div>
 
             {/* Create Article Card - Only show in grid mode */}
-            {exploreMode === 'grid' && (
-              <div 
-                onClick={() => setCurrentView('editor')}
-                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-[2px] shadow-lg shadow-emerald-500/50 cursor-pointer group hover:shadow-xl hover:shadow-emerald-500/60 transition-all"
-              >
+            <div 
+              onClick={() => setCurrentView('editor')}
+            >
+              <div className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-[2px] shadow-lg shadow-emerald-500/50 cursor-pointer group hover:shadow-xl hover:shadow-emerald-500/60 transition-all">
                 {/* Animated background shimmer */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                 
@@ -655,29 +692,29 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* Swipe Mode View */}
-            {exploreMode === 'swipe' && (
-              <SwipeMode 
-                articles={filteredArticles}
-                accessToken={accessToken}
-                onMatch={(article) => {
-                  // Add to matched articles and save to localStorage (prevent duplicates)
-                  const isDuplicate = matchedArticles.some(a => a.id === article.id)
-                  if (!isDuplicate) {
-                    const updatedMatches = [...matchedArticles, article]
-                    setMatchedArticles(updatedMatches)
-                    localStorage.setItem('matchedArticles', JSON.stringify(updatedMatches))
-                  }
-                }}
-                onReadArticle={handleArticleClick}
-                onSwitchToGrid={() => setExploreMode('grid')}
-                ref={swipeModeRef}
-                onRefReady={() => setSwipeRefReady(true)}
-              />
-            )}
+            </div>
           </div>
+        )}
+
+        {/* Swipe Mode - Standalone View */}
+        {currentView === 'swipe' && (
+          <SwipeMode 
+            articles={filteredArticles}
+            accessToken={accessToken}
+            onMatch={(article) => {
+              // Add to matched articles and save to localStorage (prevent duplicates)
+              const isDuplicate = matchedArticles.some(a => a.id === article.id)
+              if (!isDuplicate) {
+                const updatedMatches = [...matchedArticles, article]
+                setMatchedArticles(updatedMatches)
+                localStorage.setItem('matchedArticles', JSON.stringify(updatedMatches))
+              }
+            }}
+            onReadArticle={handleArticleClick}
+            onSwitchToGrid={() => setCurrentView('feed')}
+            ref={swipeModeRef}
+            onRefReady={() => setSwipeRefReady(true)}
+          />
         )}
 
         {currentView === 'dashboard' && userProgress && (
@@ -718,7 +755,7 @@ export default function App() {
               setCurrentView('feed')
               setSelectedArticle(null)
               // Restore the previous explore mode (grid or swipe)
-              setExploreMode(previousExploreMode)
+              setPreviousView('feed')
             }}
           />
         )}
@@ -796,6 +833,17 @@ export default function App() {
             loading={loading}
           />
         )}
+
+        {currentView === 'settings' && (
+          <AccountSettings
+            userId={userId}
+            userPoints={userProgress?.points}
+            userNickname={userProgress?.nickname}
+            homeButtonTheme={userProgress?.homeButtonTheme}
+            onLogout={handleLogout}
+            onUpdateProfile={handleUpdateProfile}
+          />
+        )}
       </main>
 
       <Toaster />
@@ -803,8 +851,8 @@ export default function App() {
         currentView={currentView}
         onNavigate={setCurrentView}
         isAuthenticated={isAuthenticated}
-        exploreMode={currentView === 'feed' ? exploreMode : undefined}
-        swipeControls={currentView === 'feed' && exploreMode === 'swipe' ? {
+        exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
+        swipeControls={currentView === 'swipe' ? {
           onSkip: () => swipeModeRef.current?.handleSkip(),
           onMatch: () => swipeModeRef.current?.handleMatch(),
           onReset: () => swipeModeRef.current?.handleReset(),

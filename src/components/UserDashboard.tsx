@@ -198,49 +198,41 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
 
         <div className="relative backdrop-blur-xl bg-card/80 border-2 border-amber-500/30 rounded-3xl p-8 shadow-2xl">
           <div className="flex items-center justify-between gap-6 flex-wrap">
-            {/* Left: Level Badge */}
+            {/* Left: Level Badge with Stars Below */}
             <div className="flex items-center gap-6">
-              <div className="relative group">
-                {/* Rotating glow ring */}
-                <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-full blur-2xl opacity-50 group-hover:opacity-75 animate-spin-slow" />
-                
-                {/* Main badge */}
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-600 blur-xl opacity-75 animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl p-6 transform group-hover:scale-110 transition-transform duration-300">
-                    <Crown className="w-14 h-14 text-white drop-shadow-lg" />
-                  </div>
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative group">
+                  {/* Rotating glow ring */}
+                  <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-full blur-2xl opacity-50 group-hover:opacity-75 animate-spin-slow" />
                   
-                  {/* Level number badge */}
-                  <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-primary to-primary/70 text-primary-foreground rounded-2xl w-12 h-12 flex items-center justify-center font-bold text-lg border-4 border-card shadow-xl transform group-hover:scale-110 transition-transform">
-                    {level}
+                  {/* Main badge */}
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-600 blur-xl opacity-75 animate-pulse" />
+                    <div className="relative bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl p-6 transform group-hover:scale-110 transition-transform duration-300">
+                      <Crown className="w-14 h-14 text-white drop-shadow-lg" />
+                    </div>
+                    
+                    {/* Level number badge */}
+                    <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-primary to-primary/70 text-primary-foreground rounded-2xl w-12 h-12 flex items-center justify-center font-bold text-lg border-4 border-card shadow-xl transform group-hover:scale-110 transition-transform">
+                      {level}
+                    </div>
                   </div>
+                </div>
+                
+                {/* Three sparkles below the badge */}
+                <div className="flex gap-1">
+                  {[...Array(3)].map((_, i) => (
+                    <Sparkles key={i} className="w-5 h-5 text-amber-500 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
+                  ))}
                 </div>
               </div>
               
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-4xl font-bold bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
-                    Level {level}
-                  </h2>
-                  <div className="flex gap-1">
-                    {[...Array(3)].map((_, i) => (
-                      <Sparkles key={i} className="w-6 h-6 text-amber-500 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xl text-muted-foreground">{getLevelTitle(level)}</p>
-              </div>
-            </div>
-
-            {/* Right: Points Display */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl blur-md group-hover:blur-lg transition-all" />
-              <div className="relative bg-muted/50 backdrop-blur-sm rounded-2xl px-8 py-4 border-2 border-primary/20 group-hover:border-primary/40 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Zap className="w-8 h-8 text-primary animate-pulse" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Total Points</div>
+              {/* Points Display - Now next to the level badge */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl blur-md group-hover:blur-lg transition-all" />
+                <div className="relative bg-muted/50 backdrop-blur-sm rounded-2xl px-6 py-4 border-2 border-primary/20 group-hover:border-primary/40 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Zap className="w-8 h-8 text-primary animate-pulse" />
                     <div className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                       {progress.points}
                     </div>
@@ -252,29 +244,16 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
 
           {/* Level Progress Bar */}
           <div className="mt-6 pt-6 border-t border-border/50">
-            <div className="flex items-center justify-between text-sm mb-3">
-              <div className="flex items-center gap-2">
-                <Rocket className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Progress to Next Level</span>
-              </div>
-              <span className="font-bold text-foreground">{pointsToNextLevel} points to Level {level + 1}</span>
-            </div>
-            
-            <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/50">
+            <div className="relative h-3 bg-muted/50 rounded-full overflow-hidden border border-border/50">
               {/* Animated background shimmer */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
               
-              {/* Progress fill */}
+              {/* Progress fill with neon glow */}
               <div 
-                className="relative h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 transition-all duration-1000 ease-out rounded-full"
+                className="relative h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 transition-all duration-1000 ease-out rounded-full shadow-lg shadow-orange-500/50"
                 style={{ width: `${levelProgress}%` }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
-                {levelProgress > 10 && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-white drop-shadow-lg">
-                    {Math.round(levelProgress)}%
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -283,19 +262,65 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
           <div className="mt-6 pt-6 border-t border-border/50">
             <div className="grid grid-cols-2 gap-4">
               {/* Current Streak */}
-              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
-                <div className="p-2.5 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg">
-                  <Flame className="w-5 h-5 text-white" />
+              <div 
+                className="relative group"
+                onMouseEnter={() => setHoveredStat('currentStreak')}
+                onMouseLeave={() => setHoveredStat(null)}
+              >
+                <div className={`absolute -inset-1 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'currentStreak' ? 'animate-pulse' : ''}`} />
+                
+                <div className="relative bg-card/90 backdrop-blur-sm border-2 border-orange-500/40 rounded-xl overflow-hidden transform group-hover:scale-105 transition-all duration-300">
+                  {/* Decorative corner */}
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-400/30 to-transparent rounded-bl-full" />
+                  
+                  {/* Animated rays */}
+                  {hoveredStat === 'currentStreak' && (
+                    <div className="absolute inset-0 overflow-hidden">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-orange-400/20 rounded-full animate-ping" />
+                    </div>
+                  )}
+                  
+                  <div className="relative p-4 flex flex-col items-center justify-center gap-2">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full" />
+                      <Flame className="relative w-8 h-8 text-orange-500 drop-shadow-lg" />
+                    </div>
+                    <div className="text-3xl font-bold bg-gradient-to-br from-orange-500 to-red-500 bg-clip-text text-transparent">
+                      {progress.currentStreak}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-3xl font-bold text-foreground">{progress.currentStreak}</div>
               </div>
               
               {/* Best Streak */}
-              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
-                <div className="p-2.5 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-lg">
-                  <Trophy className="w-5 h-5 text-white" />
+              <div 
+                className="relative group"
+                onMouseEnter={() => setHoveredStat('bestStreak')}
+                onMouseLeave={() => setHoveredStat(null)}
+              >
+                <div className={`absolute -inset-1 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'bestStreak' ? 'animate-pulse' : ''}`} />
+                
+                <div className="relative bg-card/90 backdrop-blur-sm border-2 border-amber-500/40 rounded-xl overflow-hidden transform group-hover:scale-105 transition-all duration-300">
+                  {/* Decorative corner */}
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-400/30 to-transparent rounded-bl-full" />
+                  
+                  {/* Animated rays */}
+                  {hoveredStat === 'bestStreak' && (
+                    <div className="absolute inset-0 overflow-hidden">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-amber-400/20 rounded-full animate-ping" />
+                    </div>
+                  )}
+                  
+                  <div className="relative p-4 flex flex-col items-center justify-center gap-2">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
+                      <Trophy className="relative w-8 h-8 text-amber-500 drop-shadow-lg" />
+                    </div>
+                    <div className="text-3xl font-bold bg-gradient-to-br from-amber-500 to-yellow-500 bg-clip-text text-transparent">
+                      {progress.longestStreak}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-3xl font-bold text-foreground">{progress.longestStreak}</div>
               </div>
             </div>
           </div>
@@ -303,7 +328,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
       </div>
 
       {/* STATS GRID - MEGA ENHANCED */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 gap-4">
         {/* Articles Read */}
         <div 
           className="relative group cursor-pointer"
@@ -324,24 +349,13 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
             )}
             
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-                  <Book className="relative w-10 h-10 text-emerald-500 drop-shadow-lg" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-emerald-400/50 group-hover:translate-x-1 transition-transform" />
+            <CardContent className="p-6 flex flex-col items-center justify-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+                <Book className="relative w-10 h-10 text-emerald-500 drop-shadow-lg" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent mb-1">
+              <div className="text-4xl font-bold bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent">
                 {progress.totalArticlesRead}
-              </div>
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                Articles Read
-                <Badge variant="outline" className="text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-                  View All
-                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -367,24 +381,13 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
             )}
             
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-pink-500/20 blur-xl rounded-full" />
-                  <Heart className="relative w-10 h-10 text-pink-500 drop-shadow-lg fill-pink-500" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-pink-400/50 group-hover:translate-x-1 transition-transform" />
+            <CardContent className="p-6 flex flex-col items-center justify-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-pink-500/20 blur-xl rounded-full" />
+                <Heart className="relative w-10 h-10 text-pink-500 drop-shadow-lg fill-pink-500" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold bg-gradient-to-br from-pink-500 to-rose-500 bg-clip-text text-transparent mb-1">
+              <div className="text-4xl font-bold bg-gradient-to-br from-pink-500 to-rose-500 bg-clip-text text-transparent">
                 {matchesCount || 0}
-              </div>
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                Reading Matches
-                <Badge variant="outline" className="text-xs bg-pink-500/10 border-pink-500/30 text-pink-600 dark:text-pink-400">
-                  View All
-                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -408,121 +411,17 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
             )}
             
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
-                  <Medal className="relative w-10 h-10 text-purple-500 drop-shadow-lg" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-purple-400/50 group-hover:translate-x-1 transition-transform" />
+            <CardContent className="p-6 flex flex-col items-center justify-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
+                <Medal className="relative w-10 h-10 text-purple-500 drop-shadow-lg" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent mb-1">
+              <div className="text-4xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent">
                 {progress.achievements.length}
-              </div>
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                Achievements
-                <Badge variant="outline" className="text-xs bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400">
-                  View All
-                </Badge>
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      {/* Achievements Section */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Unlocked Achievements */}
-        {unlockedAchievements.length > 0 && (
-          <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-amber-500" />
-                Unlocked Achievements
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {unlockedAchievements.map((achievement) => {
-                const Icon = achievement.icon
-                return (
-                  <div
-                    key={achievement.id}
-                    className="relative group overflow-hidden rounded-xl border-2 bg-card p-4 transition-all hover:scale-102"
-                    style={{
-                      borderColor: `rgba(${achievement.rarity === 'legendary' ? '251, 191, 36' : achievement.rarity === 'epic' ? '168, 85, 247' : achievement.rarity === 'rare' ? '59, 130, 246' : '16, 185, 129'}, 0.3)`,
-                    }}
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${achievement.color} opacity-5 group-hover:opacity-10 transition-opacity`} />
-                    
-                    <div className="relative flex items-center gap-4">
-                      <div className={`relative p-3 rounded-xl bg-gradient-to-br ${achievement.color} shadow-lg ${getRarityStyles(achievement.rarity)}`}>
-                        <div className="absolute inset-0 blur-md opacity-50" />
-                        <Icon className="relative w-6 h-6 text-white" />
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-foreground">{achievement.name}</h4>
-                          <Badge variant="outline" className="text-xs capitalize">{achievement.rarity}</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">{achievement.description}</p>
-                      </div>
-                      
-                      <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
-                    </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Next to Unlock */}
-        {nextToUnlock.length > 0 && (
-          <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" />
-                Next to Unlock
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {nextToUnlock.map((achievement) => {
-                const Icon = achievement.icon
-                return (
-                  <div
-                    key={achievement.id}
-                    className="relative group overflow-hidden rounded-xl border-2 border-border/30 bg-muted/30 p-4 transition-all hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="relative p-3 rounded-xl bg-muted border border-border">
-                        <Icon className="w-6 h-6 text-muted-foreground" />
-                        <Lock className="absolute -top-1 -right-1 w-4 h-4 text-muted-foreground" />
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold text-foreground">{achievement.name}</h4>
-                          <Badge variant="outline" className="text-xs">{achievement.progressText}</Badge>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full bg-gradient-to-r ${achievement.color} transition-all duration-500`}
-                            style={{ width: `${achievement.progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                      
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* User Articles */}

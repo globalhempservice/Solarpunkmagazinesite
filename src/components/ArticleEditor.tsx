@@ -89,7 +89,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
   const [title, setTitle] = useState(initialData?.title || article?.title || '')
   const [content, setContent] = useState(initialData?.content || article?.content || '')
   const [excerpt, setExcerpt] = useState(initialData?.excerpt || article?.excerpt || '')
-  const [category, setCategory] = useState(initialData?.category || article?.category || categories[0])
+  const [category, setCategory] = useState(initialData?.category || article?.category || '')
   const [readingTime, setReadingTime] = useState(initialData?.readingTime || article?.readingTime || 5)
   const [media, setMedia] = useState<MediaItem[]>(initialData?.media || article?.media || [])
   const [coverImage, setCoverImage] = useState<string | undefined>(initialData?.coverImage || article?.coverImage)
@@ -718,9 +718,9 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category" className="text-base">Category *</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={setCategory} required>
                 <SelectTrigger id="category" className="h-12 border-2">
-                  <SelectValue />
+                  <SelectValue placeholder="Select a category..." />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (

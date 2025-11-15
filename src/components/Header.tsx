@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sparkles, Grid, Flame, ArrowLeft, BookOpen } from 'lucide-react'
+import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 
 interface HeaderProps {
-  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'linkedin-importer'
-  onNavigate: (view: 'feed' | 'dashboard' | 'editor' | 'admin' | 'browse') => void
+  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'linkedin-importer' | 'settings'
+  onNavigate: (view: 'feed' | 'dashboard' | 'editor' | 'admin' | 'browse' | 'settings') => void
   isAuthenticated: boolean
   onLogout: () => void
   userPoints?: number
@@ -139,8 +139,8 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
         
         {/* Right: Browse Button OR Switch to Grid View Button */}
         <div className="flex-1 flex items-center justify-end gap-2">
-          {/* Browse button - show on feed and swipe mode */}
-          {(currentView === 'feed' || (currentView === 'feed' && exploreMode === 'swipe')) && (
+          {/* Browse button - show on feed */}
+          {currentView === 'feed' && (
             <Button
               onClick={() => onNavigate('browse')}
               size="sm"
@@ -152,16 +152,15 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
             </Button>
           )}
           
-          {/* Switch to Browse button in swipe mode */}
-          {currentView === 'feed' && exploreMode === 'swipe' && onSwitchToGrid && (
+          {/* Settings button - show only when NOT on feed */}
+          {currentView !== 'feed' && (
             <Button
-              onClick={() => onNavigate('browse')}
+              onClick={() => onNavigate('settings')}
               size="sm"
-              variant="outline"
-              className="gap-2 border-2 hover:bg-pink-500/10 hover:border-pink-500/50 hover:text-pink-600 transition-all"
+              variant="ghost"
+              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group"
             >
-              <Grid className="w-4 h-4" />
-              <span className="hidden sm:inline">Grid View</span>
+              <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             </Button>
           )}
         </div>

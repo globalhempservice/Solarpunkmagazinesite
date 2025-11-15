@@ -56,6 +56,10 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
   const x = useMotionValue(0)
   const rotate = useTransform(x, [-200, 200], [-25, 25])
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0])
+  
+  // Create indicator opacity transforms (must be before any early returns)
+  const matchIndicatorOpacity = useTransform(x, [0, 100], [0, 1])
+  const skipIndicatorOpacity = useTransform(x, [-100, 0], [1, 0])
 
   const currentArticle = articles[currentIndex]
   
@@ -169,6 +173,21 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     }
   }
 
+  // IMPORTANT: useImperativeHandle must be before any early returns
+  useImperativeHandle(ref, () => ({
+    handleSkip,
+    handleMatch,
+    handleReset,
+    isAnimating
+  }))
+
+  // Notify parent when ref is ready
+  useEffect(() => {
+    if (onRefReady) {
+      onRefReady()
+    }
+  }, [onRefReady])
+
   // No more articles
   if (currentIndex >= articles.length) {
     return (
@@ -215,24 +234,24 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     )
   }
 
-  useImperativeHandle(ref, () => ({
-    handleSkip,
-    handleMatch,
-    handleReset,
-    isAnimating
-  }))
-
-  // Notify parent when ref is ready
-  useEffect(() => {
-    if (onRefReady) {
-      onRefReady()
-    }
-  }, [onRefReady])
-
   return (
-    <div className="max-w-md mx-auto h-[calc(100vh-64px-160px)] flex flex-col overflow-hidden">
-      {/* Card Stack - Responsive height that fills available space */}
-      <div className="relative flex-1 min-h-0 mb-3">
+    <div className="max-w-md mx-auto h-full flex flex-col py-4 sm:py-6">
+      {/* Stats Pills - Top Section */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 mb-4 sm:mb-6">
+        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-3 py-2 shadow-md">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="font-semibold">{articles.length - currentIndex}</span>
+          <span className="text-muted-foreground">left</span>
+        </Badge>
+        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-3 py-2 shadow-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+          <Heart className="w-3.5 h-3.5 fill-emerald-500" />
+          <span className="font-semibold">{matchedArticles.length}</span>
+          <span className="text-emerald-600/70 dark:text-emerald-400/70">matches</span>
+        </Badge>
+      </div>
+
+      {/* Card Stack - Takes up available space */}
+      <div className="relative flex-1 min-h-0 px-4 mb-6 sm:mb-8">
         {/* Background cards for depth - Show next 2 cards with PreviewCard component */}
         {visibleCards.slice(1, 3).map((article, index) => (
           <PreviewCard
@@ -345,7 +364,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
               <motion.div
                 className="absolute top-24 sm:top-32 left-6 sm:left-8 rotate-[-25deg]"
                 style={{
-                  opacity: useTransform(x, [0, 100], [0, 1])
+                  opacity: matchIndicatorOpacity
                 }}
               >
                 <div className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl border-4 border-emerald-500 bg-emerald-500/20 backdrop-blur-sm">
@@ -356,7 +375,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
               <motion.div
                 className="absolute top-24 sm:top-32 right-6 sm:right-8 rotate-[25deg]"
                 style={{
-                  opacity: useTransform(x, [-100, 0], [1, 0])
+                  opacity: skipIndicatorOpacity
                 }}
               >
                 <div className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl border-4 border-red-500 bg-red-500/20 backdrop-blur-sm">
@@ -368,16 +387,89 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
         )}
       </div>
 
-      {/* Stats Bar - Fixed position above navbar with proper spacing */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-8 pb-28">
-        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-2.5 sm:px-3 py-1.5">
-          <Sparkles className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-          {articles.length - currentIndex} left
-        </Badge>
-        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-          <Heart className="w-3 sm:w-3.5 h-3 sm:h-3.5 fill-emerald-500" />
-          {matchedArticles.length} matches
-        </Badge>
+      {/* Control Panel - Gamified Design */}
+      <div className="flex-shrink-0 pb-28">
+        {/* Gamified Control Buttons */}
+        <div className="flex items-center justify-center gap-4 sm:gap-6 px-4">
+          {/* Skip Button */}
+          <button
+            onClick={handleSkip}
+            disabled={isAnimating}
+            className="group relative flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {/* Animated Glow Ring */}
+            <div className="absolute -inset-3 bg-gradient-to-br from-red-500/30 to-rose-500/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            
+            {/* Button Circle */}
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95 group-hover:shadow-xl group-hover:shadow-red-500/60">
+              {/* Inner glow */}
+              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-red-400/50 to-transparent" />
+              
+              {/* Icon */}
+              <X className="w-8 h-8 sm:w-10 sm:h-10 text-white relative z-10 transition-transform group-hover:rotate-90 duration-300" strokeWidth={3} />
+              
+              {/* Pulse Ring */}
+              <div className="absolute inset-0 rounded-full border-2 border-red-400/50 animate-ping" style={{ animationDuration: '2s' }} />
+            </div>
+            
+            {/* Label */}
+            <span className="text-xs font-bold text-red-600 dark:text-red-400">SKIP</span>
+          </button>
+
+          {/* Match Button - Larger & Elevated */}
+          <button
+            onClick={handleMatch}
+            disabled={isAnimating}
+            className="group relative flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed -mt-4"
+          >
+            {/* Large Animated Glow */}
+            <div className="absolute -inset-6 bg-gradient-to-br from-emerald-400/50 to-teal-500/50 rounded-full blur-2xl opacity-75 group-hover:opacity-100 transition-opacity duration-300 animate-pulse" style={{ animationDuration: '3s' }} />
+            
+            {/* Button Circle - Larger */}
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 shadow-2xl shadow-emerald-500/60 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95 group-hover:shadow-emerald-500/80">
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              
+              {/* Inner glow */}
+              <div className="absolute inset-3 rounded-full bg-gradient-to-br from-emerald-300/60 to-transparent" />
+              
+              {/* Icon */}
+              <Heart className="w-10 h-10 sm:w-12 sm:h-12 text-white fill-white relative z-10 transition-transform group-hover:scale-110 duration-300" strokeWidth={2} />
+              
+              {/* Double Pulse Rings */}
+              <div className="absolute inset-0 rounded-full border-3 border-emerald-300/60 animate-ping" style={{ animationDuration: '2s' }} />
+              <div className="absolute inset-0 rounded-full border-2 border-emerald-400/40 animate-ping" style={{ animationDuration: '3s', animationDelay: '0.5s' }} />
+            </div>
+            
+            {/* Label with glow */}
+            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 drop-shadow-lg">MATCH</span>
+          </button>
+
+          {/* Reset Button */}
+          <button
+            onClick={handleReset}
+            disabled={isAnimating}
+            className="group relative flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {/* Animated Glow Ring */}
+            <div className="absolute -inset-3 bg-gradient-to-br from-primary/30 to-sky-500/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            
+            {/* Button Circle */}
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-primary to-sky-600 shadow-lg shadow-primary/50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95 group-hover:shadow-xl group-hover:shadow-primary/60">
+              {/* Inner glow */}
+              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-sky-400/50 to-transparent" />
+              
+              {/* Icon */}
+              <RefreshCw className="w-7 h-7 sm:w-9 sm:h-9 text-white relative z-10 transition-transform group-hover:rotate-180 duration-500" strokeWidth={2.5} />
+              
+              {/* Pulse Ring */}
+              <div className="absolute inset-0 rounded-full border-2 border-sky-400/50 animate-ping" style={{ animationDuration: '2s' }} />
+            </div>
+            
+            {/* Label */}
+            <span className="text-xs font-bold text-primary">RESET</span>
+          </button>
+        </div>
       </div>
     </div>
   )

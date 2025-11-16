@@ -32,26 +32,43 @@ initStorage()
 
 // Auth middleware
 async function requireAuth(c: any, next: any) {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  const authHeader = c.req.header('Authorization')
+  console.log('=== AUTH MIDDLEWARE ===')
+  console.log('Authorization header:', authHeader ? 'present' : 'missing')
+  
+  const accessToken = authHeader?.split(' ')[1]
   
   if (!accessToken) {
-    console.log('No access token provided')
-    return c.json({ error: 'Unauthorized' }, 401)
+    console.log('ERROR: No access token provided')
+    return c.json({ error: 'Unauthorized', details: 'No access token provided' }, 401)
   }
+  
+  console.log('Access token (first 30 chars):', accessToken.substring(0, 30) + '...')
+  console.log('Access token length:', accessToken.length)
   
   // Use the auth client to validate the user token
   const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
   
   if (error) {
-    console.log('Auth error:', error)
-    return c.json({ error: 'Unauthorized', details: error.message }, 401)
+    console.log('ERROR: Auth validation failed')
+    console.log('Error code:', error.code)
+    console.log('Error message:', error.message)
+    console.log('Error status:', error.status)
+    console.log('Full error:', JSON.stringify(error, null, 2))
+    return c.json({ 
+      error: 'Unauthorized', 
+      details: error.message || 'Auth session missing!',
+      code: error.code || 'unknown'
+    }, 401)
   }
   
   if (!user) {
-    console.log('No user found for token')
-    return c.json({ error: 'Unauthorized' }, 401)
+    console.log('ERROR: No user found for token')
+    return c.json({ error: 'Unauthorized', details: 'User not found' }, 401)
   }
   
+  console.log('✅ Auth successful for user:', user.id)
+  console.log('User email:', user.email)
   c.set('userId', user.id)
   c.set('user', user)
   await next()

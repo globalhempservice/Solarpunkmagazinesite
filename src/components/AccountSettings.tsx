@@ -1,4 +1,4 @@
-import { LogOut, User, Mail, Shield, Trash2, Crown, Zap, Sparkles, Save, CheckCircle2, Leaf, Sun, Droplets, Trees, Sunset as SunsetIcon, Sparkle } from 'lucide-react'
+import { LogOut, User, Mail, Shield, Trash2, Crown, Zap, Sparkles, Save, CheckCircle2, Leaf, Sun, Droplets, Trees, Sunset as SunsetIcon, Sparkle, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -6,6 +6,7 @@ import { Separator } from './ui/separator'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { useState, useEffect, useRef } from 'react'
+import { BrandLogo } from './BrandLogo'
 
 interface AccountSettingsProps {
   userId: string | null
@@ -359,27 +360,20 @@ export function AccountSettings({
                   })}
                 </div>
 
-                {/* Theme Preview */}
-                {selectedTheme !== 'default' && (
-                  <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border/50">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-background">
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${themes.find(t => t.id === selectedTheme)?.gradient} flex items-center justify-center shadow-lg`}>
-                          {(() => {
-                            const ThemeIcon = themes.find(t => t.id === selectedTheme)?.icon
-                            return ThemeIcon ? <ThemeIcon className="w-6 h-6 text-white" strokeWidth={2.5} /> : null
-                          })()}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">Preview</p>
-                        <p className="text-xs text-muted-foreground">
-                          Your home button will look like this
-                        </p>
-                      </div>
+                {/* Theme Preview - Always Show */}
+                <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border/50">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-background flex items-center justify-center">
+                      <BrandLogo size="sm" theme={selectedTheme as any} showAnimation={false} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Preview</p>
+                      <p className="text-xs text-muted-foreground">
+                        Your home button will look like this
+                      </p>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
 
               <Separator />
@@ -431,39 +425,6 @@ export function AccountSettings({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Nickname Display */}
-              {initialNickname && (
-                <>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Sparkles className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium text-muted-foreground">Nickname</span>
-                      </div>
-                      <p className="text-lg font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                        {initialNickname}
-                      </p>
-                    </div>
-                  </div>
-                  <Separator />
-                </>
-              )}
-
-              {/* User ID */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Shield className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground">User ID</span>
-                  </div>
-                  <p className="text-sm font-mono bg-muted/50 px-3 py-2 rounded-lg break-all">
-                    {userId || 'Not available'}
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
-
               {/* Email */}
               {userEmail && (
                 <>
@@ -475,6 +436,24 @@ export function AccountSettings({
                       </div>
                       <p className="text-sm bg-muted/50 px-3 py-2 rounded-lg">
                         {userEmail}
+                      </p>
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
+
+              {/* Nickname Display */}
+              {initialNickname && (
+                <>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-muted-foreground">Nickname</span>
+                      </div>
+                      <p className="text-lg font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent px-3 py-2 rounded-lg bg-muted/50">
+                        {initialNickname}
                       </p>
                     </div>
                   </div>
@@ -563,6 +542,71 @@ export function AccountSettings({
                 </p>
               </div>
             </CardContent>
+          </Card>
+
+          {/* Hemp'in Trust Center Card */}
+          <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-card/50 to-emerald-500/10 backdrop-blur-sm relative overflow-hidden group hover:border-primary/50 transition-all cursor-pointer">
+            <a 
+              href="https://hempin.org/trust" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              
+              <CardHeader className="relative">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full" />
+                    <div className="relative bg-gradient-to-br from-primary to-emerald-600 rounded-xl p-3">
+                      <Shield className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="flex items-center gap-2">
+                      Hemp'in Trust Center
+                      <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </CardTitle>
+                    <CardDescription>
+                      Learn about privacy, security, and transparency
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="relative">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Your source for who we are, how we handle data, the terms that govern use, and how payments & refunds work.
+                </p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-background/50 border border-border/50">
+                    <p className="font-semibold text-sm mb-1">About Hemp'in</p>
+                    <p className="text-xs text-muted-foreground">Who we are and why we exist</p>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-background/50 border border-border/50">
+                    <p className="font-semibold text-sm mb-1">Privacy Policy</p>
+                    <p className="text-xs text-muted-foreground">Data we collect and your rights</p>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-background/50 border border-border/50">
+                    <p className="font-semibold text-sm mb-1">Terms of Service</p>
+                    <p className="text-xs text-muted-foreground">Rules for using Hemp'in</p>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-background/50 border border-border/50">
+                    <p className="font-semibold text-sm mb-1">Payments & Refunds</p>
+                    <p className="text-xs text-muted-foreground">PayPal processing & receipts</p>
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Shield className="w-3 h-3" />
+                  <span>Questions? Email info@globalhempservice.com</span>
+                </div>
+              </CardContent>
+            </a>
           </Card>
         </div>
       </div>

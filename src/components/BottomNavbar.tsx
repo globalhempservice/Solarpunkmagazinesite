@@ -27,59 +27,38 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, explore
     <nav className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
       <div className="max-w-screen-xl mx-auto px-4">
         <div className="relative h-24 flex items-end justify-center">
-          {/* Arc Background */}
-          <div className="absolute bottom-0 left-0 right-0 h-20 pointer-events-auto">
-            {/* SVG Arc Shape */}
-            <svg
-              className="absolute bottom-0 left-0 right-0 w-full h-24"
-              viewBox="0 0 500 100"
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <linearGradient id="navGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" className="text-background/95" stopColor="currentColor" />
-                  <stop offset="100%" className="text-background/98" stopColor="currentColor" />
-                </linearGradient>
-              </defs>
-              {/* Arc path with center curve */}
-              <path
-                d="M 0,40 L 0,100 L 500,100 L 500,40 Q 500,35 495,32 L 320,32 Q 310,32 305,25 Q 280,0 250,0 Q 220,0 195,25 Q 190,32 180,32 L 5,32 Q 0,35 0,40 Z"
-                fill="url(#navGradient)"
-                className="drop-shadow-2xl"
-              />
-            </svg>
-            
-            {/* Backdrop blur overlay */}
-            <div className="absolute inset-0 backdrop-blur-xl bg-background/40" style={{ 
-              clipPath: 'polygon(0 40%, 0 100%, 100% 100%, 100% 40%, 64% 40%, 61% 25%, 58% 15%, 54% 8%, 50% 0%, 46% 8%, 42% 15%, 39% 25%, 36% 40%, 0 40%)'
-            }} />
-          </div>
+          {/* Gradient blur mask that fades toward the bottom */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/80 to-background/60 backdrop-blur-xl pointer-events-auto" />
 
           {/* Navigation Items */}
-          <div className="relative flex items-center justify-center w-full max-w-md mx-auto pointer-events-auto h-full">
-            {/* Left Button - Explore */}
+          <div className="relative flex items-center justify-center w-full max-w-md mx-auto pointer-events-auto h-full pb-4">
+            {/* Left Button - Explore (Home) - BIGGER with Aura */}
             <div className="flex-1 flex justify-center items-center">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleNavigate('feed')}
-                className={`flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-16 h-16 ${
+                className={`flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-20 h-20 ${
                   currentView === 'feed'
                     ? 'text-emerald-600 dark:text-emerald-400 hempin:text-emerald-400'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <div className="relative">
+                  {/* Enhanced aura effect */}
                   {currentView === 'feed' && (
-                    <div className="absolute -inset-2 bg-emerald-400/20 rounded-full blur-lg animate-pulse" />
+                    <div className="absolute -inset-4 bg-gradient-to-br from-emerald-400/40 via-teal-400/30 to-emerald-400/40 rounded-full blur-2xl animate-pulse" />
                   )}
-                  <div className={`relative rounded-full p-3 transition-all ${
+                  {/* Hover aura for inactive state */}
+                  {currentView !== 'feed' && (
+                    <div className="absolute -inset-4 bg-gradient-to-br from-emerald-400/0 via-teal-400/0 to-emerald-400/0 group-hover:from-emerald-400/20 group-hover:via-teal-400/15 group-hover:to-emerald-400/20 rounded-full blur-xl transition-all duration-300" />
+                  )}
+                  <div className={`relative rounded-full p-4 transition-all ${
                     currentView === 'feed'
-                      ? 'bg-emerald-500/20 scale-110'
+                      ? 'bg-emerald-500/20 scale-110 shadow-lg'
                       : 'hover:bg-muted/50 hover:scale-105'
                   }`}>
-                    <Home className="h-9 w-9 transition-transform" strokeWidth={currentView === 'feed' ? 3 : 2.5} />
+                    <Home className="h-10 w-10 transition-transform" strokeWidth={currentView === 'feed' ? 3 : 2.5} />
                   </div>
                 </div>
               </Button>
@@ -130,28 +109,33 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, explore
               </Button>
             </div>
 
-            {/* Right Button - Create */}
+            {/* Right Button - Create (Plus) - BIGGER with Aura */}
             <div className="flex-1 flex justify-center items-center">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleNavigate('editor')}
-                className={`flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-16 h-16 ${
+                className={`flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-20 h-20 ${
                   currentView === 'editor'
                     ? 'text-amber-600 dark:text-amber-400 hempin:text-amber-500'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <div className="relative">
+                  {/* Enhanced aura effect */}
                   {currentView === 'editor' && (
-                    <div className="absolute -inset-2 bg-amber-400/20 rounded-full blur-lg animate-pulse" />
+                    <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/40 via-yellow-400/30 to-amber-400/40 rounded-full blur-2xl animate-pulse" />
                   )}
-                  <div className={`relative rounded-full p-3 transition-all ${
+                  {/* Hover aura for inactive state */}
+                  {currentView !== 'editor' && (
+                    <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/0 via-yellow-400/0 to-amber-400/0 group-hover:from-amber-400/20 group-hover:via-yellow-400/15 group-hover:to-amber-400/20 rounded-full blur-xl transition-all duration-300" />
+                  )}
+                  <div className={`relative rounded-full p-4 transition-all ${
                     currentView === 'editor'
-                      ? 'bg-amber-500/20 scale-110'
+                      ? 'bg-amber-500/20 scale-110 shadow-lg'
                       : 'hover:bg-muted/50 hover:scale-105'
                   }`}>
-                    <Plus className="h-9 w-9 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
+                    <Plus className="h-10 w-10 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
                   </div>
                 </div>
               </Button>

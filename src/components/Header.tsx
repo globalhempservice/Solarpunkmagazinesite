@@ -6,7 +6,7 @@ import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
 
 interface HeaderProps {
-  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'linkedin-importer' | 'settings'
+  currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'settings'
   onNavigate: (view: 'feed' | 'dashboard' | 'editor' | 'admin' | 'browse' | 'settings') => void
   isAuthenticated: boolean
   onLogout: () => void
@@ -16,11 +16,12 @@ interface HeaderProps {
   currentStreak?: number
   onBack?: () => void
   onPointsAnimationComplete?: () => void
+  homeButtonTheme?: string
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, onPointsAnimationComplete }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, onPointsAnimationComplete, homeButtonTheme }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
   const [previousPoints, setPreviousPoints] = useState(userPoints)
@@ -100,7 +101,10 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/60 backdrop-blur-lg border-b border-border/50">
+    <header className="sticky top-0 z-50 w-full">
+      {/* Gradient blur mask that fades toward the top */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/80 to-background/60 backdrop-blur-xl" />
+      
       <div className="container mx-auto px-4 h-20 flex items-center justify-center relative">
         {/* LEFT SIDE: Back Button or Streak Badge */}
         <div className="absolute left-4 flex items-center gap-2">
@@ -150,7 +154,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
                 : 'bg-background'
             }`}>
               <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
-                <BrandLogo size="sm" showAnimation={true} />
+                <BrandLogo size="sm" showAnimation={true} theme={(homeButtonTheme as any) || 'default'} />
               </div>
             </div>
           </div>

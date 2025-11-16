@@ -18,10 +18,7 @@ import { AchievementsPage } from './components/AchievementsPage'
 import { BrowsePage } from './components/BrowsePage'
 import { AccountSettings } from './components/AccountSettings'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
-import { Toaster } from './components/ui/sonner'
-import { toast } from 'sonner@2.0.3'
 import { Skeleton } from './components/ui/skeleton'
-import { Alert, AlertDescription } from './components/ui/alert'
 import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen } from 'lucide-react'
 import { Input } from './components/ui/input'
 import { Button } from './components/ui/button'
@@ -122,20 +119,69 @@ export default function App() {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        console.log('🔍 Checking for existing session...')
         const { data: { session }, error } = await supabase.auth.getSession()
-        if (session?.access_token && !error) {
+        
+        if (error) {
+          console.error('❌ Session check error:', error)
+          setInitializing(false)
+          return
+        }
+        
+        if (session?.access_token) {
+          console.log('✅ Session found, setting up auth state')
+          console.log('🔑 Access token:', session.access_token.substring(0, 20) + '...')
+          console.log('👤 User ID:', session.user.id)
+          console.log('📧 Email:', session.user.email)
+          console.log('⏰ Expires at:', new Date(session.expires_at! * 1000).toLocaleString())
+          
+          setAccessToken(session.access_token)
+          setUserId(session.user.id)
+          setUserEmail(session.user.email)
+          setIsAuthenticated(true)
+        } else {
+          console.log('ℹ️ No active session found')
+        }
+      } catch (error) {
+        console.error('❌ Error checking session:', error)
+      } finally {
+        setInitializing(false)
+      }
+    }
+    
+    checkSession()
+    
+    // Set up auth state change listener for automatic token refresh
+    console.log('👂 Setting up auth state listener...')
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔔 Auth state changed:', event)
+      
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.access_token) {
+          console.log('✅ Auth state: Token updated')
+          console.log('🔑 New access token:', session.access_token.substring(0, 20) + '...')
+          console.log('⏰ New expires at:', new Date(session.expires_at! * 1000).toLocaleString())
+          
           setAccessToken(session.access_token)
           setUserId(session.user.id)
           setUserEmail(session.user.email)
           setIsAuthenticated(true)
         }
-      } catch (error) {
-        console.error('Error checking session:', error)
-      } finally {
-        setInitializing(false)
+      } else if (event === 'SIGNED_OUT') {
+        console.log('👋 Auth state: User signed out')
+        setAccessToken(null)
+        setUserId(null)
+        setUserEmail(null)
+        setIsAuthenticated(false)
+      } else if (event === 'USER_UPDATED') {
+        console.log('🔄 Auth state: User updated')
+        if (session?.access_token) {
+          setAccessToken(session.access_token)
+          setUserId(session.user.id)
+          setUserEmail(session.user.email)
+        }
       }
-    }
-    checkSession()
+    })
     
     // Check if URL contains article parameter for sharing
     const urlParams = new URLSearchParams(window.location.search)
@@ -143,16 +189,22 @@ export default function App() {
     if (sharedArticleId) {
       fetchSharedArticle(sharedArticleId)
     }
+    
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('🧹 Cleaning up auth listener')
+      subscription.unsubscribe()
+    }
   }, [])
 
   // Fetch articles and user progress when authenticated
   useEffect(() => {
-    if (isAuthenticated && userId) {
+    if (isAuthenticated && userId && accessToken) {
       fetchArticles()
       fetchUserProgress()
       fetchUserArticles()
     }
-  }, [isAuthenticated, userId])
+  }, [isAuthenticated, userId, accessToken])
 
   const fetchArticles = async () => {
     try {
@@ -175,7 +227,7 @@ export default function App() {
       setArticles(data.articles || [])
     } catch (error: any) {
       console.error('Error fetching articles:', error)
-      toast.error('Failed to load articles: ' + error.message)
+      // Removed toast notification - errors shown in console only
     } finally {
       setLoading(false)
     }
@@ -203,26 +255,38 @@ export default function App() {
   }
 
   const fetchUserArticles = async () => {
-    if (!userId || !accessToken) return
+    if (!userId || !accessToken) {
+      console.log('⚠️ fetchUserArticles: Missing credentials', { 
+        userId: userId ? 'present' : 'missing', 
+        accessToken: accessToken ? 'present' : 'missing' 
+      })
+      return
+    }
 
     try {
+      console.log('📥 Fetching user articles for user:', userId)
+      console.log('🔑 Using access token:', accessToken.substring(0, 20) + '...')
+      
       const response = await fetch(`${serverUrl}/my-articles`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       })
 
+      console.log('📡 Response status:', response.status)
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('Failed to fetch user articles. Status:', response.status, 'Error:', errorData)
+        console.error('❌ Failed to fetch user articles. Status:', response.status, 'Error:', errorData)
         setUserArticles([]) // Set to empty array instead of throwing
         return
       }
 
       const data = await response.json()
+      console.log('✅ User articles fetched:', data.articles?.length || 0, 'articles')
       setUserArticles(data.articles || [])
     } catch (error: any) {
-      console.error('Error fetching user articles:', error)
+      console.error('❌ Error fetching user articles:', error)
       setUserArticles([]) // Ensure we set empty array on error
     }
   }
@@ -236,17 +300,15 @@ export default function App() {
       })
 
       if (!response.ok) {
-        toast.error('Article not found')
+        console.error('Article not found')
         return
       }
 
       const data = await response.json()
       setSelectedArticle(data.article)
       setCurrentView('article')
-      toast.success('Shared article loaded!')
     } catch (error: any) {
       console.error('Error fetching shared article:', error)
-      toast.error('Failed to load shared article')
     }
   }
 
@@ -265,7 +327,6 @@ export default function App() {
       setUserId(data.user.id)
       setUserEmail(data.user.email)
       setIsAuthenticated(true)
-      toast.success('Welcome back!')
     }
   }
 
@@ -287,7 +348,6 @@ export default function App() {
 
       // After signup, sign in
       await handleLogin(email, password)
-      toast.success('Account created successfully!')
     } catch (error: any) {
       throw new Error(error.message)
     }
@@ -301,7 +361,6 @@ export default function App() {
     setUserProgress(null)
     setArticles([])
     setCurrentView('feed')
-    toast.success('Logged out successfully')
   }
 
   const handleArticleClick = async (article: Article) => {
@@ -339,14 +398,7 @@ export default function App() {
         if (response.ok) {
           const data = await response.json()
           setUserProgress(data.progress)
-
-          if (data.newAchievements && data.newAchievements.length > 0) {
-            data.newAchievements.forEach((achievement: any) => {
-              toast.success(`Achievement Unlocked: ${achievement.name}`, {
-                description: achievement.description
-              })
-            })
-          }
+          // Achievement notifications removed - points shown in navbar
         }
       } catch (error) {
         console.error('Error updating reading progress:', error)
@@ -376,12 +428,11 @@ export default function App() {
       const result = await response.json()
       console.log('Article saved successfully:', result)
       
-      toast.success('Article published successfully!')
       setCurrentView('feed')
       await fetchArticles()
     } catch (error: any) {
       console.error('Error saving article:', error)
-      toast.error('Failed to save article: ' + error.message)
+      // Error logged in console only
     }
   }
 
@@ -409,12 +460,11 @@ export default function App() {
         throw new Error(errorData.details || errorData.error || 'Failed to delete article')
       }
 
-      toast.success('Article deleted successfully')
       await fetchUserArticles()
       await fetchArticles()
     } catch (error: any) {
       console.error('Error deleting article:', error)
-      toast.error('Failed to delete article: ' + error.message)
+      // Error logged in console only
     }
   }
 
@@ -436,14 +486,13 @@ export default function App() {
         throw new Error(errorData.error || 'Failed to update article')
       }
 
-      toast.success('Article updated successfully!')
       setEditingArticle(null)
       setCurrentView('dashboard')
       await fetchArticles()
       await fetchUserArticles()
     } catch (error: any) {
       console.error('Error updating article:', error)
-      toast.error('Failed to update article: ' + error.message)
+      // Error logged in console only
     }
   }
 
@@ -481,11 +530,7 @@ export default function App() {
       console.log('Profile update response:', data)
       
       setUserProgress(data.progress)
-      
-      // Show points toast if points were awarded
-      if (data.pointsAwarded && data.pointsAwarded > 0) {
-        toast.success(`Profile updated! +${data.pointsAwarded} points earned! 🎉`)
-      }
+      // Points notification removed - shown in navbar animation
       
       console.log('=== FRONTEND: Profile update successful ===')
     } catch (error: any) {
@@ -521,12 +566,7 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <>
-        <AuthForm onLogin={handleLogin} onSignup={handleSignup} />
-        <Toaster />
-      </>
-    )
+    return <AuthForm onLogin={handleLogin} onSignup={handleSignup} />
   }
 
   return (
@@ -540,6 +580,7 @@ export default function App() {
         exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
         onSwitchToGrid={() => setCurrentView('feed')}
         currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
+        homeButtonTheme={userProgress?.homeButtonTheme}
         onBack={() => {
           if (currentView === 'article') {
             setCurrentView(previousView === 'swipe' ? 'swipe' : 'feed')
@@ -919,7 +960,6 @@ export default function App() {
         )}
       </main>
 
-      <Toaster />
       <BottomNavbar
         currentView={currentView}
         onNavigate={setCurrentView}

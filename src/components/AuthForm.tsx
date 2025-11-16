@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
 import { Sparkles, BookOpen, Flame, Trophy, Zap } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -22,6 +23,8 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [theme, setTheme] = useState<Theme>('light')
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
 
   // Load saved theme on mount
   useEffect(() => {
@@ -44,11 +47,36 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
     }
   }
 
-  const cycleTheme = () => {
+  const getThemeGlow = () => {
+    switch (theme) {
+      case 'dark':
+        return 'from-sky-500 via-purple-500 to-pink-500'
+      case 'hempin':
+        return 'from-amber-500 via-yellow-500 to-amber-500'
+      default:
+        return 'from-emerald-500 via-teal-500 to-emerald-500'
+    }
+  }
+
+  const handleLogoClick = () => {
+    // Trigger animations
+    setIsAnimating(true)
+    setShowDewiiAnimation(true)
+    
+    // Cycle theme
     const themeOrder: Theme[] = ['light', 'dark', 'hempin']
     const currentIndex = themeOrder.indexOf(theme)
     const nextIndex = (currentIndex + 1) % themeOrder.length
     applyTheme(themeOrder[nextIndex])
+    
+    // Reset animations
+    setTimeout(() => {
+      setIsAnimating(false)
+    }, 1000)
+    
+    setTimeout(() => {
+      setShowDewiiAnimation(false)
+    }, 2000)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,10 +127,41 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
           
           {/* Content overlay */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
-            {/* Logo */}
-            <div className="mb-8 transform hover:scale-110 transition-transform duration-300 cursor-pointer" onClick={cycleTheme}>
-              <BrandLogo size="xl" />
-            </div>
+            {/* Logo - Navbar Style Button */}
+            <button
+              onClick={handleLogoClick}
+              className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-white/50 active:scale-95 mb-8"
+              aria-label="Change theme"
+            >
+              {/* Animated glow background */}
+              <div className={`absolute -inset-8 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition-all duration-500 ${isAnimating ? 'opacity-60 animate-pulse' : ''}`} />
+              
+              {/* Outer ring - matching navbar */}
+              <div className={`relative rounded-full p-2 transition-all group-hover:scale-110 ${
+                isAnimating
+                  ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 scale-110 shadow-2xl'
+                  : 'bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm group-hover:from-white/30 group-hover:to-white/20'
+              }`}>
+                {/* Inner circle */}
+                <div className={`rounded-full p-6 transition-all ${
+                  isAnimating
+                    ? 'bg-gradient-to-br from-sky-500/30 via-purple-500/20 to-pink-500/30 dark:from-sky-400/20 dark:via-purple-400/15 dark:to-pink-400/20 hempin:from-amber-500/30 hempin:via-yellow-500/20 hempin:to-amber-500/30 backdrop-blur-sm'
+                    : 'bg-black/20 backdrop-blur-sm'
+                }`}>
+                  <div className="w-16 h-16 flex items-center justify-center">
+                    <BrandLogo size="lg" showAnimation={true} />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Floating sparkles on animation */}
+              {isAnimating && (
+                <>
+                  <Sparkles className="absolute -top-2 -right-2 w-5 h-5 text-white animate-ping" />
+                  <Sparkles className="absolute -bottom-2 -left-2 w-4 h-4 text-white animate-ping" style={{ animationDelay: '150ms' }} />
+                </>
+              )}
+            </button>
             
             {/* Brand Name */}
             <h1 className="text-7xl font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent drop-shadow-2xl">
@@ -141,9 +200,42 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 rounded-2xl blur-2xl" />
           
-          {/* Logo above the card - clickable to cycle themes */}
-          <div className="flex justify-center mb-8">
-            <BrandLogo size="xl" onClick={cycleTheme} />
+          {/* Logo above the card - Navbar Style Button */}
+          <div className="flex justify-center mb-8 relative">
+            <button
+              onClick={handleLogoClick}
+              className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95"
+              aria-label="Change theme"
+            >
+              {/* Animated glow background */}
+              <div className={`absolute -inset-8 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-3xl opacity-0 group-hover:opacity-30 transition-all duration-500 ${isAnimating ? 'opacity-50 animate-pulse' : ''}`} />
+              
+              {/* Outer ring - matching navbar */}
+              <div className={`relative rounded-full p-2 transition-all group-hover:scale-110 ${
+                isAnimating
+                  ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 scale-110 shadow-2xl'
+                  : 'bg-gradient-to-br from-muted/50 to-muted group-hover:from-muted group-hover:to-muted/80'
+              }`}>
+                {/* Inner circle */}
+                <div className={`rounded-full p-6 transition-all ${
+                  isAnimating
+                    ? 'bg-gradient-to-br from-sky-500/30 via-purple-500/20 to-pink-500/30 dark:from-sky-400/20 dark:via-purple-400/15 dark:to-pink-400/20 hempin:from-amber-500/30 hempin:via-yellow-500/20 hempin:to-amber-500/30 backdrop-blur-sm'
+                    : 'bg-background'
+                }`}>
+                  <div className="w-16 h-16 flex items-center justify-center">
+                    <BrandLogo size="lg" showAnimation={true} />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Floating sparkles on animation */}
+              {isAnimating && (
+                <>
+                  <Sparkles className="absolute -top-2 -right-2 w-5 h-5 text-primary animate-ping" />
+                  <Sparkles className="absolute -bottom-2 -left-2 w-4 h-4 text-primary animate-ping" style={{ animationDelay: '150ms' }} />
+                </>
+              )}
+            </button>
           </div>
           
           <Card className="relative w-full border-2 border-primary/30 bg-card/80 backdrop-blur-xl shadow-2xl">
@@ -279,6 +371,90 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
           </Card>
         </div>
       </div>
+
+      {/* Comic-style "DEWII" Animation */}
+      <AnimatePresence>
+        {showDewiiAnimation && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0, rotate: -12 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            exit={{ scale: 0, opacity: 0, rotate: 12 }}
+            transition={{ 
+              type: "spring",
+              stiffness: 300,
+              damping: 20
+            }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50"
+          >
+            {/* Comic book style container */}
+            <div className="relative">
+              {/* Background burst effect */}
+              <div className="absolute inset-0 -m-8">
+                {[...Array(8)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ scale: 0, rotate: i * 45 }}
+                    animate={{ scale: 1.5, rotate: i * 45 }}
+                    transition={{ duration: 0.4, delay: i * 0.05 }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-8 bg-gradient-to-t from-amber-400/60 to-transparent"
+                    style={{ transformOrigin: 'center' }}
+                  />
+                ))}
+              </div>
+              
+              {/* Main "DEWII" text */}
+              <div className="relative bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 rounded-2xl px-8 py-4 border-4 border-foreground shadow-2xl transform rotate-3">
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                  }}
+                  transition={{ 
+                    duration: 0.6,
+                    repeat: 2,
+                    repeatType: "reverse"
+                  }}
+                  className="text-5xl font-black tracking-wider"
+                  style={{
+                    textShadow: '4px 4px 0px rgba(0,0,0,0.3), -2px -2px 0px rgba(255,255,255,0.5)',
+                    WebkitTextStroke: '2px black',
+                    color: 'white'
+                  }}
+                >
+                  DEWII
+                </motion.div>
+                
+                {/* Comic sparkles around text */}
+                {[...Array(6)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ 
+                      scale: [0, 1, 0],
+                      opacity: [0, 1, 0],
+                      x: [0, (Math.random() - 0.5) * 60],
+                      y: [0, (Math.random() - 0.5) * 60],
+                    }}
+                    transition={{ 
+                      duration: 1,
+                      delay: i * 0.1,
+                      times: [0, 0.5, 1]
+                    }}
+                    className="absolute"
+                    style={{
+                      left: `${20 + Math.random() * 60}%`,
+                      top: `${20 + Math.random() * 60}%`,
+                    }}
+                  >
+                    <Sparkles className="w-6 h-6 text-white drop-shadow-lg" style={{
+                      filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.8))'
+                    }} />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style>{`
         @keyframes shimmer {

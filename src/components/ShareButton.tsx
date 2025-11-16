@@ -54,10 +54,8 @@ export function ShareButton({ article, compact = false, children, accessToken }:
       
       const data = await response.json()
       if (data.success) {
-        toast.success(`+${data.pointsEarned} points! 🎉`, {
-          description: `${data.articlesShared} articles shared`,
-          duration: 2000
-        })
+        // Points animation will be handled by the header
+        console.log(`Share points earned: +${data.pointsEarned}`)
       }
     } catch (error) {
       console.error('Failed to track share:', error)

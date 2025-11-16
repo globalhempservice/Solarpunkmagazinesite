@@ -912,7 +912,7 @@ app.post('/make-server-053bcd80/claim-achievements', async (c) => {
     }
     
     console.log('Authenticating user...')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     
     if (authError || !user) {
       console.log('Auth error:', authError)

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings } from 'lucide-react'
+import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings, Star } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import { motion, AnimatePresence } from 'motion/react'
 
 interface HeaderProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'linkedin-importer' | 'settings'
@@ -14,13 +15,35 @@ interface HeaderProps {
   onSwitchToGrid?: () => void
   currentStreak?: number
   onBack?: () => void
+  onPointsAnimationComplete?: () => void
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, onPointsAnimationComplete }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
+  const [previousPoints, setPreviousPoints] = useState(userPoints)
+  const [pointsGained, setPointsGained] = useState(0)
+  const [showPointsAnimation, setShowPointsAnimation] = useState(false)
+
+  // Detect points change and trigger animation
+  useEffect(() => {
+    if (userPoints > previousPoints && previousPoints > 0) {
+      const gained = userPoints - previousPoints
+      setPointsGained(gained)
+      setShowPointsAnimation(true)
+      
+      // Hide animation after delay
+      setTimeout(() => {
+        setShowPointsAnimation(false)
+        if (onPointsAnimationComplete) {
+          onPointsAnimationComplete()
+        }
+      }, 2000)
+    }
+    setPreviousPoints(userPoints)
+  }, [userPoints])
 
   // Check for saved theme preference on mount
   useEffect(() => {
@@ -139,6 +162,38 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
         
         {/* Right: Browse Button OR Switch to Grid View Button */}
         <div className="flex-1 flex items-center justify-end gap-2">
+          {/* Points Counter - Always visible */}
+          <motion.div
+            key={userPoints}
+            initial={{ scale: 1 }}
+            animate={{ 
+              scale: showPointsAnimation ? [1, 1.3, 1] : 1,
+            }}
+            transition={{ duration: 0.5 }}
+            className="relative"
+          >
+            <Badge 
+              variant="secondary"
+              className="gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-md"
+            >
+              <Star className={`w-4 h-4 fill-amber-500 ${showPointsAnimation ? 'animate-spin' : ''}`} />
+              <span className="font-bold">{userPoints.toLocaleString()}</span>
+            </Badge>
+            
+            {/* Sparkle effect on points gain */}
+            {showPointsAnimation && (
+              <>
+                <motion.div
+                  initial={{ scale: 0, opacity: 1 }}
+                  animate={{ scale: 2, opacity: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full blur-xl"
+                />
+                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-500 animate-ping" />
+              </>
+            )}
+          </motion.div>
+          
           {/* Browse button - show on feed */}
           {currentView === 'feed' && (
             <Button
@@ -165,6 +220,23 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
           )}
         </div>
       </div>
+      
+      {/* Points Animation */}
+      <AnimatePresence>
+        {showPointsAnimation && (
+          <motion.div
+            key="points-animation"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5 }}
+            className="absolute top-16 right-4 bg-background/80 backdrop-blur-lg p-2 rounded-lg shadow-lg flex items-center gap-2"
+          >
+            <Star className="w-4 h-4 text-primary" />
+            <span className="text-sm font-bold text-primary">+{pointsGained} points</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   )
 }

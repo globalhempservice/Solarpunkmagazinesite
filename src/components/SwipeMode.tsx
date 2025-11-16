@@ -103,11 +103,8 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            // Show subtle toast for points
-            toast.success(`+${data.pointsEarned} points! 🎉`, {
-              description: `${data.articlesSwiped} swipes, ${data.articlesLiked} matches`,
-              duration: 2000
-            })
+            // Points animation will be handled by the header
+            console.log(`Swipe points earned: +${data.pointsEarned}`)
           }
         })
         .catch(error => {

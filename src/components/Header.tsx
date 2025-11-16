@@ -102,8 +102,14 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      {/* Gradient blur mask that fades toward the top */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/80 to-background/60 backdrop-blur-xl" />
+      {/* Gradient blur mask: 100% blur at top, 0% blur at bottom where it connects to content */}
+      <div 
+        className="absolute inset-0 backdrop-blur-2xl"
+        style={{
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
+        }}
+      />
       
       <div className="container mx-auto px-4 h-20 flex items-center justify-center relative">
         {/* LEFT SIDE: Back Button or Streak Badge */}

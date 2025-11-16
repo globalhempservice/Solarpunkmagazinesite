@@ -6,8 +6,8 @@ import { Textarea } from "./ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Badge } from "./ui/badge"
-import { Sparkles, Award, Target, CheckCircle2, Circle, Plus, Trash2, Music, Youtube, ImageIcon, Star, ExternalLink } from "lucide-react"
-import { GamifiedImporter } from './GamifiedImporter'
+import { Sparkles, Award, Target, CheckCircle2, Circle, Plus, Trash2, Music, Youtube, ImageIcon, Star, ExternalLink, ChevronDown, ChevronUp } from "lucide-react"
+import { SimplifiedURLImporter } from './SimplifiedURLImporter'
 
 // Clean version - no old LinkedIn importer code
 
@@ -104,6 +104,9 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
   const [newMediaType, setNewMediaType] = useState<'youtube' | 'audio' | 'image' | 'spotify'>('youtube')
   const [newMediaUrl, setNewMediaUrl] = useState('')
   const [newMediaCaption, setNewMediaCaption] = useState('')
+  
+  // UI state for collapsible manual entry
+  const [showManualEntry, setShowManualEntry] = useState(false)
 
   // Calculate article quality score
   const calculateScore = () => {
@@ -226,8 +229,55 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto pb-32 md:pb-36">
-      {/* Article Quality Score Card */}
-      <div className="relative overflow-hidden rounded-3xl">
+      {/* HERO: Simplified URL Importer with Mini Tutorial */}
+      <SimplifiedURLImporter 
+        onImport={(data) => {
+          // Auto-fill form fields from imported data
+          if (data.title) setTitle(data.title)
+          if (data.content) setContent(data.content)
+          if (data.excerpt) setExcerpt(data.excerpt)
+          
+          // Author metadata
+          if (data.author) setAuthor(data.author)
+          if (data.authorImage) setAuthorImage(data.authorImage)
+          if (data.authorTitle) setAuthorTitle(data.authorTitle)
+          if (data.publishDate) setPublishDate(data.publishDate)
+          
+          // Capture source URL
+          if (data.sourceUrl) setSourceUrl(data.sourceUrl)
+          
+          // Add all media from the data
+          if (data.media && data.media.length > 0) {
+            setMedia([...media, ...data.media])
+          }
+          
+          // Show manual entry after import
+          setShowManualEntry(true)
+        }}
+      />
+
+      {/* Collapsible Manual Entry Toggle */}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setShowManualEntry(!showManualEntry)}
+        className="w-full h-14 border-2 border-dashed hover:border-primary/50 hover:bg-primary/5 transition-all group"
+      >
+        <Plus className={`w-5 h-5 mr-2 transition-transform ${showManualEntry ? 'rotate-45' : ''}`} />
+        <span className="text-base font-semibold">
+          {showManualEntry ? 'Hide Manual Entry' : 'Or Create From Scratch'}
+        </span>
+        {showManualEntry ? (
+          <ChevronUp className="w-5 h-5 ml-2" />
+        ) : (
+          <ChevronDown className="w-5 h-5 ml-2" />
+        )}
+      </Button>
+
+      {showManualEntry && (
+        <div className="space-y-6">
+          {/* Article Quality Score Card */}
+          <div className="relative overflow-hidden rounded-3xl">
         {/* Animated gradient background */}
         <div className={`absolute inset-0 bg-gradient-to-br ${getScoreColor(score)}/20 animate-gradient-xy`} />
         
@@ -327,31 +377,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
         </Card>
       </div>
 
-      {/* Gamified Universal Importer - STEP 1 */}
-      <GamifiedImporter 
-        onImport={(data) => {
-          // Auto-fill form fields from imported data
-          if (data.title) setTitle(data.title)
-          if (data.content) setContent(data.content)
-          if (data.excerpt) setExcerpt(data.excerpt)
-          
-          // Author metadata
-          if (data.author) setAuthor(data.author)
-          if (data.authorImage) setAuthorImage(data.authorImage)
-          if (data.authorTitle) setAuthorTitle(data.authorTitle)
-          if (data.publishDate) setPublishDate(data.publishDate)
-          
-          // Capture source URL
-          if (data.sourceUrl) setSourceUrl(data.sourceUrl)
-          
-          // Add all media from the data
-          if (data.media && data.media.length > 0) {
-            setMedia([...media, ...data.media])
-          }
-        }}
-      />
-
-      {/* Media Attachments Card - STEP 2 */}
+      {/* Media Attachments Card */}
       <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5" />
         
@@ -926,6 +952,8 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
             </div>
           </CardContent>
         </Card>
+      )}
+        </div>
       )}
 
       {/* Action Buttons - Centered with narrower max-width to show sides */}

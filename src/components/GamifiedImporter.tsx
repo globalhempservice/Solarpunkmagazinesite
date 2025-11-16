@@ -2,8 +2,7 @@ import { useState } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { Card, CardContent } from "./ui/card"
-import { Loader2, Sparkles, CheckCircle2, Circle, AlertCircle, ExternalLink } from "lucide-react"
+import { Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react"
 import { Badge } from "./ui/badge"
 import { Alert, AlertDescription } from "./ui/alert"
 import { toast } from "sonner"
@@ -58,20 +57,6 @@ const LinkedInIcon = () => (
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
     <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-  </svg>
-)
-
-const MagicWandIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-    <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5"/>
-  </svg>
-)
-
-const TargetIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-    <circle cx="12" cy="12" r="10"/>
-    <circle cx="12" cy="12" r="6"/>
-    <circle cx="12" cy="12" r="2"/>
   </svg>
 )
 
@@ -196,7 +181,7 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
           glow: 'from-slate-500/20 via-slate-600/20 to-slate-700/20',
           border: 'border-slate-500/40',
           bg: 'bg-slate-500/5',
-          icon: TargetIcon
+          icon: () => <div />
         }
     }
   }
@@ -210,7 +195,7 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
     const platform = detectPlatform(url)
     
     if (platform === 'unknown') {
-      setError('Unsupported URL. Please use a supported platform link.')
+      setError('Unsupported URL. Please use LinkedIn, Instagram, Medium, X, TikTok, or Reddit.')
       return
     }
 
@@ -274,7 +259,7 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
         ...data
       })
 
-      toast.success(`Content extracted from ${platformInfo.name}!`)
+      toast.success(`Content ready from ${platformInfo.name}!`)
       setStep(2)
 
     } catch (err: any) {
@@ -325,7 +310,7 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
         media.push({
           type: 'youtube',
           url,
-          caption: `YouTube video ${index + 1} from ${extractedData.platformName}`
+          caption: `Video ${index + 1} from ${extractedData.platformName}`
         })
       })
     }
@@ -363,7 +348,7 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
     })
 
     const mediaCount = media.length
-    toast.success(`Imported! Added ${mediaCount} media item(s) to your article.`)
+    toast.success(`Imported! Added ${mediaCount} media item(s).`)
     
     setExtractedData(null)
     setUrl('')
@@ -380,463 +365,131 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
   const Icon = platformInfo.icon
 
   return (
-    <Card className="relative overflow-hidden border-2 border-primary/20">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-primary/10 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      </div>
-
-      <CardContent className="relative p-6 md:p-8 space-y-6">
-        {/* Header with Steps */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold mb-1">Content Importer</h3>
-            <p className="text-sm text-muted-foreground">Extract content from social media</p>
-          </div>
+    <div className="space-y-4">
+      {/* Step 1: Big Paste Field */}
+      {step === 1 && (
+        <div className="space-y-4">
+          <Input
+            id="import-url"
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !parsing && url.trim()) {
+                handleParse()
+              }
+            }}
+            placeholder="Paste your link here..."
+            className="flex-1 h-14 md:h-16 border-2 text-base md:text-lg px-4 md:px-6 rounded-2xl"
+            disabled={parsing}
+          />
           
-          {/* Step Indicators */}
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-center">
-              <div className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                step === 1 
-                  ? 'bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/50' 
-                  : extractedData 
-                    ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
-                    : 'bg-muted'
-              }`}>
-                {extractedData && step === 2 ? (
-                  <CheckCircle2 className="w-5 h-5 text-white" />
-                ) : (
-                  <MagicWandIcon />
-                )}
-              </div>
-              <span className="text-xs mt-1 font-medium">Extract</span>
-            </div>
-            
-            <div className={`h-0.5 w-8 transition-all ${extractedData ? 'bg-emerald-500' : 'bg-border'}`} />
-            
-            <div className="flex flex-col items-center">
-              <div className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                step === 2 && extractedData
-                  ? 'bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/50'
-                  : 'bg-muted'
-              }`}>
-                <TargetIcon />
-              </div>
-              <span className="text-xs mt-1 font-medium">Review</span>
-            </div>
-          </div>
+          <Button
+            type="button"
+            onClick={handleParse}
+            disabled={parsing || !url.trim()}
+            className="w-full h-14 md:h-16 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:opacity-90 text-white font-bold shadow-lg hover:shadow-xl transition-all rounded-2xl text-base md:text-lg"
+          >
+            {parsing ? (
+              <>
+                <Loader2 className="w-5 h-5 md:w-6 md:h-6 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5 md:w-6 md:h-6 mr-2" />
+                Create
+              </>
+            )}
+          </Button>
+
+          {error && (
+            <Alert variant="destructive" className="animate-in slide-in-from-top-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
         </div>
+      )}
 
-        {/* Step 1: URL Input */}
-        {step === 1 && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Platform badges */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Supported Platforms:</p>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="bg-[#0077B5]/10 border-[#0077B5]/30 text-[#0077B5] dark:text-[#00A0DC]">
-                  <div className="w-3 h-3 mr-1.5">
-                    <LinkedInIcon />
-                  </div>
-                  LinkedIn
-                </Badge>
-                <Badge variant="outline" className="bg-[#E1306C]/10 border-[#E1306C]/30 text-[#E1306C] dark:text-[#FCAF45]">
-                  <div className="w-3 h-3 mr-1.5">
-                    <InstagramIcon />
-                  </div>
-                  Instagram
-                </Badge>
-                <Badge variant="outline" className="bg-[#000000]/10 border-[#000000]/30 text-[#000000] dark:text-[#ffffff]">
-                  <div className="w-3 h-3 mr-1.5">
-                    <MediumIcon />
-                  </div>
-                  Medium
-                </Badge>
-                <Badge variant="outline" className="bg-[#1DA1F2]/10 border-[#1DA1F2]/30 text-[#1DA1F2]">
-                  <div className="w-3 h-3 mr-1.5">
-                    <XIcon />
-                  </div>
-                  X
-                </Badge>
-                <Badge variant="outline" className="bg-[#FF0050]/10 border-[#FF0050]/30 text-[#FF0050]">
-                  <div className="w-3 h-3 mr-1.5">
-                    <TikTokIcon />
-                  </div>
-                  TikTok
-                </Badge>
-                <Badge variant="outline" className="bg-[#FF4500]/10 border-[#FF4500]/30 text-[#FF4500]">
-                  <div className="w-3 h-3 mr-1.5">
-                    <RedditIcon />
-                  </div>
-                  Reddit
-                </Badge>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="import-url" className="text-base font-semibold">Paste Content URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="import-url"
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !parsing && url.trim()) {
-                      handleParse()
-                    }
-                  }}
-                  placeholder="https://linkedin.com/posts/... or https://instagram.com/reel/..."
-                  className="flex-1 h-12 border-2 text-base"
-                  disabled={parsing}
-                />
-                <Button
-                  type="button"
-                  onClick={handleParse}
-                  disabled={parsing || !url.trim()}
-                  className="h-12 px-8 bg-gradient-to-r from-primary via-primary/90 to-primary hover:opacity-90 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                >
-                  {parsing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Extracting...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5 mr-2" />
-                      Extract
-                    </>
-                  )}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Paste a LinkedIn post or Instagram reel URL to automatically extract content, images, and videos
-              </p>
-              
-              {/* Platform-specific notes */}
-              {url && detectPlatform(url) === 'instagram' && (
-                <Alert className="border-amber-500/50 bg-amber-500/10">
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  <AlertDescription className="text-xs">
-                    <strong>Instagram Note:</strong> Due to Instagram's restrictions, automatic extraction may be limited. 
-                    You can manually copy the caption and add media URLs if needed.
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {url && (detectPlatform(url) === 'x' || detectPlatform(url) === 'tiktok') && (
-                <Alert className="border-blue-500/50 bg-blue-500/10">
-                  <AlertCircle className="h-4 w-4 text-blue-500" />
-                  <AlertDescription className="text-xs">
-                    <strong>Tip:</strong> {detectPlatform(url) === 'x' ? 'X/Twitter' : 'TikTok'} content may require 
-                    authentication. If extraction fails, you can manually copy and paste the content.
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {url && detectPlatform(url) === 'reddit' && (
-                <Alert className="border-emerald-500/50 bg-emerald-500/10">
-                  <AlertCircle className="h-4 w-4 text-emerald-500" />
-                  <AlertDescription className="text-xs">
-                    <strong>Reddit works great!</strong> We use Reddit's JSON API for reliable content extraction.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-
-            {error && (
-              <Alert className="border-destructive/50 bg-destructive/10">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-        )}
-
-        {/* Step 2: Preview & Selection */}
-        {step === 2 && extractedData && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Platform Header */}
-            <div className={`relative overflow-hidden rounded-2xl border-2 ${platformInfo.border} ${platformInfo.bg} p-4`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${platformInfo.glow}`} />
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${platformInfo.gradient} p-2.5 text-white shadow-lg`}>
-                    <Icon />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-lg">{platformInfo.name}</h4>
-                    <p className="text-xs text-muted-foreground">Content extracted successfully</p>
-                  </div>
+      {/* Step 2: Review & Import - Simplified version without extract/review indicators */}
+      {step === 2 && extractedData && (
+        <div className="space-y-6 p-6 md:p-8 rounded-3xl border-2 border-border bg-card/50 backdrop-blur-sm">
+          {/* Platform Header */}
+          <div className={`relative overflow-hidden rounded-2xl border-2 ${platformInfo.border} ${platformInfo.bg} p-4`}>
+            <div className={`absolute inset-0 bg-gradient-to-br ${platformInfo.glow}`} />
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${platformInfo.gradient} p-2.5 text-white shadow-lg`}>
+                  <Icon />
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReset}
-                  className="hover:bg-background/50"
-                >
-                  Change URL
-                </Button>
-              </div>
-            </div>
-
-            {/* Author Box */}
-            {(extractedData.author || extractedData.authorImage) && (
-              <div className="p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border-2 border-border/50 space-y-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-primary" />
-                  <h4 className="font-semibold">Author Information</h4>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  {extractedData.authorImage && (
-                    <div className="relative">
-                      <Checkbox
-                        id="check-authorImage"
-                        checked={selectedContent.authorImage}
-                        onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, authorImage: checked as boolean })}
-                        className="absolute -top-1 -left-1 z-10 bg-background shadow-md"
-                      />
-                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-border ring-2 ring-primary/20">
-                        <img 
-                          src={extractedData.authorImage} 
-                          alt={extractedData.author || 'Author'} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex-1 space-y-2">
-                    {extractedData.author && (
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="check-author"
-                          checked={selectedContent.author}
-                          onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, author: checked as boolean })}
-                        />
-                        <Label htmlFor="check-author" className="font-semibold cursor-pointer">
-                          {extractedData.author}
-                          {extractedData.authorUsername && (
-                            <span className="text-muted-foreground ml-2">@{extractedData.authorUsername}</span>
-                          )}
-                        </Label>
-                      </div>
-                    )}
-
-                    {extractedData.authorTitle && (
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="check-authorTitle"
-                          checked={selectedContent.authorTitle}
-                          onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, authorTitle: checked as boolean })}
-                        />
-                        <Label htmlFor="check-authorTitle" className="text-sm text-muted-foreground cursor-pointer">
-                          {extractedData.authorTitle}
-                        </Label>
-                      </div>
-                    )}
-
-                    {extractedData.location && (
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="check-location"
-                          checked={selectedContent.location}
-                          onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, location: checked as boolean })}
-                        />
-                        <Label htmlFor="check-location" className="text-sm flex items-center gap-1 cursor-pointer">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                            <circle cx="12" cy="10" r="3"/>
-                          </svg>
-                          {extractedData.location}
-                        </Label>
-                      </div>
-                    )}
-
-                    {extractedData.publishDate && (
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="check-publishDate"
-                          checked={selectedContent.publishDate}
-                          onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, publishDate: checked as boolean })}
-                        />
-                        <Label htmlFor="check-publishDate" className="text-sm flex items-center gap-1 text-muted-foreground cursor-pointer">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                            <line x1="16" y1="2" x2="16" y2="6"/>
-                            <line x1="8" y1="2" x2="8" y2="6"/>
-                            <line x1="3" y1="10" x2="21" y2="10"/>
-                          </svg>
-                          {new Date(extractedData.publishDate).toLocaleDateString()}
-                        </Label>
-                      </div>
-                    )}
-                  </div>
+                <div>
+                  <h4 className="font-semibold text-lg">Ready to Import</h4>
+                  <p className="text-xs text-muted-foreground">Review and customize what to include</p>
                 </div>
               </div>
-            )}
-
-            {/* Content Preview */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-4 rounded-full bg-primary" />
-                <h4 className="font-semibold">Content</h4>
-              </div>
-
-              {extractedData.title && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="check-title"
-                      checked={selectedContent.title}
-                      onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, title: checked as boolean })}
-                    />
-                    <Label htmlFor="check-title" className="text-xs text-muted-foreground cursor-pointer font-medium">Title</Label>
-                  </div>
-                  <div className="p-3 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
-                    <p className="font-semibold">{extractedData.title}</p>
-                  </div>
-                </div>
-              )}
-
-              {extractedData.content && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="check-content"
-                      checked={selectedContent.content}
-                      onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, content: checked as boolean })}
-                    />
-                    <Label htmlFor="check-content" className="text-xs text-muted-foreground cursor-pointer font-medium">
-                      Content ({extractedData.content.length} characters)
-                    </Label>
-                  </div>
-                  <div className="p-3 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50 max-h-48 overflow-y-auto">
-                    <p className="text-sm whitespace-pre-wrap">{extractedData.content}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Media Preview */}
-            {((extractedData.youtubeUrls && extractedData.youtubeUrls.length > 0) || 
-              (extractedData.images && extractedData.images.length > 0) ||
-              extractedData.mediaUrl) && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-4 rounded-full bg-primary" />
-                  <h4 className="font-semibold">Media</h4>
-                </div>
-
-                {/* YouTube Videos */}
-                {extractedData.youtubeUrls && extractedData.youtubeUrls.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="check-youtube"
-                        checked={selectedContent.youtubeUrls}
-                        onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, youtubeUrls: checked as boolean })}
-                      />
-                      <Label htmlFor="check-youtube" className="text-xs text-muted-foreground cursor-pointer font-medium">
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 inline mr-1 text-red-500">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                        </svg>
-                        YouTube Videos ({extractedData.youtubeUrls.length})
-                      </Label>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {extractedData.youtubeUrls.map((url, index) => (
-                        <div key={index} className="p-2 rounded-lg bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 flex items-center gap-2">
-                          <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-500 flex-shrink-0">
-                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                          </svg>
-                          <span className="text-xs truncate">Video {index + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Images */}
-                {extractedData.images && extractedData.images.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="check-images"
-                        checked={selectedContent.images}
-                        onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, images: checked as boolean })}
-                      />
-                      <Label htmlFor="check-images" className="text-xs text-muted-foreground cursor-pointer font-medium">
-                        Images ({extractedData.images.length})
-                      </Label>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {extractedData.images.map((url, index) => (
-                        <div key={index} className="aspect-square rounded-lg overflow-hidden border-2 border-border/50 ring-2 ring-primary/10">
-                          <img 
-                            src={url} 
-                            alt={`Image ${index + 1}`} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400'
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Instagram Media */}
-                {extractedData.mediaUrl && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="check-mediaUrl"
-                        checked={selectedContent.mediaUrl}
-                        onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, mediaUrl: checked as boolean })}
-                      />
-                      <Label htmlFor="check-mediaUrl" className="text-xs text-muted-foreground cursor-pointer font-medium">
-                        {extractedData.mediaType === 'video' ? 'Video' : 'Image'}
-                      </Label>
-                    </div>
-                    <div className="aspect-video rounded-lg overflow-hidden border-2 border-border/50 ring-2 ring-primary/10">
-                      <img 
-                        src={extractedData.mediaUrl} 
-                        alt="Media" 
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400'
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Import Button */}
-            <div className="pt-4">
               <Button
                 type="button"
-                onClick={handleImport}
-                className={`w-full h-14 bg-gradient-to-r ${platformInfo.gradient} hover:opacity-90 text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
+                variant="ghost"
+                size="sm"
+                onClick={handleReset}
+                className="hover:bg-background/50"
               >
-                <CheckCircle2 className="w-5 h-5 mr-2" />
-                Import Selected Content
+                Change URL
               </Button>
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {/* Content Preview - Simplified checkboxes */}
+          <div className="space-y-3">
+            {extractedData.title && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
+                <Checkbox
+                  id="check-title"
+                  checked={selectedContent.title}
+                  onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, title: checked as boolean })}
+                />
+                <Label htmlFor="check-title" className="cursor-pointer flex-1 font-semibold">{extractedData.title}</Label>
+              </div>
+            )}
+
+            {extractedData.content && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
+                <Checkbox
+                  id="check-content"
+                  checked={selectedContent.content}
+                  onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, content: checked as boolean })}
+                  className="mt-1"
+                />
+                <Label htmlFor="check-content" className="cursor-pointer flex-1">
+                  <p className="text-sm whitespace-pre-wrap line-clamp-4">{extractedData.content}</p>
+                </Label>
+              </div>
+            )}
+
+            {extractedData.author && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
+                <Checkbox
+                  id="check-author"
+                  checked={selectedContent.author}
+                  onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, author: checked as boolean })}
+                />
+                <Label htmlFor="check-author" className="cursor-pointer text-sm">By {extractedData.author}</Label>
+              </div>
+            )}
+          </div>
+
+          {/* Import Button */}
+          <Button
+            type="button"
+            onClick={handleImport}
+            className={`w-full h-14 bg-gradient-to-r ${platformInfo.gradient} hover:opacity-90 text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
+          >
+            <CheckCircle2 className="w-5 h-5 mr-2" />
+            Add to Article
+          </Button>
+        </div>
+      )}
+    </div>
   )
 }

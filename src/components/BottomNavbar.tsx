@@ -27,8 +27,14 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, explore
     <nav className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
       <div className="max-w-screen-xl mx-auto px-4">
         <div className="relative h-24 flex items-end justify-center">
-          {/* Gradient blur mask that fades toward the bottom */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/80 to-background/60 backdrop-blur-xl pointer-events-auto" />
+          {/* Gradient blur mask: 100% blur at bottom, 0% blur at top where it connects to content */}
+          <div 
+            className="absolute inset-0 backdrop-blur-2xl pointer-events-auto"
+            style={{
+              WebkitMaskImage: 'linear-gradient(to top, black 0%, transparent 100%)',
+              maskImage: 'linear-gradient(to top, black 0%, transparent 100%)'
+            }}
+          />
 
           {/* Navigation Items */}
           <div className="relative flex items-center justify-center w-full max-w-md mx-auto pointer-events-auto h-full pb-4">

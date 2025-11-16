@@ -1,11 +1,11 @@
-import { LogOut, User, Mail, Shield, Trash2, Crown, Zap, Sparkles, Save, CheckCircle2 } from 'lucide-react'
+import { LogOut, User, Mail, Shield, Trash2, Crown, Zap, Sparkles, Save, CheckCircle2, Leaf, Sun, Droplets, Trees, Sunset as SunsetIcon, Sparkle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface AccountSettingsProps {
   userId: string | null
@@ -31,43 +31,134 @@ export function AccountSettings({
   const [nickname, setNickname] = useState(initialNickname || '')
   const [selectedTheme, setSelectedTheme] = useState(initialTheme || 'default')
   const [isSaving, setIsSaving] = useState(false)
-  const [hasChanges, setHasChanges] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [nicknameError, setNicknameError] = useState('')
+  
+  // Debounce timer for nickname auto-save
+  const nicknameTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Track if profile is complete for points
   const isNicknameSet = Boolean(initialNickname)
   const isThemeCustomized = Boolean(initialTheme && initialTheme !== 'default')
-  
-  // Check for changes
-  useEffect(() => {
-    const nicknameChanged = nickname !== (initialNickname || '')
-    const themeChanged = selectedTheme !== (initialTheme || 'default')
-    setHasChanges(nicknameChanged || themeChanged)
-  }, [nickname, selectedTheme, initialNickname, initialTheme])
 
+  // Creative icon-based themes (no emojis)
   const themes = [
-    { id: 'default', name: 'Default', gradient: 'from-primary to-primary/70', icon: '🌿' },
-    { id: 'solar', name: 'Solar Power', gradient: 'from-amber-500 to-orange-500', icon: '☀️' },
-    { id: 'ocean', name: 'Ocean Blue', gradient: 'from-blue-500 to-cyan-500', icon: '🌊' },
-    { id: 'forest', name: 'Forest Green', gradient: 'from-emerald-500 to-teal-500', icon: '🌲' },
-    { id: 'sunset', name: 'Sunset', gradient: 'from-rose-500 to-pink-500', icon: '🌅' },
-    { id: 'aurora', name: 'Aurora', gradient: 'from-purple-500 to-indigo-500', icon: '✨' },
+    { 
+      id: 'default', 
+      name: 'Default', 
+      gradient: 'from-primary to-primary/70', 
+      icon: Leaf,
+      description: 'Green eco'
+    },
+    { 
+      id: 'solar', 
+      name: 'Solar Power', 
+      gradient: 'from-amber-500 to-orange-500', 
+      icon: Sun,
+      description: 'Bright energy'
+    },
+    { 
+      id: 'ocean', 
+      name: 'Ocean Blue', 
+      gradient: 'from-blue-500 to-cyan-500', 
+      icon: Droplets,
+      description: 'Cool waters'
+    },
+    { 
+      id: 'forest', 
+      name: 'Forest Green', 
+      gradient: 'from-emerald-500 to-teal-500', 
+      icon: Trees,
+      description: 'Deep woods'
+    },
+    { 
+      id: 'sunset', 
+      name: 'Sunset', 
+      gradient: 'from-rose-500 to-pink-500', 
+      icon: SunsetIcon,
+      description: 'Warm glow'
+    },
+    { 
+      id: 'aurora', 
+      name: 'Aurora', 
+      gradient: 'from-purple-500 to-indigo-500', 
+      icon: Sparkle,
+      description: 'Cosmic light'
+    },
   ]
 
-  const handleSave = async () => {
-    if (!onUpdateProfile || !hasChanges) return
-    
-    setIsSaving(true)
-    try {
-      await onUpdateProfile(nickname, selectedTheme)
-      setShowSuccessMessage(true)
-      setTimeout(() => setShowSuccessMessage(false), 3000)
-    } catch (error) {
-      console.error('Error saving profile:', error)
-    } finally {
-      setIsSaving(false)
+  // Auto-save nickname with debounce and validation
+  useEffect(() => {
+    // Clear existing timer
+    if (nicknameTimerRef.current) {
+      clearTimeout(nicknameTimerRef.current)
     }
-  }
+
+    // Don't auto-save if nickname is empty or unchanged
+    if (!nickname.trim() || nickname === initialNickname) {
+      setNicknameError('')
+      return
+    }
+
+    // Validate nickname (basic validation)
+    if (nickname.length < 2) {
+      setNicknameError('Nickname must be at least 2 characters')
+      return
+    }
+
+    if (nickname.length > 20) {
+      setNicknameError('Nickname must be 20 characters or less')
+      return
+    }
+
+    // Set debounce timer (wait 1 second after user stops typing)
+    nicknameTimerRef.current = setTimeout(async () => {
+      if (onUpdateProfile && nickname !== initialNickname) {
+        setIsSaving(true)
+        setNicknameError('')
+        try {
+          console.log('Attempting to save nickname:', nickname, 'with theme:', selectedTheme)
+          await onUpdateProfile(nickname, selectedTheme)
+          setShowSuccessMessage(true)
+          setTimeout(() => setShowSuccessMessage(false), 2000)
+        } catch (error: any) {
+          console.error('Error saving nickname:', error)
+          setNicknameError(error.message || 'Failed to save nickname. Please try again.')
+        } finally {
+          setIsSaving(false)
+        }
+      }
+    }, 1000)
+
+    // Cleanup
+    return () => {
+      if (nicknameTimerRef.current) {
+        clearTimeout(nicknameTimerRef.current)
+      }
+    }
+  }, [nickname, initialNickname, selectedTheme, onUpdateProfile])
+
+  // Auto-save theme immediately when changed
+  useEffect(() => {
+    const saveTheme = async () => {
+      if (onUpdateProfile && selectedTheme !== initialTheme) {
+        setIsSaving(true)
+        try {
+          console.log('Attempting to save theme:', selectedTheme, 'with nickname:', nickname || initialNickname || '')
+          await onUpdateProfile(nickname || initialNickname || '', selectedTheme)
+          setShowSuccessMessage(true)
+          setTimeout(() => setShowSuccessMessage(false), 2000)
+        } catch (error: any) {
+          console.error('Error saving theme:', error)
+          // Don't show error for theme changes, just log it
+        } finally {
+          setIsSaving(false)
+        }
+      }
+    }
+
+    saveTheme()
+  }, [selectedTheme])
 
   const getLevelTitle = (lvl: number) => {
     if (lvl >= 20) return '🌟 Legendary Scholar'
@@ -137,11 +228,11 @@ export function AccountSettings({
                     <CardTitle className="flex items-center gap-2">
                       Personalize Your Profile
                       <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400">
-                        Earn Points!
+                        Auto-Save
                       </Badge>
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      Complete your profile to earn bonus points
+                      Changes save automatically as you type
                     </CardDescription>
                   </div>
                 </div>
@@ -154,8 +245,8 @@ export function AccountSettings({
                 <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">Profile Updated!</p>
-                    <p className="text-sm text-muted-foreground">Your changes have been saved.</p>
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">Saved!</p>
+                    <p className="text-sm text-muted-foreground">Your changes have been saved automatically.</p>
                   </div>
                 </div>
               )}
@@ -166,16 +257,24 @@ export function AccountSettings({
                   <Label htmlFor="nickname" className="text-base font-semibold">
                     Nickname
                   </Label>
-                  <Badge 
-                    variant={isNicknameSet ? "default" : "outline"} 
-                    className={isNicknameSet ? "bg-emerald-500 hover:bg-emerald-600" : "bg-primary/10 border-primary/30"}
-                  >
-                    {isNicknameSet ? (
-                      <><CheckCircle2 className="w-3 h-3 mr-1" /> Earned {nicknamePoints} pts</>
-                    ) : (
-                      <><Zap className="w-3 h-3 mr-1" /> Earn {nicknamePoints} pts</>
+                  <div className="flex items-center gap-2">
+                    {isSaving && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        Saving...
+                      </div>
                     )}
-                  </Badge>
+                    <Badge 
+                      variant={isNicknameSet ? "default" : "outline"} 
+                      className={isNicknameSet ? "bg-emerald-500 hover:bg-emerald-600" : "bg-primary/10 border-primary/30"}
+                    >
+                      {isNicknameSet ? (
+                        <><CheckCircle2 className="w-3 h-3 mr-1" /> Earned {nicknamePoints} pts</>
+                      ) : (
+                        <><Zap className="w-3 h-3 mr-1" /> Earn {nicknamePoints} pts</>
+                      )}
+                    </Badge>
+                  </div>
                 </div>
                 
                 <Input
@@ -183,12 +282,18 @@ export function AccountSettings({
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="Choose a cool nickname..."
-                  className="h-12 border-2"
+                  className={`h-12 border-2 ${nicknameError ? 'border-destructive' : ''}`}
                   maxLength={20}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {nickname.length}/20 characters • {isNicknameSet ? 'You can update it anytime!' : 'Set your nickname to earn points!'}
-                </p>
+                {nicknameError ? (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <span className="font-semibold">⚠️</span> {nicknameError}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {nickname.length}/20 characters • {isNicknameSet ? 'Updates automatically!' : 'Type to save and earn points!'}
+                  </p>
+                )}
               </div>
 
               <Separator />
@@ -211,41 +316,47 @@ export function AccountSettings({
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Customize the color theme of your home feed icon
+                  Customize the color theme of your home feed icon (saves instantly)
                 </p>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {themes.map((theme) => (
-                    <button
-                      key={theme.id}
-                      type="button"
-                      onClick={() => setSelectedTheme(theme.id)}
-                      className={`group relative p-4 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
-                        selectedTheme === theme.id
-                          ? 'border-primary bg-primary/10 shadow-lg'
-                          : 'border-border/50 hover:border-primary/30 bg-card/50'
-                      }`}
-                    >
-                      {/* Theme Preview */}
-                      <div className="flex flex-col items-center gap-3">
-                        <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center transition-all group-hover:scale-110`}>
-                          <span className="text-2xl">{theme.icon}</span>
-                          {selectedTheme === theme.id && (
-                            <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                              <CheckCircle2 className="w-4 h-4 text-white" />
-                            </div>
-                          )}
+                  {themes.map((theme) => {
+                    const IconComponent = theme.icon
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => setSelectedTheme(theme.id)}
+                        className={`group relative p-4 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
+                          selectedTheme === theme.id
+                            ? 'border-primary bg-primary/10 shadow-lg'
+                            : 'border-border/50 hover:border-primary/30 bg-card/50'
+                        }`}
+                      >
+                        {/* Theme Preview */}
+                        <div className="flex flex-col items-center gap-3">
+                          <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center transition-all group-hover:scale-110 shadow-lg`}>
+                            <IconComponent className="w-8 h-8 text-white drop-shadow-lg" strokeWidth={2.5} />
+                            {selectedTheme === theme.id && (
+                              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                                <CheckCircle2 className="w-4 h-4 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center">
+                            <p className={`text-sm font-semibold ${
+                              selectedTheme === theme.id ? 'text-foreground' : 'text-muted-foreground'
+                            }`}>
+                              {theme.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {theme.description}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-center">
-                          <p className={`text-sm font-semibold ${
-                            selectedTheme === theme.id ? 'text-foreground' : 'text-muted-foreground'
-                          }`}>
-                            {theme.name}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    )
+                  })}
                 </div>
 
                 {/* Theme Preview */}
@@ -253,8 +364,11 @@ export function AccountSettings({
                   <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border/50">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-background">
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${themes.find(t => t.id === selectedTheme)?.gradient} flex items-center justify-center`}>
-                          <span className="text-xl">{themes.find(t => t.id === selectedTheme)?.icon}</span>
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${themes.find(t => t.id === selectedTheme)?.gradient} flex items-center justify-center shadow-lg`}>
+                          {(() => {
+                            const ThemeIcon = themes.find(t => t.id === selectedTheme)?.icon
+                            return ThemeIcon ? <ThemeIcon className="w-6 h-6 text-white" strokeWidth={2.5} /> : null
+                          })()}
                         </div>
                       </div>
                       <div>
@@ -270,74 +384,38 @@ export function AccountSettings({
 
               <Separator />
 
-              {/* Save Button */}
-              <div className="flex flex-col gap-3">
-                <Button
-                  onClick={handleSave}
-                  disabled={!hasChanges || isSaving}
-                  className={`w-full h-12 relative overflow-hidden group ${
-                    hasChanges ? 'hover:scale-105' : ''
-                  }`}
-                >
-                  {hasChanges && (
-                    <>
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/70" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    </>
-                  )}
-                  <span className="relative z-10 flex items-center gap-2 font-semibold">
-                    {isSaving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Saving...
-                      </>
-                    ) : hasChanges ? (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save Changes
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        All Saved
-                      </>
-                    )}
-                  </span>
-                </Button>
-
-                {/* Points Summary */}
-                {!isNicknameSet || !isThemeCustomized ? (
-                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm">
-                        <p className="font-semibold text-amber-600 dark:text-amber-400">
-                          Earn up to {(isNicknameSet ? 0 : nicknamePoints) + (isThemeCustomized ? 0 : themePoints)} more points!
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {!isNicknameSet && !isThemeCustomized && `Set your nickname (+${nicknamePoints} pts) and customize your theme (+${themePoints} pts)`}
-                          {!isNicknameSet && isThemeCustomized && `Set your nickname to earn ${nicknamePoints} more points`}
-                          {isNicknameSet && !isThemeCustomized && `Customize your theme to earn ${themePoints} more points`}
-                        </p>
-                      </div>
+              {/* Points Summary */}
+              {!isNicknameSet || !isThemeCustomized ? (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-amber-600 dark:text-amber-400">
+                        Earn up to {(isNicknameSet ? 0 : nicknamePoints) + (isThemeCustomized ? 0 : themePoints)} more points!
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {!isNicknameSet && !isThemeCustomized && `Set your nickname (+${nicknamePoints} pts) and customize your theme (+${themePoints} pts)`}
+                        {!isNicknameSet && isThemeCustomized && `Set your nickname to earn ${nicknamePoints} more points`}
+                        {isNicknameSet && !isThemeCustomized && `Customize your theme to earn ${themePoints} more points`}
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                    <div className="flex items-start gap-2">
-                      <Crown className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm">
-                        <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          Profile Complete!
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          You've earned all available profile points ({nicknamePoints + themePoints} total)
-                        </p>
-                      </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div className="flex items-start gap-2">
+                    <Crown className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        Profile Complete!
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        You've earned all available profile points ({nicknamePoints + themePoints} total)
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -467,24 +545,6 @@ export function AccountSettings({
                   Logout
                 </Button>
               </div>
-
-              {/* Future: Delete Account (commented for now) */}
-              {/* <div className="flex items-center justify-between p-4 rounded-xl border-2 border-destructive/30 bg-destructive/5">
-                <div>
-                  <h4 className="font-semibold text-destructive mb-1">Delete Account</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Permanently delete your account and all data
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  disabled
-                  className="gap-2 border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </Button>
-              </div> */}
             </CardContent>
           </Card>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings, Star } from 'lucide-react'
+import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings, Zap } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
@@ -26,6 +26,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   const [previousPoints, setPreviousPoints] = useState(userPoints)
   const [pointsGained, setPointsGained] = useState(0)
   const [showPointsAnimation, setShowPointsAnimation] = useState(false)
+  const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
 
   // Detect points change and trigger animation
   useEffect(() => {
@@ -82,14 +83,10 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
     setTimeout(() => setIsAnimating(false), 600)
   }
 
-  // Get theme label with fun names
-  const getThemeLabel = () => {
-    switch(theme) {
-      case 'light': return '☀️ Bright'
-      case 'dark': return '🌱 Eco'
-      case 'hempin': return '🌿 Hemp'
-      default: return '☀️ Bright'
-    }
+  const handleLogoClick = () => {
+    cycleTheme()
+    setShowDewiiAnimation(true)
+    setTimeout(() => setShowDewiiAnimation(false), 2000)
   }
 
   // Get theme colors for the glow effect
@@ -104,65 +101,72 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background/60 backdrop-blur-lg border-b border-border/50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Left: Back Button OR Streak Badge */}
-        <div className="flex-1 flex items-center">
-          {/* Back button for sub-pages */}
+      <div className="container mx-auto px-4 h-20 flex items-center justify-center relative">
+        {/* LEFT SIDE: Back Button or Streak Badge */}
+        <div className="absolute left-4 flex items-center gap-2">
+          {/* Back Button - Left of Logo */}
           {(currentView === 'reading-history' || currentView === 'matched-articles' || currentView === 'achievements' || currentView === 'article') && onBack && (
             <Button
               onClick={onBack}
               size="sm"
               variant="ghost"
-              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group"
+              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group rounded-full w-10 h-10 sm:w-12 sm:h-12 p-0"
             >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-              <span className="hidden sm:inline">Back</span>
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
             </Button>
           )}
           
-          {/* Streak badge in swipe mode */}
+          {/* Streak badge in swipe mode - Left of Logo */}
           {currentView === 'feed' && exploreMode === 'swipe' && currentStreak !== undefined && (
             <Badge
               variant="secondary"
-              className="gap-1.5 bg-gradient-to-r from-orange-500/20 to-red-500/20 border-orange-500/30 text-orange-600 dark:text-orange-400 animate-pulse"
+              className="gap-1.5 text-xs bg-gradient-to-r from-orange-500/20 to-red-500/20 border-orange-500/30 text-orange-600 dark:text-orange-400 animate-pulse"
             >
-              <Flame className="w-4 h-4 fill-orange-500" />
-              <span className="font-bold">{currentStreak} day streak</span>
+              <Flame className="w-3 h-3 sm:w-4 sm:h-4 fill-orange-500" />
+              <span className="font-bold">{currentStreak}</span>
             </Badge>
           )}
         </div>
-        
-        {/* Center: Logo with Theme Switcher */}
+
+        {/* CENTER: Large Logo Button (Always Centered) */}
         <button
-          onClick={cycleTheme}
-          className="group relative flex items-center justify-center py-2 px-6 rounded-2xl transition-all hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95"
+          onClick={handleLogoClick}
+          className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95 z-10"
           aria-label="Change theme"
         >
           {/* Animated glow background */}
-          <div className={`absolute -inset-4 bg-gradient-to-r ${getThemeGlow()} rounded-3xl blur-2xl opacity-0 group-hover:opacity-20 transition-all duration-500 ${isAnimating ? 'opacity-40 animate-pulse' : ''}`} />
+          <div className={`absolute -inset-6 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-2xl opacity-0 group-hover:opacity-30 transition-all duration-500 ${isAnimating ? 'opacity-40 animate-pulse' : ''}`} />
           
-          {/* Logo with scale animation */}
-          <div className={`relative transform group-hover:scale-110 transition-all duration-300 ${isAnimating ? 'scale-125 rotate-12' : ''}`}>
-            <BrandLogo size="sm" showAnimation={true} />
-            
-            {/* Floating sparkles on hover */}
-            {isAnimating && (
-              <>
-                <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-primary animate-ping" />
-                <Sparkles className="absolute -bottom-2 -left-2 w-3 h-3 text-primary animate-ping" style={{ animationDelay: '150ms' }} />
-              </>
-            )}
+          {/* Outer ring - matching Me button */}
+          <div className={`relative rounded-full p-1.5 transition-all group-hover:scale-110 ${
+            isAnimating
+              ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 scale-110 shadow-2xl'
+              : 'bg-gradient-to-br from-muted/50 to-muted group-hover:from-muted group-hover:to-muted/80'
+          }`}>
+            {/* Inner circle */}
+            <div className={`rounded-full p-4 sm:p-5 transition-all ${
+              isAnimating
+                ? 'bg-gradient-to-br from-sky-500/30 via-purple-500/20 to-pink-500/30 dark:from-sky-400/20 dark:via-purple-400/15 dark:to-pink-400/20 hempin:from-amber-500/30 hempin:via-yellow-500/20 hempin:to-amber-500/30 backdrop-blur-sm'
+                : 'bg-background'
+            }`}>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                <BrandLogo size="sm" showAnimation={true} />
+              </div>
+            </div>
           </div>
           
-          {/* Decorative shine effect */}
-          <div className="absolute inset-0 rounded-2xl overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-          </div>
+          {/* Floating sparkles on animation */}
+          {isAnimating && (
+            <>
+              <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-primary animate-ping" />
+              <Sparkles className="absolute -bottom-2 -left-2 w-3 h-3 text-primary animate-ping" style={{ animationDelay: '150ms' }} />
+            </>
+          )}
         </button>
-        
-        {/* Right: Browse Button OR Switch to Grid View Button */}
-        <div className="flex-1 flex items-center justify-end gap-2">
-          {/* Points Counter - Always visible */}
+
+        {/* RIGHT SIDE: Points Counter & Action Button */}
+        <div className="absolute right-4 flex items-center gap-2">
+          {/* Points Counter - Right of Logo */}
           <motion.div
             key={userPoints}
             initial={{ scale: 1 }}
@@ -174,9 +178,9 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
           >
             <Badge 
               variant="secondary"
-              className="gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-md"
+              className="gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-md"
             >
-              <Star className={`w-4 h-4 fill-amber-500 ${showPointsAnimation ? 'animate-spin' : ''}`} />
+              <Zap className={`w-3 h-3 sm:w-4 sm:h-4 fill-amber-500 ${showPointsAnimation ? 'animate-spin' : ''}`} />
               <span className="font-bold">{userPoints.toLocaleString()}</span>
             </Badge>
             
@@ -194,34 +198,135 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
             )}
           </motion.div>
           
-          {/* Browse button - show on feed */}
+          {/* Browse button - Right of Points */}
           {currentView === 'feed' && (
             <Button
               onClick={() => onNavigate('browse')}
               size="sm"
-              variant="outline"
-              className="gap-2 border-2 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all"
+              variant="ghost"
+              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all rounded-full w-10 h-10 sm:w-12 sm:h-12 p-0"
             >
-              <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Browse</span>
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           )}
           
-          {/* Settings button - show only when NOT on feed */}
+          {/* Settings button - Right of Points */}
           {currentView !== 'feed' && (
             <Button
               onClick={() => onNavigate('settings')}
               size="sm"
               variant="ghost"
-              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group"
+              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group rounded-full w-10 h-10 sm:w-12 sm:h-12 p-0"
             >
-              <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <Settings className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
             </Button>
           )}
         </div>
       </div>
       
-      {/* Points Animation */}
+      {/* Comic-style "DEWII" Animation */}
+      <AnimatePresence>
+        {showDewiiAnimation && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0, rotate: -12 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            exit={{ scale: 0, opacity: 0, rotate: 12 }}
+            transition={{ 
+              type: "spring",
+              stiffness: 300,
+              damping: 20
+            }}
+            className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none z-50"
+          >
+            {/* Comic book style container */}
+            <div className="relative">
+              {/* Background burst effect */}
+              <div className="absolute inset-0 -m-8">
+                {[...Array(8)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ scale: 0, rotate: i * 45 }}
+                    animate={{ scale: 1.5, rotate: i * 45 }}
+                    transition={{ duration: 0.4, delay: i * 0.05 }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-8 bg-gradient-to-t from-amber-400/60 to-transparent"
+                    style={{ transformOrigin: 'center' }}
+                  />
+                ))}
+              </div>
+              
+              {/* Main "DEWII" text */}
+              <div className="relative bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 rounded-2xl px-8 py-4 border-4 border-foreground shadow-2xl transform rotate-3">
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                  }}
+                  transition={{ 
+                    duration: 0.6,
+                    repeat: 2,
+                    repeatType: "reverse"
+                  }}
+                  className="text-5xl font-black tracking-wider"
+                  style={{
+                    textShadow: '4px 4px 0px rgba(0,0,0,0.3), -2px -2px 0px rgba(255,255,255,0.5)',
+                    WebkitTextStroke: '2px black',
+                    color: 'white'
+                  }}
+                >
+                  DEWII
+                </motion.div>
+                
+                {/* Comic sparkles around text */}
+                {[...Array(6)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ 
+                      scale: [0, 1, 0],
+                      opacity: [0, 1, 0],
+                      x: [0, (Math.random() - 0.5) * 60],
+                      y: [0, (Math.random() - 0.5) * 60],
+                    }}
+                    transition={{ 
+                      duration: 1,
+                      delay: i * 0.1,
+                      times: [0, 0.5, 1]
+                    }}
+                    className="absolute"
+                    style={{
+                      left: `${20 + Math.random() * 60}%`,
+                      top: `${20 + Math.random() * 60}%`,
+                    }}
+                  >
+                    <Sparkles className="w-6 h-6 text-white drop-shadow-lg" style={{
+                      filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.8))'
+                    }} />
+                  </motion.div>
+                ))}
+              </div>
+              
+              {/* Comic impact lines */}
+              {[...Array(4)].map((_, i) => (
+                <motion.div
+                  key={`line-${i}`}
+                  initial={{ scaleX: 0, opacity: 0 }}
+                  animate={{ scaleX: 1, opacity: [0, 1, 0] }}
+                  transition={{ duration: 0.5, delay: i * 0.08 }}
+                  className="absolute h-1 bg-foreground/40 rounded-full"
+                  style={{
+                    width: `${40 + Math.random() * 40}px`,
+                    left: i % 2 === 0 ? '-60px' : 'auto',
+                    right: i % 2 === 1 ? '-60px' : 'auto',
+                    top: `${30 + i * 15}%`,
+                    transformOrigin: i % 2 === 0 ? 'right' : 'left'
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Points Animation (smaller notification) */}
       <AnimatePresence>
         {showPointsAnimation && (
           <motion.div
@@ -230,10 +335,10 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.5 }}
-            className="absolute top-16 right-4 bg-background/80 backdrop-blur-lg p-2 rounded-lg shadow-lg flex items-center gap-2"
+            className="absolute top-20 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-lg p-2 rounded-lg shadow-lg flex items-center gap-2 border border-amber-500/30"
           >
-            <Star className="w-4 h-4 text-primary" />
-            <span className="text-sm font-bold text-primary">+{pointsGained} points</span>
+            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+            <span className="text-sm font-bold text-amber-600 dark:text-amber-400">+{pointsGained}</span>
           </motion.div>
         )}
       </AnimatePresence>

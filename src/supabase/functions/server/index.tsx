@@ -812,25 +812,41 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
     const userId = c.req.param('userId')
     const { nickname, homeButtonTheme } = await c.req.json()
     
-    console.log('Updating profile for user:', userId, { nickname, homeButtonTheme })
+    console.log('=== UPDATE PROFILE REQUEST ===')
+    console.log('User ID:', userId)
+    console.log('Nickname:', nickname)
+    console.log('Theme:', homeButtonTheme)
     
     // Verify access token
     const accessToken = c.req.header('Authorization')?.split(' ')[1]
     if (!accessToken) {
+      console.log('ERROR: No access token provided')
       return c.json({ error: 'No access token provided' }, 401)
     }
     
+    console.log('Access token present:', accessToken ? 'YES' : 'NO')
+    
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
+      console.log('ERROR: Auth failed', { authError, userId: user?.id, expectedUserId: userId })
       return c.json({ error: 'Unauthorized' }, 401)
     }
     
+    console.log('Auth successful for user:', user.id)
+    
     // Get current profile to check what's already set
-    const { data: currentProgress } = await supabase
+    const { data: currentProgress, error: fetchError } = await supabase
       .from('user_progress')
       .select('nickname, home_button_theme, points')
       .eq('user_id', userId)
       .single()
+    
+    if (fetchError) {
+      console.log('ERROR: Failed to fetch current progress:', fetchError)
+      return c.json({ error: 'Failed to fetch user profile', details: fetchError.message }, 500)
+    }
+    
+    console.log('Current progress:', currentProgress)
     
     // Calculate points to award
     let pointsAwarded = 0
@@ -842,15 +858,19 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
     // Award 50 points for first-time nickname
     if (!wasNicknameSet && isNicknameNowSet) {
       pointsAwarded += 50
+      console.log('Awarding 50 points for nickname')
     }
     
     // Award 30 points for first-time theme customization
     if (!wasThemeCustomized && isThemeNowCustomized) {
       pointsAwarded += 30
+      console.log('Awarding 30 points for theme')
     }
     
     // Update profile and points
     const newPoints = (currentProgress?.points || 0) + pointsAwarded
+    
+    console.log('Updating with:', { nickname, home_button_theme: homeButtonTheme, points: newPoints })
     
     const { data: updatedProgress, error: updateError } = await supabase
       .from('user_progress')
@@ -864,9 +884,11 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
       .single()
     
     if (updateError) {
-      console.log('Error updating profile:', updateError)
+      console.log('ERROR: Failed to update profile:', updateError)
       return c.json({ error: 'Failed to update profile', details: updateError.message }, 500)
     }
+    
+    console.log('Profile updated successfully:', updatedProgress)
     
     // Get user achievements and read articles
     const { data: userAchievements } = await supabase
@@ -893,9 +915,15 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
     
+    console.log('=== PROFILE UPDATE SUCCESS ===')
+    console.log('Points awarded:', pointsAwarded)
+    
     return c.json({ progress: transformedProgress, pointsAwarded })
-  } catch (error) {
-    console.log('Error updating profile:', error)
+  } catch (error: any) {
+    console.log('=== PROFILE UPDATE ERROR ===')
+    console.log('Error:', error)
+    console.log('Error message:', error.message)
+    console.log('Error stack:', error.stack)
     return c.json({ error: 'Failed to update profile', details: error.message }, 500)
   }
 })

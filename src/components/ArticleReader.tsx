@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Eye, Share2, Award, TrendingUp, Sparkles, ChevronRight, ArrowRight, ExternalLink } from "lucide-react"
+import { ArrowLeft, Clock, Eye, Share2, Award, TrendingUp, Sparkles, ChevronRight, ArrowRight, ExternalLink, Zap, Flame, Book, Trophy } from "lucide-react"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Card, CardContent } from "./ui/card"
@@ -218,38 +218,41 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                     <p className="text-white/90 text-sm md:text-base">Complete this article to level up!</p>
                   </div>
                   
-                  {/* Points to Earn - Compact */}
+                  {/* Points to Earn - Compact with Bolt */}
                   <div className="relative group">
                     <div className="absolute -inset-1 bg-white/40 rounded-2xl blur-md group-hover:blur-lg transition-all" />
                     <div className="relative bg-gradient-to-br from-white/95 to-white/80 backdrop-blur-md rounded-2xl p-4 border border-white/50 shadow-xl">
                       <div className="text-xs text-emerald-700 dark:text-emerald-800 hempin:text-amber-800 font-semibold mb-1">You'll Earn</div>
-                      <div className="flex items-baseline gap-1">
+                      <div className="flex items-center gap-1.5">
                         <span className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 hempin:from-amber-600 hempin:to-orange-600 bg-clip-text text-transparent">+10</span>
-                        <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-600 hempin:text-amber-700">pts</span>
+                        <Zap className="w-5 h-5 fill-emerald-600 text-emerald-600 dark:fill-emerald-500 dark:text-emerald-500 hempin:fill-amber-600 hempin:text-amber-600" />
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* Stats Grid - Icon + Number Only */}
+                {/* Stats Grid - Icon + Number Only - Matching UserDashboard */}
                 <div className="grid grid-cols-3 gap-3 md:gap-4">
+                  {/* Current Streak with Flame */}
                   <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
-                    <div className="p-2 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg">
-                      <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg">
+                      <Flame className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
                     <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.currentStreak}</div>
                   </div>
                   
+                  {/* Total Articles with Book */}
                   <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
                     <div className="p-2 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg">
-                      <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      <Book className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
                     <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.totalArticlesRead}</div>
                   </div>
                   
+                  {/* Longest Streak with Trophy */}
                   <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
                     <div className="p-2 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-lg">
-                      <Award className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      <Trophy className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
                     <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.longestStreak}</div>
                   </div>

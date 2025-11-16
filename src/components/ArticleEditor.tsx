@@ -928,14 +928,14 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
         </Card>
       )}
 
-      {/* Action Buttons */}
-      <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 px-4">
-        <div className="max-w-5xl mx-auto">
+      {/* Action Buttons - Centered with narrower max-width to show sides */}
+      <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 px-2 sm:px-4 flex justify-center">
+        <div className="max-w-md md:max-w-2xl w-full">
           <div className="relative overflow-hidden rounded-3xl">
             {/* Gradient glow background */}
             <div className={`absolute inset-0 bg-gradient-to-r ${getScoreColor(score)}/20 blur-2xl`} />
             
-            <div className="relative bg-background/95 backdrop-blur-xl border-2 border-border/50 rounded-3xl p-4 shadow-2xl">
+            <div className="relative bg-background/95 backdrop-blur-xl border-2 border-border/50 rounded-3xl p-3 sm:p-4 shadow-2xl">
               {/* Progress Bar */}
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-2">
@@ -961,7 +961,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                   <Button 
                     type="submit" 
                     disabled={score < 50}
-                    className={`relative h-14 px-10 rounded-2xl overflow-hidden group transition-all duration-300 ${
+                    className={`relative h-12 sm:h-14 px-8 sm:px-10 rounded-2xl overflow-hidden group transition-all duration-300 ${
                       score >= 50 ? 'hover:scale-105' : 'opacity-50 cursor-not-allowed'
                     }`}
                   >
@@ -975,18 +975,19 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                     )}
                     
                     {/* Button content */}
-                    <span className="relative z-10 flex items-center gap-2 text-base font-bold text-white drop-shadow-lg">
+                    <span className="relative z-10 flex items-center gap-2 text-sm sm:text-base font-bold text-white drop-shadow-lg">
                       {score >= 50 ? (
                         <>
-                          {score >= 90 && <Award className="w-5 h-5" />}
-                          {score >= 70 && score < 90 && <Sparkles className="w-5 h-5" />}
-                          {score >= 50 && score < 70 && <Target className="w-5 h-5" />}
+                          {score >= 90 && <Award className="w-4 sm:w-5 h-4 sm:h-5" />}
+                          {score >= 70 && score < 90 && <Sparkles className="w-4 sm:w-5 h-4 sm:h-5" />}
+                          {score >= 50 && score < 70 && <Target className="w-4 sm:w-5 h-4 sm:h-5" />}
                           {article ? 'Update Article' : 'Publish Article'}
                         </>
                       ) : (
                         <>
-                          <Circle className="w-5 h-5" />
-                          Complete {50 - score}% more to publish
+                          <Circle className="w-4 sm:w-5 h-4 sm:h-5" />
+                          <span className="hidden sm:inline">Complete {50 - score}% more to publish</span>
+                          <span className="sm:hidden">{50 - score}% to publish</span>
                         </>
                       )}
                     </span>

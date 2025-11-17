@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog"
-import { projectId, publicAnonKey } from './utils/supabase/info'
+import { projectId, publicAnonKey } from '../utils/supabase/info'
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -364,7 +364,8 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                           const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/auth/reset-password`, {
                             method: 'POST',
                             headers: {
-                              'Content-Type': 'application/json'
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${publicAnonKey}`
                             },
                             body: JSON.stringify({ email })
                           })

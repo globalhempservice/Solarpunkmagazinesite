@@ -568,6 +568,8 @@ app.post('/make-server-053bcd80/articles/:id/view', async (c) => {
   try {
     const id = c.req.param('id')
     
+    console.log('Tracking view for article:', id)
+    
     // Use RPC to increment atomically
     const { data, error } = await supabase.rpc('increment', {
       table_name: 'articles',
@@ -599,6 +601,23 @@ app.post('/make-server-053bcd80/articles/:id/view', async (c) => {
       console.log('Error incrementing views:', error)
       return c.json({ error: 'Failed to increment views', details: error.message }, 500)
     }
+    
+    // Track daily views in KV store for analytics
+    const today = new Date().toISOString().split('T')[0]
+    const viewKey = `article_views:${today}:${id}`
+    
+    console.log('Storing daily view with key:', viewKey)
+    
+    const existingDailyViews = await kv.get(viewKey) || {
+      date: today,
+      articleId: id,
+      views: 0
+    }
+    
+    existingDailyViews.views += 1
+    
+    await kv.set(viewKey, existingDailyViews)
+    console.log('Daily view tracked:', existingDailyViews)
     
     return c.json({ views: data?.views || 0 })
   } catch (error) {
@@ -3808,6 +3827,11 @@ app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) =
     // Get view activity from KV store (article_views:date:articleId)
     const viewsData = await kv.getByPrefix('article_views:')
     
+    console.log('Raw views data from KV:', viewsData.length, 'entries')
+    if (viewsData.length > 0) {
+      console.log('Sample view entry:', viewsData[0])
+    }
+    
     // Aggregate views by day
     viewsData.forEach(entry => {
       const date = entry.date
@@ -3815,6 +3839,8 @@ app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) =
         viewsByDay[date] = (viewsByDay[date] || 0) + (entry.views || 0)
       }
     })
+    
+    console.log('Views aggregated by day:', Object.keys(viewsByDay).filter(k => viewsByDay[k] > 0).length, 'days with views')
     
     // Convert to array format for charts
     const viewsPerDay = Object.entries(viewsByDay)

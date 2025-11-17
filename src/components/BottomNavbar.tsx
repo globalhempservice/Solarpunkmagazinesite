@@ -1,6 +1,7 @@
 import { Home, User, Plus, Heart, X, RefreshCw, Lock } from 'lucide-react'
 import { Button } from './ui/button'
-import { isFeatureUnlocked } from '../utils/featureUnlocks'
+import { motion } from 'motion/react'
+import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 
 interface BottomNavbarProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'swipe'
@@ -26,6 +27,7 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
   }
 
   const isArticleCreationUnlocked = isFeatureUnlocked('article-creation', totalArticlesRead)
+  const articlesNeeded = FEATURE_UNLOCKS['article-creation'].requiredArticles - totalArticlesRead
 
   // Always show the standard navbar - swipe controls are now in the page itself
   return (
@@ -139,31 +141,130 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
                 }`}
               >
                 <div className="relative">
-                  {/* Enhanced aura effect - ACTIVE */}
-                  {currentView === 'editor' && isArticleCreationUnlocked && (
-                    <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/40 via-yellow-400/30 to-amber-400/40 rounded-full blur-2xl animate-pulse" />
+                  {/* Unlocked State - Normal Plus Icon */}
+                  {isArticleCreationUnlocked && (
+                    <>
+                      {/* Enhanced aura effect - ACTIVE */}
+                      {currentView === 'editor' && (
+                        <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/40 via-yellow-400/30 to-amber-400/40 rounded-full blur-2xl animate-pulse" />
+                      )}
+                      {/* Permanent subtle aura - INACTIVE */}
+                      {currentView !== 'editor' && (
+                        <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/15 via-yellow-400/10 to-amber-400/15 group-hover:from-amber-400/25 group-hover:via-yellow-400/20 group-hover:to-amber-400/25 rounded-full blur-xl transition-all duration-300" />
+                      )}
+                      <div className={`relative rounded-full p-4 transition-all ${
+                        currentView === 'editor'
+                          ? 'bg-amber-500/20 scale-110 shadow-lg'
+                          : 'bg-muted/30 hover:bg-muted/50 hover:scale-105'
+                      }`}>
+                        <Plus className="h-10 w-10 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
+                      </div>
+                    </>
                   )}
-                  {/* Permanent subtle aura - INACTIVE */}
-                  {currentView !== 'editor' && isArticleCreationUnlocked && (
-                    <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/15 via-yellow-400/10 to-amber-400/15 group-hover:from-amber-400/25 group-hover:via-yellow-400/20 group-hover:to-amber-400/25 rounded-full blur-xl transition-all duration-300" />
-                  )}
-                  {/* Locked aura effect - red/gray when locked */}
+
+                  {/* Locked State - Comic Lock */}
                   {!isArticleCreationUnlocked && (
-                    <div className="absolute -inset-4 bg-gradient-to-br from-gray-400/15 via-gray-400/10 to-gray-400/15 group-hover:from-red-400/20 group-hover:via-orange-400/15 group-hover:to-red-400/20 rounded-full blur-xl transition-all duration-300" />
+                    <>
+                      {/* Outer glow ring - pulsing */}
+                      <div className="absolute -inset-8 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-full opacity-30 blur-xl animate-pulse" />
+                      
+                      {/* Comic burst effect behind - rotating */}
+                      <motion.div 
+                        className="absolute inset-0 -z-10 scale-150"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                      >
+                        <svg viewBox="0 0 100 100" className="w-24 h-24 -translate-x-1/4 -translate-y-1/4">
+                          <defs>
+                            <radialGradient id="navBurstGradient">
+                              <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.6" />
+                              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                            </radialGradient>
+                          </defs>
+                          {[...Array(12)].map((_, i) => (
+                            <polygon
+                              key={i}
+                              points="50,50 48,30 52,30"
+                              fill="url(#navBurstGradient)"
+                              transform={`rotate(${i * 30} 50 50)`}
+                            />
+                          ))}
+                        </svg>
+                      </motion.div>
+
+                      {/* Main lock badge with comic border */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', duration: 0.8, bounce: 0.6 }}
+                        className="relative"
+                      >
+                        {/* White comic-style border */}
+                        <div className="absolute -inset-0.5 bg-white rounded-xl transform rotate-2" />
+                        <div className="absolute -inset-0.5 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl" />
+                        
+                        {/* Inner content */}
+                        <div className="relative bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 rounded-lg p-3 shadow-2xl border-2 border-white">
+                          {/* Lock icon with shake animation */}
+                          <motion.div
+                            animate={{ 
+                              rotate: [0, -8, 8, -8, 0],
+                              scale: [1, 1.05, 1]
+                            }}
+                            transition={{ 
+                              duration: 0.5,
+                              repeat: Infinity,
+                              repeatDelay: 2
+                            }}
+                            className="mb-1"
+                          >
+                            <div className="relative">
+                              <div className="absolute inset-0 bg-white blur-sm opacity-50" />
+                              <Lock className="w-7 h-7 text-white relative z-10 drop-shadow-lg" strokeWidth={3} />
+                            </div>
+                          </motion.div>
+                          
+                          {/* Number badge */}
+                          <div className="bg-white rounded px-1.5 py-0.5 shadow-inner min-w-[28px]">
+                            <div className="text-center">
+                              <div className="text-xs font-black text-transparent bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text leading-none">
+                                {articlesNeeded}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Comic "!" decoration */}
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center transform rotate-12">
+                            <span className="text-white text-[10px] font-black leading-none">!</span>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      {/* Floating particles */}
+                      <div className="absolute inset-0 pointer-events-none scale-150">
+                        {[...Array(4)].map((_, i) => (
+                          <motion.div
+                            key={i}
+                            className="absolute w-1.5 h-1.5 bg-amber-400 rounded-full"
+                            style={{
+                              left: `${Math.cos((i * Math.PI * 2) / 4) * 40 + 50}%`,
+                              top: `${Math.sin((i * Math.PI * 2) / 4) * 40 + 50}%`,
+                            }}
+                            animate={{
+                              y: [-8, 8, -8],
+                              opacity: [0.4, 1, 0.4],
+                              scale: [0.6, 1, 0.6]
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              delay: i * 0.3
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </>
                   )}
-                  <div className={`relative rounded-full p-4 transition-all ${
-                    currentView === 'editor' && isArticleCreationUnlocked
-                      ? 'bg-amber-500/20 scale-110 shadow-lg'
-                      : !isArticleCreationUnlocked
-                      ? 'bg-muted/50 hover:bg-muted/70 hover:scale-105'
-                      : 'bg-muted/30 hover:bg-muted/50 hover:scale-105'
-                  }`}>
-                    {isArticleCreationUnlocked ? (
-                      <Plus className="h-10 w-10 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
-                    ) : (
-                      <Lock className="h-10 w-10 transition-transform text-gray-500 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400" strokeWidth={2.5} />
-                    )}
-                  </div>
                 </div>
               </Button>
             </div>

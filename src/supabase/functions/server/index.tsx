@@ -300,6 +300,50 @@ app.post('/make-server-053bcd80/articles', requireAuth, async (c) => {
     
     console.log('Article created successfully:', articleId)
     
+    // === UPDATE USER PROGRESS: Increment articles_created and award points ===
+    
+    // Get current progress
+    let { data: progress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (!progress) {
+      // Create if doesn't exist
+      const { data: newProgress } = await supabase
+        .from('user_progress')
+        .insert([{
+          user_id: userId,
+          total_articles_read: 0,
+          points: 0,
+          current_streak: 0,
+          longest_streak: 0,
+          articles_created: 0
+        }])
+        .select()
+        .single()
+      
+      progress = newProgress
+    }
+    
+    // Increment articles_created and award 50 points for creating an article
+    const newArticlesCreated = (progress.articles_created || 0) + 1
+    const newPoints = (progress.points || 0) + 50
+    
+    console.log('Updating user progress: articles_created =', newArticlesCreated, ', points =', newPoints)
+    
+    await supabase
+      .from('user_progress')
+      .update({
+        articles_created: newArticlesCreated,
+        points: newPoints,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+    
+    console.log('User progress updated after article creation')
+    
     // Transform to camelCase for frontend
     const responseArticle = {
       id: savedArticle.id,
@@ -996,6 +1040,142 @@ app.put('/make-server-053bcd80/users/:userId/marketing-preference', async (c) =>
     console.log('=== MARKETING PREFERENCE UPDATE ERROR ===')
     console.log('Error:', error)
     return c.json({ error: 'Failed to update marketing preference', details: error.message }, 500)
+  }
+})
+
+// Password reset - Send magic link
+app.post('/make-server-053bcd80/auth/reset-password', async (c) => {
+  try {
+    const { email } = await c.req.json()
+    
+    console.log('=== PASSWORD RESET REQUEST ===')
+    console.log('Email:', email)
+    
+    if (!email) {
+      return c.json({ error: 'Email is required' }, 400)
+    }
+    
+    // Send password reset email using Supabase Auth
+    // The resetPasswordForEmail method sends a magic link to the user's email
+    // The link will redirect to your app with a token in the URL
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${Deno.env.get('APP_URL') || 'http://localhost:5173'}/reset-password`
+    })
+    
+    if (error) {
+      console.log('Error sending password reset email:', error)
+      return c.json({ error: 'Failed to send reset email', details: error.message }, 500)
+    }
+    
+    console.log('Password reset email sent successfully')
+    return c.json({ success: true, message: 'Password reset email sent' })
+  } catch (error: any) {
+    console.log('=== PASSWORD RESET ERROR ===')
+    console.log('Error:', error)
+    return c.json({ error: 'Failed to send reset email', details: error.message }, 500)
+  }
+})
+
+// Change password with magic link token
+app.post('/make-server-053bcd80/auth/change-password', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    const { newPassword } = await c.req.json()
+    
+    console.log('=== CHANGE PASSWORD REQUEST ===')
+    
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    if (!newPassword || newPassword.length < 8) {
+      return c.json({ error: 'Password must be at least 8 characters long' }, 400)
+    }
+    
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    
+    if (authError || !user) {
+      console.log('Authentication error:', authError)
+      return c.json({ error: 'Invalid or expired token' }, 401)
+    }
+    
+    console.log('Updating password for user:', user.id)
+    
+    // Update the user's password
+    const { data, error } = await supabase.auth.admin.updateUserById(
+      user.id,
+      { password: newPassword }
+    )
+    
+    if (error) {
+      console.log('Error updating password:', error)
+      return c.json({ error: 'Failed to update password', details: error.message }, 500)
+    }
+    
+    console.log('Password updated successfully')
+    return c.json({ success: true, message: 'Password updated successfully' })
+  } catch (error: any) {
+    console.log('=== CHANGE PASSWORD ERROR ===')
+    console.log('Error:', error)
+    return c.json({ error: 'Failed to update password', details: error.message }, 500)
+  }
+})
+
+// Delete account - Permanently remove user and all data
+app.delete('/make-server-053bcd80/auth/delete-account', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    
+    console.log('=== DELETE ACCOUNT REQUEST ===')
+    
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    
+    if (authError || !user) {
+      console.log('Authentication error:', authError)
+      return c.json({ error: 'Invalid or expired token' }, 401)
+    }
+    
+    const userId = user.id
+    console.log('Deleting account for user:', userId)
+    
+    // Delete all user data from kv_store (progress, achievements, etc.)
+    // Note: In production, you might want to log this or create a soft delete
+    const keysToDelete = [
+      `user_progress:${userId}`,
+      `user_achievements:${userId}`,
+      `user_profile:${userId}`
+    ]
+    
+    for (const key of keysToDelete) {
+      try {
+        await kv.del(key)
+        console.log(`Deleted key: ${key}`)
+      } catch (error) {
+        console.log(`Error deleting key ${key}:`, error)
+        // Continue even if some keys fail
+      }
+    }
+    
+    // Delete the user from Supabase Auth
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(userId)
+    
+    if (deleteError) {
+      console.log('Error deleting user from auth:', deleteError)
+      return c.json({ error: 'Failed to delete account', details: deleteError.message }, 500)
+    }
+    
+    console.log('Account deleted successfully')
+    return c.json({ success: true, message: 'Account deleted successfully' })
+  } catch (error: any) {
+    console.log('=== DELETE ACCOUNT ERROR ===')
+    console.log('Error:', error)
+    return c.json({ error: 'Failed to delete account', details: error.message }, 500)
   }
 })
 

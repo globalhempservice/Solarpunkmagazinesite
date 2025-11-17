@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
@@ -7,6 +7,8 @@ import { Button } from "./ui/button"
 import { Switch } from "./ui/switch"
 import { Label } from "./ui/label"
 import { Separator } from "./ui/separator"
+import { Input } from "./ui/input"
+import { projectId } from "../utils/supabase/info"
 
 interface Article {
   id: string
@@ -46,6 +48,8 @@ interface UserDashboardProps {
   onViewMatches?: () => void
   matchesCount?: number
   onViewAchievements?: () => void
+  onViewPointsSystem?: () => void
+  accessToken?: string
 }
 
 const achievementData: Record<string, { name: string; description: string; icon: any; color: string; rarity: 'common' | 'rare' | 'epic' | 'legendary' }> = {
@@ -109,9 +113,21 @@ const lockedAchievements = [
   { id: 'streak-30', requiredStreak: 30 },
 ]
 
-export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements }: UserDashboardProps) {
+export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements, onViewPointsSystem, accessToken }: UserDashboardProps) {
   const [hoveredStat, setHoveredStat] = useState<string | null>(null)
+  const [fireIconClicked, setFireIconClicked] = useState(false)
   const [marketingNewsletter, setMarketingNewsletter] = useState(false)
+  
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState ('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false)
+  const [passwordChangeError, setPasswordChangeError] = useState('')
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false)
   
   // Calculate user level based on points
   const level = Math.floor(progress.points / 100) + 1
@@ -267,9 +283,13 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
             <div className="grid grid-cols-2 gap-4">
               {/* Current Streak */}
               <div 
-                className="relative group"
+                className="relative group cursor-pointer"
                 onMouseEnter={() => setHoveredStat('currentStreak')}
-                onMouseLeave={() => setHoveredStat(null)}
+                onMouseLeave={() => {
+                  setHoveredStat(null)
+                  setFireIconClicked(false)
+                }}
+                onClick={() => setFireIconClicked(!fireIconClicked)}
               >
                 <div className={`absolute -inset-1 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'currentStreak' ? 'animate-pulse' : ''}`} />
                 
@@ -292,15 +312,28 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                     <div className="text-3xl font-bold bg-gradient-to-br from-orange-500 to-red-500 bg-clip-text text-transparent">
                       {progress.currentStreak}
                     </div>
+                    
+                    {/* Animated label - shows on hover (desktop) or click (mobile) */}
+                    <div 
+                      className={`text-xs font-medium text-orange-600 dark:text-orange-400 text-center transition-all duration-300 ${
+                        hoveredStat === 'currentStreak' || fireIconClicked 
+                          ? 'opacity-100 translate-y-0' 
+                          : 'opacity-0 -translate-y-2 pointer-events-none'
+                      }`}
+                    >
+                      Day Streak
+                    </div>
                   </div>
                 </div>
               </div>
               
               {/* Best Streak */}
               <div 
-                className="relative group"
+                className="relative group cursor-pointer"
                 onMouseEnter={() => setHoveredStat('bestStreak')}
                 onMouseLeave={() => setHoveredStat(null)}
+                onClick={onViewPointsSystem}
+                title="Click to view Points System"
               >
                 <div className={`absolute -inset-1 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'bestStreak' ? 'animate-pulse' : ''}`} />
                 
@@ -322,6 +355,10 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                     </div>
                     <div className="text-3xl font-bold bg-gradient-to-br from-amber-500 to-yellow-500 bg-clip-text text-transparent">
                       {progress.longestStreak}
+                    </div>
+                    {/* Add label for clarity */}
+                    <div className="text-xs text-muted-foreground text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      View Points System
                     </div>
                   </div>
                 </div>
@@ -403,6 +440,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
           onMouseEnter={() => setHoveredStat('achievements')}
           onMouseLeave={() => setHoveredStat(null)}
           onClick={onViewAchievements}
+          title="Click to view Achievements"
         >
           <div className={`absolute -inset-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'achievements' ? 'animate-pulse' : ''}`} />
           
@@ -422,6 +460,10 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
               <div className="text-4xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent">
                 {progress.achievements.length}
+              </div>
+              {/* Add label for clarity */}
+              <div className="text-xs text-muted-foreground text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                View Achievements
               </div>
             </CardContent>
           </Card>
@@ -596,6 +638,145 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
             </div>
 
             <Separator />
+
+            {/* Change Password */}
+            {accessToken && (
+              <>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-primary" />
+                    <h5 className="font-medium text-foreground">Change Password</h5>
+                  </div>
+                  
+                  <form 
+                    className="space-y-4 pl-7"
+                    onSubmit={async (e) => {
+                      e.preventDefault()
+                      setPasswordChangeError('')
+                      setPasswordChangeSuccess(false)
+
+                      if (newPassword.length < 8) {
+                        setPasswordChangeError('Password must be at least 8 characters long')
+                        return
+                      }
+
+                      if (newPassword !== confirmNewPassword) {
+                        setPasswordChangeError('Passwords do not match')
+                        return
+                      }
+
+                      setPasswordChangeLoading(true)
+
+                      try {
+                        const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/auth/change-password`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}`
+                          },
+                          body: JSON.stringify({ newPassword })
+                        })
+
+                        const data = await response.json()
+
+                        if (!response.ok) {
+                          throw new Error(data.error || 'Failed to update password')
+                        }
+
+                        setPasswordChangeSuccess(true)
+                        setCurrentPassword('')
+                        setNewPassword('')
+                        setConfirmNewPassword('')
+                        
+                        setTimeout(() => {
+                          setPasswordChangeSuccess(false)
+                        }, 3000)
+                      } catch (err) {
+                        setPasswordChangeError(err instanceof Error ? err.message : 'An error occurred')
+                      } finally {
+                        setPasswordChangeLoading(false)
+                      }
+                    }}
+                  >
+                    {passwordChangeError && (
+                      <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-destructive">{passwordChangeError}</p>
+                      </div>
+                    )}
+
+                    {passwordChangeSuccess && (
+                      <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Password updated successfully</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password-dashboard" className="text-sm">New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="new-password-dashboard"
+                          type={showNewPassword ? "text" : "password"}
+                          placeholder="Enter new password (min. 8 characters)"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          disabled={passwordChangeLoading}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-muted rounded-lg transition-colors"
+                        >
+                          {showNewPassword ? (
+                            <EyeOff className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <EyeIcon className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-new-password-dashboard" className="text-sm">Confirm New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirm-new-password-dashboard"
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Re-enter new password"
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                          disabled={passwordChangeLoading}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-muted rounded-lg transition-colors"
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <EyeIcon className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={passwordChangeLoading || !newPassword || !confirmNewPassword}
+                      className="w-full"
+                    >
+                      {passwordChangeLoading ? 'Updating...' : 'Update Password'}
+                    </Button>
+                  </form>
+                </div>
+
+                <Separator />
+              </>
+            )}
 
             {/* Logout Button */}
             <div className="flex items-center justify-between pt-2">

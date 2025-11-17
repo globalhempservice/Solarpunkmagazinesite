@@ -1,3 +1,5 @@
+import { useState } from "react"
+import { motion, AnimatePresence } from "motion/react"
 import { Button } from "./ui/button"
 import { Card, CardContent } from "./ui/card"
 import { Badge } from "./ui/badge"
@@ -17,8 +19,19 @@ import {
   TrendingUp,
   ThumbsUp,
   MessageCircle,
-  Repeat2
+  Repeat2,
+  Award,
+  Book,
+  Trophy,
+  Flame,
+  Sparkles,
+  Zap,
+  ExternalLink,
+  ArrowRight
 } from "lucide-react"
+import { ImageWithFallback } from "./figma/ImageWithFallback"
+import { PlaceholderArt } from "./PlaceholderArt"
+import { ShareButton } from "./ShareButton"
 
 interface MediaItem {
   type: 'youtube' | 'audio' | 'image'

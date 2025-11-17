@@ -1,4 +1,4 @@
-import { LogOut, User, Mail, Shield, Trash2, Crown, Zap, Sparkles, Save, CheckCircle2, Leaf, Sun, Droplets, Trees, Sunset as SunsetIcon, Sparkle, ExternalLink } from 'lucide-react'
+import { LogOut, User, Mail, Shield, Trash2, Crown, Zap, Sparkles, Save, CheckCircle2, Leaf, Sun, Droplets, Trees, Sunset as SunsetIcon, Sparkle, ExternalLink, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -8,6 +8,15 @@ import { Label } from './ui/label'
 import { Switch } from './ui/switch'
 import { useState, useEffect, useRef } from 'react'
 import { BrandLogo } from './BrandLogo'
+import { projectId, publicAnonKey } from '../utils/supabase/info'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from './ui/dialog'
 
 interface AccountSettingsProps {
   userId: string | null
@@ -16,6 +25,7 @@ interface AccountSettingsProps {
   userNickname?: string
   homeButtonTheme?: string
   marketingOptIn?: boolean
+  accessToken?: string
   onLogout: () => void
   onUpdateProfile?: (nickname: string, theme: string) => Promise<void>
   onUpdateMarketingPreference?: (marketingOptIn: boolean) => Promise<void>
@@ -28,6 +38,7 @@ export function AccountSettings({
   userNickname: initialNickname,
   homeButtonTheme: initialTheme,
   marketingOptIn: initialMarketingOptIn,
+  accessToken,
   onLogout,
   onUpdateProfile,
   onUpdateMarketingPreference
@@ -40,6 +51,29 @@ export function AccountSettings({
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [nicknameError, setNicknameError] = useState('')
   const [marketingNewsletter, setMarketingNewsletter] = useState(initialMarketingOptIn || false)
+  
+  // Password reset state
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false)
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false)
+  const [passwordResetError, setPasswordResetError] = useState('')
+  
+  // Change password modal state
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false)
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false)
+  const [changePasswordError, setChangePasswordError] = useState('')
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState(false)
+  
+  // Delete account modal state
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
+  const [deleteAccountError, setDeleteAccountError] = useState('')
   
   // Debounce timer for nickname auto-save
   const nicknameTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -200,6 +234,110 @@ export function AccountSettings({
 
   const nicknamePoints = 50
   const themePoints = 30
+
+  // Handle change password
+  const handleChangePassword = async () => {
+    setChangePasswordError('')
+    setChangePasswordSuccess(false)
+
+    // Validation
+    if (!oldPassword || !newPassword || !confirmNewPassword) {
+      setChangePasswordError('Please fill in all fields')
+      return
+    }
+
+    if (newPassword.length < 8) {
+      setChangePasswordError('New password must be at least 8 characters')
+      return
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setChangePasswordError('New passwords do not match')
+      return
+    }
+
+    setChangePasswordLoading(true)
+
+    try {
+      // First verify old password by trying to sign in
+      const { createClient } = await import('../utils/supabase/client')
+      const supabase = createClient()
+      
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userEmail || '',
+        password: oldPassword
+      })
+
+      if (signInError) {
+        throw new Error('Current password is incorrect')
+      }
+
+      // Now change the password
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ newPassword })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change password')
+      }
+
+      setChangePasswordSuccess(true)
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmNewPassword('')
+      
+      setTimeout(() => {
+        setShowChangePasswordModal(false)
+        setChangePasswordSuccess(false)
+      }, 2000)
+    } catch (err) {
+      setChangePasswordError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setChangePasswordLoading(false)
+    }
+  }
+
+  // Handle delete account
+  const handleDeleteAccount = async () => {
+    setDeleteAccountError('')
+
+    if (deleteConfirmText !== 'FINISH DEWII') {
+      setDeleteAccountError('Please type "FINISH DEWII" exactly to confirm')
+      return
+    }
+
+    setDeleteAccountLoading(true)
+
+    try {
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/auth/delete-account`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete account')
+      }
+
+      // Account deleted successfully - logout
+      onLogout()
+    } catch (err) {
+      setDeleteAccountError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setDeleteAccountLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -578,6 +716,42 @@ export function AccountSettings({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Change Password */}
+              <div className="flex items-center justify-between p-4 rounded-xl border-2 border-border/50 bg-muted/30 hover:bg-muted/50 transition-all">
+                <div>
+                  <h4 className="font-semibold text-foreground mb-1">Change Password</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Update your account password
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowChangePasswordModal(true)}
+                  className="gap-2 border-border/50 hover:bg-muted hover:border-primary transition-all"
+                >
+                  <Lock className="w-4 h-4" />
+                  Change
+                </Button>
+              </div>
+
+              {/* Delete Account */}
+              <div className="flex items-center justify-between p-4 rounded-xl border-2 border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-all">
+                <div>
+                  <h4 className="font-semibold text-destructive mb-1">Delete Account</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Permanently delete your account and all data
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteAccountModal(true)}
+                  className="gap-2 border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-all"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </Button>
+              </div>
+
               {/* Logout */}
               <div className="flex items-center justify-between p-4 rounded-xl border-2 border-border/50 bg-muted/30 hover:bg-muted/50 transition-all">
                 <div>
@@ -680,6 +854,245 @@ export function AccountSettings({
             </a>
           </Card>
         </div>
+
+        {/* Change Password Modal */}
+        <Dialog open={showChangePasswordModal} onOpenChange={setShowChangePasswordModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary" />
+                Change Password
+              </DialogTitle>
+              <DialogDescription>
+                Enter your current password and choose a new one
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4">
+              {changePasswordSuccess ? (
+                <div className="p-4 rounded-lg bg-emerald-500/10 border-2 border-emerald-500/30">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        Password Changed!
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Your password has been successfully updated.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Current Password */}
+                  <div className="space-y-2">
+                    <Label htmlFor="oldPassword">Current Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="oldPassword"
+                        type={showOldPassword ? 'text' : 'password'}
+                        value={oldPassword}
+                        onChange={(e) => setOldPassword(e.target.value)}
+                        placeholder="Enter current password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Minimum 8 characters</p>
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmNewPassword"
+                        type={showConfirmNewPassword ? 'text' : 'password'}
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showConfirmNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {changePasswordError && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-destructive">{changePasswordError}</p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <DialogFooter>
+              {!changePasswordSuccess && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowChangePasswordModal(false)
+                      setOldPassword('')
+                      setNewPassword('')
+                      setConfirmNewPassword('')
+                      setChangePasswordError('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleChangePassword}
+                    disabled={changePasswordLoading}
+                    className="gap-2"
+                  >
+                    {changePasswordLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        Change Password
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Account Modal */}
+        <Dialog open={showDeleteAccountModal} onOpenChange={setShowDeleteAccountModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="w-5 h-5" />
+                Delete Account
+              </DialogTitle>
+              <DialogDescription>
+                This action cannot be undone
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4">
+              {/* Warning */}
+              <div className="p-4 rounded-lg bg-destructive/10 border-2 border-destructive/30">
+                <div className="flex items-start gap-2 mb-3">
+                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-destructive">
+                      All your data will be permanently deleted:
+                    </p>
+                  </div>
+                </div>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-7">
+                  <li>• All your points and achievements</li>
+                  <li>• Your complete reading history</li>
+                  <li>• Your profile and preferences</li>
+                  <li>• Your email address from our database</li>
+                </ul>
+                <p className="text-xs text-muted-foreground mt-3 ml-7">
+                  Deletion may take up to 24 hours to propagate across all servers.
+                </p>
+              </div>
+
+              {/* Confirmation Input */}
+              <div className="space-y-2">
+                <Label htmlFor="deleteConfirm">
+                  Type <span className="font-mono font-bold">FINISH DEWII</span> to confirm deletion:
+                </Label>
+                <Input
+                  id="deleteConfirm"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="FINISH DEWII"
+                  className="font-mono"
+                />
+              </div>
+
+              {deleteAccountError && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-destructive">{deleteAccountError}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteAccountModal(false)
+                  setDeleteConfirmText('')
+                  setDeleteAccountError('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={deleteAccountLoading || deleteConfirmText !== 'FINISH DEWII'}
+                className="gap-2"
+              >
+                {deleteAccountLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Confirm Deletion
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

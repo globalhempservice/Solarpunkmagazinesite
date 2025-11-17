@@ -5,7 +5,7 @@ import { Label } from "./ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
-import { Sparkles, BookOpen, Flame, Trophy, Zap, ExternalLink } from "lucide-react"
+import { Sparkles, BookOpen, Flame, Trophy, Zap, ExternalLink, UserPlus, LogIn } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Checkbox } from "./ui/checkbox"
 import {
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog"
+import { projectId, publicAnonKey } from './utils/supabase/info'
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -37,6 +38,10 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
   const [marketingOptIn, setMarketingOptIn] = useState(false)
   const [showTermsModal, setShowTermsModal] = useState(false)
   const [showMarketingModal, setShowMarketingModal] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
+  const [forgotPasswordError, setForgotPasswordError] = useState('')
 
   // Load saved theme on mount
   useEffect(() => {
@@ -123,93 +128,13 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
       </div>
 
       <div className="relative w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
-        {/* Left Side - Generative Art with DEWII Branding */}
-        <div className="hidden lg:block relative h-[600px] rounded-3xl overflow-hidden border-2 border-primary/20 shadow-2xl">
-          {/* Generative Art Background */}
-          <PlaceholderArt 
-            articleId="dewii-welcome"
-            category="innovation"
-            title="Digital Eco Wisdom Innovation Insights Magazine"
-            className="absolute inset-0 w-full h-full"
-            useCategoryArt={true}
-          />
-          
-          {/* Dark overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60" />
-          
-          {/* Content overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
-            {/* Logo - Navbar Style Button */}
-            <button
-              onClick={handleLogoClick}
-              className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-white/50 active:scale-95 mb-8"
-              aria-label="Change theme"
-            >
-              {/* Animated glow background */}
-              <div className={`absolute -inset-8 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition-all duration-500 ${isAnimating ? 'opacity-60 animate-pulse' : ''}`} />
-              
-              {/* Outer ring - matching navbar */}
-              <div className={`relative rounded-full p-2 transition-all group-hover:scale-110 ${
-                isAnimating
-                  ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 scale-110 shadow-2xl'
-                  : 'bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm group-hover:from-white/30 group-hover:to-white/20'
-              }`}>
-                {/* Inner circle */}
-                <div className={`rounded-full p-6 transition-all ${
-                  isAnimating
-                    ? 'bg-gradient-to-br from-sky-500/30 via-purple-500/20 to-pink-500/30 dark:from-sky-400/20 dark:via-purple-400/15 dark:to-pink-400/20 hempin:from-amber-500/30 hempin:via-yellow-500/20 hempin:to-amber-500/30 backdrop-blur-sm'
-                    : 'bg-black/20 backdrop-blur-sm'
-                }`}>
-                  <div className="w-16 h-16 flex items-center justify-center">
-                    <BrandLogo size="lg" showAnimation={true} />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Floating sparkles on animation */}
-              {isAnimating && (
-                <>
-                  <Sparkles className="absolute -top-2 -right-2 w-5 h-5 text-white animate-ping" />
-                  <Sparkles className="absolute -bottom-2 -left-2 w-4 h-4 text-white animate-ping" style={{ animationDelay: '150ms' }} />
-                </>
-              )}
-            </button>
-            
-            {/* Brand Name */}
-            <h1 className="text-7xl font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent drop-shadow-2xl">
-              DEWII
-            </h1>
-            
-            {/* Subtitle */}
-            <p className="text-xl text-white/90 mb-8 max-w-md leading-relaxed drop-shadow-lg">
-              Digital Eco Wisdom & Innovation Insights
-            </p>
-            
-            {/* Decorative divider */}
-            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent mb-8 rounded-full" />
-            
-            {/* Tagline */}
-            <p className="text-lg text-white/80 max-w-sm leading-relaxed">
-              Your gamified magazine for sustainability, technology, and a brighter future
-            </p>
-            
-            {/* Floating badges */}
-            <div className="mt-12 flex flex-wrap gap-3 justify-center">
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                🌱 Eco-Focused
-              </div>
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                🎮 Gamified
-              </div>
-              <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium shadow-lg">
-                📚 Knowledge
-              </div>
-            </div>
-          </div>
+        {/* Left Side - Generative Art with DEWII Branding - HIDDEN ON ALL SCREENS (moved to bottom) */}
+        <div className="hidden">
+          {/* Content moved below */}
         </div>
 
         {/* Right Side - Auth Form */}
-        <div className="relative">
+        <div className="relative lg:col-span-2 max-w-md mx-auto w-full">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 rounded-2xl blur-2xl" />
           
           {/* Logo above the card - Navbar Style Button */}
@@ -363,32 +288,122 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                   </div>
                 )}
 
-                <Button
-                  type="submit"
-                  className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold text-base shadow-lg hover:shadow-xl transition-all"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Please wait...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      {isLogin ? (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          Sign In
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-4 h-4" />
-                          Create Account
-                        </>
-                      )}
-                    </div>
-                  )}
-                </Button>
+                {/* Main Sign In / Create Account Button */}
+                <div className={`relative w-full rounded-xl p-[2px] shadow-lg hover:shadow-xl transition-all ${
+                  isLogin
+                    ? 'bg-gradient-to-r from-emerald-500/60 to-teal-500/60'
+                    : 'bg-gradient-to-r from-amber-500/60 via-emerald-500/60 to-teal-500/60'
+                }`}>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="group relative w-full p-4 rounded-xl bg-card overflow-hidden transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {/* Animated gradient background */}
+                    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+                      isLogin
+                        ? 'bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15'
+                        : 'bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-teal-500/15'
+                    }`} />
+                    
+                    {/* Content */}
+                    {loading ? (
+                      <div className="relative flex items-center justify-center gap-2">
+                        <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin" />
+                        <span className="font-semibold text-muted-foreground">Please wait...</span>
+                      </div>
+                    ) : (
+                      <div className="relative flex items-center justify-center gap-2.5">
+                        <div className={`p-2 rounded-lg transition-all group-hover:scale-110 ${
+                          isLogin
+                            ? 'bg-gradient-to-br from-emerald-500/20 to-teal-500/20'
+                            : 'bg-gradient-to-br from-amber-500/20 to-emerald-500/20'
+                        }`}>
+                          {isLogin ? (
+                            <Sparkles className={`w-5 h-5 ${
+                              isLogin 
+                                ? 'text-emerald-600 dark:text-emerald-400' 
+                                : 'text-amber-600 dark:text-amber-400'
+                            }`} strokeWidth={2.5} />
+                          ) : (
+                            <Zap className={`w-5 h-5 ${
+                              isLogin 
+                                ? 'text-emerald-600 dark:text-emerald-400' 
+                                : 'text-amber-600 dark:text-amber-400'
+                            }`} strokeWidth={2.5} />
+                          )}
+                        </div>
+                        <span className={`font-semibold transition-all ${
+                          isLogin
+                            ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-400 dark:to-emerald-400 bg-clip-text text-transparent'
+                            : 'bg-gradient-to-r from-amber-600 via-emerald-600 to-teal-600 dark:from-amber-400 dark:via-emerald-400 dark:to-teal-400 bg-clip-text text-transparent'
+                        }`}>
+                          {isLogin ? 'Sign In' : 'Create Account'}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                </div>
+
+                {/* Forgot Password Link - Only show when in login mode */}
+                {isLogin && (
+                  <div className="text-center pt-4">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!email) {
+                          setForgotPasswordError('Please enter your email address first')
+                          return
+                        }
+                        
+                        setForgotPasswordError('')
+                        setForgotPasswordSuccess(false)
+                        setForgotPasswordLoading(true)
+
+                        try {
+                          const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/auth/reset-password`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ email })
+                          })
+
+                          const data = await response.json()
+
+                          if (!response.ok) {
+                            throw new Error(data.error || 'Failed to send reset email')
+                          }
+
+                          setForgotPasswordSuccess(true)
+                          setTimeout(() => {
+                            setForgotPasswordSuccess(false)
+                          }, 8000)
+                        } catch (err) {
+                          setForgotPasswordError(err instanceof Error ? err.message : 'An error occurred')
+                        } finally {
+                          setForgotPasswordLoading(false)
+                        }
+                      }}
+                      disabled={forgotPasswordLoading || !email}
+                      className="text-sm text-primary hover:underline font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      {forgotPasswordLoading ? 'Sending magic link...' : 'Forgot Password?'}
+                    </button>
+                    
+                    {forgotPasswordSuccess && (
+                      <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">
+                        Magic link sent! Check your email to reset your password.
+                      </p>
+                    )}
+                    
+                    {forgotPasswordError && (
+                      <p className="text-sm text-destructive mt-2">
+                        {forgotPasswordError}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="relative py-4">
                   <div className="absolute inset-0 flex items-center">
@@ -401,38 +416,146 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLogin(!isLogin)
-                    setError('')
-                  }}
-                  className="w-full p-3 rounded-lg border-2 border-primary/40 bg-card hover:border-primary hover:bg-primary/10 transition-all text-foreground font-medium shadow-sm"
-                >
-                  {isLogin ? '✨ Create New Account' : '🌱 Sign In Instead'}
-                </button>
+                {/* Switch Button (Create New Account / Sign In Instead) */}
+                <div className={`relative w-full rounded-xl p-[2px] shadow-lg hover:shadow-xl transition-all ${
+                  isLogin
+                    ? 'bg-gradient-to-r from-purple-500/50 to-pink-500/50'
+                    : 'bg-gradient-to-r from-emerald-500/50 to-blue-500/50'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLogin(!isLogin)
+                      setError('')
+                    }}
+                    className="group relative w-full p-4 rounded-xl bg-card overflow-hidden transition-all"
+                  >
+                    {/* Animated gradient background */}
+                    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+                      isLogin
+                        ? 'bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10'
+                        : 'bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-emerald-500/10'
+                    }`} />
+                    
+                    {/* Content */}
+                    <div className="relative flex items-center justify-center gap-2.5">
+                      <div className={`p-2 rounded-lg transition-all group-hover:scale-110 ${
+                        isLogin
+                          ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20'
+                          : 'bg-gradient-to-br from-emerald-500/20 to-blue-500/20'
+                      }`}>
+                        {isLogin ? (
+                          <UserPlus className={`w-5 h-5 transition-colors ${
+                            isLogin 
+                              ? 'text-purple-600 dark:text-purple-400' 
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          }`} strokeWidth={2.5} />
+                        ) : (
+                          <LogIn className={`w-5 h-5 transition-colors ${
+                            isLogin 
+                              ? 'text-purple-600 dark:text-purple-400' 
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          }`} strokeWidth={2.5} />
+                        )}
+                      </div>
+                      <span className={`font-semibold transition-all ${
+                        isLogin
+                          ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 dark:from-purple-400 dark:via-pink-400 dark:to-purple-400 bg-clip-text text-transparent'
+                          : 'bg-gradient-to-r from-emerald-600 via-blue-600 to-emerald-600 dark:from-emerald-400 dark:via-blue-400 dark:to-emerald-400 bg-clip-text text-transparent'
+                      }`}>
+                        {isLogin ? 'Create New Account' : 'Sign In Instead'}
+                      </span>
+                    </div>
+                  </button>
+                </div>
               </form>
 
-              {/* Benefits reminder for signup */}
-              {!isLogin && (
-                <div className="mt-6 pt-6 border-t border-border">
-                  <p className="text-xs text-center text-muted-foreground mb-3">What you'll get:</p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    <div className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs border border-emerald-500/30">
-                      📚 Unlimited Reading
-                    </div>
-                    <div className="px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs border border-orange-500/30">
-                      🔥 Streak Tracking
-                    </div>
-                    <div className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs border border-purple-500/30">
-                      🏆 Achievements
-                    </div>
-                    <div className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs border border-amber-500/30">
-                      ⚡ Level Up
-                    </div>
+              {/* Benefits reminder for signup - REMOVED */}
+            </CardContent>
+          </Card>
+
+          {/* Welcome to DEWII Card - Visible on all screens, below auth form */}
+          <Card className="relative w-full border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-card/50 to-purple-500/10 backdrop-blur-xl shadow-2xl mt-8 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5" />
+            
+            <CardContent className="relative p-8 text-center space-y-6">
+              {/* Icon & Title */}
+              <div className="flex flex-col items-center gap-4">
+                <button
+                  onClick={handleLogoClick}
+                  className="group relative cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95 transition-all"
+                  aria-label="Change theme"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-600 rounded-full blur-xl opacity-40 group-hover:opacity-60 animate-pulse transition-all" 
+                       style={{ animationDuration: '3s' }} />
+                  <div className={`relative w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center shadow-lg transition-all group-hover:scale-110 ${isAnimating ? 'scale-110 shadow-2xl' : ''}`}>
+                    <BrandLogo size="md" showAnimation={true} />
+                  </div>
+                </button>
+                
+                <div>
+                  <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent">
+                    Welcome to DEWII
+                  </h2>
+                  <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                    Digital Eco Wisdom & Innovation Insights
+                  </p>
+                </div>
+              </div>
+
+              {/* Decorative divider */}
+              <div className="w-24 h-1 bg-gradient-to-r from-transparent via-primary to-transparent mx-auto rounded-full" />
+
+              {/* Exciting description */}
+              <p className="text-base text-foreground/80 max-w-lg mx-auto leading-relaxed">
+                Your gamified magazine for sustainability, technology, and a brighter future. Discover curated articles, earn achievements, and level up as you explore!
+              </p>
+
+              {/* Feature badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
+                <div className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-all" />
+                  <div className="relative p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 transition-all group-hover:scale-105">
+                    <BookOpen className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Curated Content</p>
                   </div>
                 </div>
-              )}
+
+                <div className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-all" />
+                  <div className="relative p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 transition-all group-hover:scale-105">
+                    <Flame className="w-6 h-6 text-orange-500 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">Reading Streaks</p>
+                  </div>
+                </div>
+
+                <div className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-all" />
+                  <div className="relative p-4 rounded-xl bg-purple-500/10 border border-purple-500/30 transition-all group-hover:scale-105">
+                    <Trophy className="w-6 h-6 text-purple-500 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-purple-600 dark:text-purple-400">35 Achievements</p>
+                  </div>
+                </div>
+
+                <div className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-yellow-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-all" />
+                  <div className="relative p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 transition-all group-hover:scale-105">
+                    <Zap className="w-6 h-6 text-amber-500 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Earn & Level Up</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Call to action hint */}
+              <div className="pt-4">
+                <p className="text-sm text-muted-foreground">
+                  {isLogin ? (
+                    <>Sign in above to continue your journey</>
+                  ) : (
+                    <>Create your account above and start your adventure</>
+                  )}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

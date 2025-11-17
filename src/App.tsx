@@ -17,6 +17,8 @@ import { MatchedArticles } from './components/MatchedArticles'
 import { AchievementsPage } from './components/AchievementsPage'
 import { BrowsePage } from './components/BrowsePage'
 import { AccountSettings } from './components/AccountSettings'
+import { PointsSystemPage } from './components/PointsSystemPage'
+import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Skeleton } from './components/ui/skeleton'
 import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen } from 'lucide-react'
@@ -67,7 +69,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
@@ -97,7 +99,10 @@ export default function App() {
 
   // Load matched articles from localStorage on mount
   useEffect(() => {
-    const savedMatches = localStorage.getItem('matchedArticles')
+    // Only load if user is authenticated
+    if (!userId) return
+    
+    const savedMatches = localStorage.getItem(`matchedArticles_${userId}`)
     if (savedMatches) {
       try {
         const parsedMatches = JSON.parse(savedMatches)
@@ -108,13 +113,13 @@ export default function App() {
         setMatchedArticles(uniqueMatches)
         // Save back the deduplicated list
         if (uniqueMatches.length !== parsedMatches.length) {
-          localStorage.setItem('matchedArticles', JSON.stringify(uniqueMatches))
+          localStorage.setItem(`matchedArticles_${userId}`, JSON.stringify(uniqueMatches))
         }
       } catch (error) {
         console.error('Error loading matched articles:', error)
       }
     }
-  }, [])
+  }, [userId])
 
   // Check for existing session on mount
   useEffect(() => {
@@ -148,6 +153,13 @@ export default function App() {
       } finally {
         setInitializing(false)
       }
+    }
+    
+    // Check if we're on the reset password page
+    if (window.location.pathname === '/reset-password') {
+      setCurrentView('reset-password')
+      setInitializing(false)
+      return
     }
     
     checkSession()
@@ -431,6 +443,8 @@ export default function App() {
       
       setCurrentView('feed')
       await fetchArticles()
+      await fetchUserArticles()
+      await fetchUserProgress() // Refresh points after article creation
     } catch (error: any) {
       console.error('Error saving article:', error)
       // Error logged in console only
@@ -861,12 +875,12 @@ export default function App() {
             articles={filteredArticles}
             accessToken={accessToken}
             onMatch={(article) => {
-              // Add to matched articles and save to localStorage (prevent duplicates)
+              // Add to matched articles and save to localStorage (prevent duplicates) - user-specific
               const isDuplicate = matchedArticles.some(a => a.id === article.id)
-              if (!isDuplicate) {
+              if (!isDuplicate && userId) {
                 const updatedMatches = [...matchedArticles, article]
                 setMatchedArticles(updatedMatches)
-                localStorage.setItem('matchedArticles', JSON.stringify(updatedMatches))
+                localStorage.setItem(`matchedArticles_${userId}`, JSON.stringify(updatedMatches))
               }
             }}
             onReadArticle={handleArticleClick}
@@ -887,6 +901,7 @@ export default function App() {
             onViewMatches={() => setCurrentView('matched-articles')}
             matchesCount={matchedArticles.length}
             onViewAchievements={() => setCurrentView('achievements')}
+            onViewPointsSystem={() => setCurrentView('points-system')}
           />
         )}
 
@@ -985,6 +1000,12 @@ export default function App() {
           />
         )}
 
+        {currentView === 'points-system' && (
+          <PointsSystemPage
+            onBack={() => setCurrentView('dashboard')}
+          />
+        )}
+
         {currentView === 'browse' && (
           <BrowsePage
             articles={articles}
@@ -1005,6 +1026,10 @@ export default function App() {
             onUpdateProfile={handleUpdateProfile}
             onUpdateMarketingPreference={handleUpdateMarketingPreference}
           />
+        )}
+
+        {currentView === 'reset-password' && (
+          <ResetPasswordPage />
         )}
       </main>
 

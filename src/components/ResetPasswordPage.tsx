@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -8,8 +7,11 @@ import { BrandLogo } from './BrandLogo'
 import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 
-export function ResetPasswordPage() {
-  const navigate = useNavigate()
+interface ResetPasswordPageProps {
+  onBack?: () => void
+}
+
+export function ResetPasswordPage({ onBack }: ResetPasswordPageProps) {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -78,7 +80,9 @@ export function ResetPasswordPage() {
       
       // Redirect to sign-in page after 3 seconds
       setTimeout(() => {
-        navigate('/')
+        if (onBack) {
+          onBack()
+        }
       }, 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -168,7 +172,11 @@ export function ResetPasswordPage() {
                     </p>
                   </div>
                   <Button
-                    onClick={() => navigate('/')}
+                    onClick={() => {
+                      if (onBack) {
+                        onBack()
+                      }
+                    }}
                     className="mt-4"
                   >
                     Back to Sign In
@@ -268,7 +276,11 @@ export function ResetPasswordPage() {
                 <div className="text-center pt-2">
                   <button
                     type="button"
-                    onClick={() => navigate('/')}
+                    onClick={() => {
+                      if (onBack) {
+                        onBack()
+                      }
+                    }}
                     className="text-sm text-muted-foreground hover:text-primary transition-colors"
                   >
                     Back to Sign In

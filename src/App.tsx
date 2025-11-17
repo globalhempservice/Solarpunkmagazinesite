@@ -1029,7 +1029,16 @@ export default function App() {
         )}
 
         {currentView === 'reset-password' && (
-          <ResetPasswordPage />
+          <ResetPasswordPage 
+            onBack={() => {
+              setCurrentView('feed')
+              setIsAuthenticated(false)
+              // Clear URL hash if present
+              if (window.location.hash) {
+                window.history.replaceState(null, '', window.location.pathname)
+              }
+            }}
+          />
         )}
       </main>
 

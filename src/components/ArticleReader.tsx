@@ -1,13 +1,24 @@
-import { ArrowLeft, Clock, Eye, Share2, Award, TrendingUp, Sparkles, ChevronRight, ArrowRight, ExternalLink, Zap, Flame, Book, Trophy } from "lucide-react"
 import { Button } from "./ui/button"
-import { Badge } from "./ui/badge"
 import { Card, CardContent } from "./ui/card"
-import { GenerativeBackground } from "./GenerativeBackground"
-import { ImageWithFallback } from "./figma/ImageWithFallback"
-import { ShareButton } from "./ShareButton"
-import { PlaceholderArt } from "./PlaceholderArt"
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "motion/react"
+import { Badge } from "./ui/badge"
+import { 
+  ArrowLeft, 
+  Clock, 
+  Heart, 
+  Share2, 
+  Volume2, 
+  VolumeX, 
+  Linkedin,
+  Instagram,
+  Twitter,
+  Copy,
+  Check,
+  X as XIcon,
+  TrendingUp,
+  ThumbsUp,
+  MessageCircle,
+  Repeat2
+} from "lucide-react"
 
 interface MediaItem {
   type: 'youtube' | 'audio' | 'image'
@@ -301,12 +312,6 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                   <Clock className="w-4 h-4" />
                   <span>{article.readingTime} min read</span>
                 </div>
-                {article.views !== undefined && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Eye className="w-4 h-4" />
-                    <span>{article.views} views</span>
-                  </div>
-                )}
               </div>
               
               {/* Title */}

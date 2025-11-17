@@ -574,6 +574,13 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       .select('article_id')
       .eq('user_id', userId)
     
+    // Get marketing preference from profiles table
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('marketing_opt_in')
+      .eq('id', userId)
+      .single()
+    
     // Transform to camelCase for frontend
     const transformedProgress = {
       userId: progress.user_id,
@@ -584,6 +591,7 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       lastReadDate: progress.last_read_date,
       nickname: progress.nickname,
       homeButtonTheme: progress.home_button_theme,
+      marketingOptIn: profile?.marketing_opt_in || false,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
@@ -942,6 +950,52 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
     console.log('Error message:', error.message)
     console.log('Error stack:', error.stack)
     return c.json({ error: 'Failed to update profile', details: error.message }, 500)
+  }
+})
+
+// Update marketing newsletter preference
+app.put('/make-server-053bcd80/users/:userId/marketing-preference', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const { marketingOptIn } = await c.req.json()
+    
+    console.log('=== UPDATE MARKETING PREFERENCE REQUEST ===')
+    console.log('User ID:', userId)
+    console.log('Marketing Opt-In:', marketingOptIn)
+    
+    // Verify access token
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      console.log('ERROR: No access token provided')
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      console.log('ERROR: Auth failed', { authError, userId: user?.id, expectedUserId: userId })
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    console.log('Auth successful for user:', user.id)
+    
+    // Update marketing preference in profiles table
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ marketing_opt_in: marketingOptIn })
+      .eq('id', userId)
+    
+    if (updateError) {
+      console.log('ERROR: Failed to update marketing preference:', updateError)
+      return c.json({ error: 'Failed to update preference', details: updateError.message }, 500)
+    }
+    
+    console.log('Marketing preference updated successfully')
+    
+    return c.json({ success: true, marketingOptIn })
+  } catch (error: any) {
+    console.log('=== MARKETING PREFERENCE UPDATE ERROR ===')
+    console.log('Error:', error)
+    return c.json({ error: 'Failed to update marketing preference', details: error.message }, 500)
   }
 })
 
@@ -1464,7 +1518,7 @@ app.post('/make-server-053bcd80/track-creation', async (c) => {
 // Sign up
 app.post('/make-server-053bcd80/signup', async (c) => {
   try {
-    const { email, password, name } = await c.req.json()
+    const { email, password, name, acceptedTerms, marketingOptIn } = await c.req.json()
     
     if (!email || !password) {
       return c.json({ error: 'Email and password are required' }, 400)
@@ -1483,13 +1537,15 @@ app.post('/make-server-053bcd80/signup', async (c) => {
       return c.json({ error: 'Failed to create user', details: error.message }, 400)
     }
     
-    // Create profile
+    // Create profile with newsletter preferences
     await supabase
       .from('profiles')
       .insert([{
         id: data.user.id,
         email: email,
-        name: name || 'Reader'
+        name: name || 'Reader',
+        accepted_terms: acceptedTerms || false,
+        marketing_opt_in: marketingOptIn || false
       }])
     
     console.log('User created:', data.user.id)

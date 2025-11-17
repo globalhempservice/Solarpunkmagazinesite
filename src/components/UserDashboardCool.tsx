@@ -535,10 +535,6 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                     <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors">{article.title}</h4>
                     <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
                       <Badge variant="outline" className="text-xs">{article.category}</Badge>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3" />
-                        {article.views || 0}
-                      </span>
                       <span>{new Date(article.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>

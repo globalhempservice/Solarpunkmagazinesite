@@ -1,6 +1,6 @@
 import { Card } from "./ui/card"
 import { Badge } from "./ui/badge"
-import { Clock, Eye } from "lucide-react"
+import { Clock } from "lucide-react"
 import { PlaceholderArt } from "./PlaceholderArt"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 
@@ -72,12 +72,6 @@ export function ArticleCard({ article, onClick }: ArticleCardProps) {
           <Badge variant="secondary" className="bg-primary/10 text-primary border-0">
             {article.category}
           </Badge>
-          {article.views !== undefined && (
-            <div className="flex items-center gap-1 text-muted-foreground text-sm">
-              <Eye className="w-4 h-4" />
-              <span>{article.views}</span>
-            </div>
-          )}
         </div>
         
         <h3 className="line-clamp-2 text-foreground group-hover:text-primary transition-colors">

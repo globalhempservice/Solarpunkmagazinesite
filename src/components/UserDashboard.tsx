@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
 import { Button } from "./ui/button"
+import { Switch } from "./ui/switch"
+import { Label } from "./ui/label"
+import { Separator } from "./ui/separator"
 
 interface Article {
   id: string
@@ -108,6 +111,7 @@ const lockedAchievements = [
 
 export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements }: UserDashboardProps) {
   const [hoveredStat, setHoveredStat] = useState<string | null>(null)
+  const [marketingNewsletter, setMarketingNewsletter] = useState(false)
   
   // Calculate user level based on points
   const level = Math.floor(progress.points / 100) + 1
@@ -502,15 +506,6 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                           >
                             {article.readingTime} min read
                           </Badge>
-                          {article.views !== undefined && (
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1"
-                            >
-                              <Eye className="w-3 h-3" />
-                              {article.views}
-                            </Badge>
-                          )}
                           {article.media && article.media.length > 0 && (
                             <Badge 
                               variant="outline" 
@@ -558,14 +553,55 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
         </div>
       )}
 
-      {/* Logout Button */}
+      {/* Account Settings & Newsletter Preferences */}
       {onLogout && (
-        <Card className="border-2 border-destructive/20 bg-card/50 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+        <Card className="border-2 border-primary/20 bg-card/50 backdrop-blur-sm">
+          <CardContent className="p-6 space-y-6">
+            {/* Account Settings Header */}
+            <div>
+              <h4 className="font-semibold text-foreground mb-1 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Account Settings
+              </h4>
+              <p className="text-sm text-muted-foreground">Manage your DEWII account and preferences</p>
+            </div>
+
+            <Separator />
+
+            {/* Newsletter Preferences */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                <h5 className="font-medium text-foreground">Newsletter Preferences</h5>
+              </div>
+              
+              <div className="space-y-4 pl-7">
+                {/* Marketing Newsletter */}
+                <div className="flex items-center justify-between space-x-4">
+                  <div className="flex-1">
+                    <Label htmlFor="marketing-newsletter" className="text-sm font-medium cursor-pointer">
+                      Marketing Newsletter
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Monthly digest with featured articles, community highlights, and platform updates
+                    </p>
+                  </div>
+                  <Switch
+                    id="marketing-newsletter"
+                    checked={marketingNewsletter}
+                    onCheckedChange={setMarketingNewsletter}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Logout Button */}
+            <div className="flex items-center justify-between pt-2">
               <div>
-                <h4 className="font-semibold text-foreground mb-1">Account Settings</h4>
-                <p className="text-sm text-muted-foreground">Manage your DEWII account</p>
+                <h5 className="font-medium text-foreground mb-1">Sign Out</h5>
+                <p className="text-xs text-muted-foreground">Log out of your account</p>
               </div>
               <Button
                 variant="outline"

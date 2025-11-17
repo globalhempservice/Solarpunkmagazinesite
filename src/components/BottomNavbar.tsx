@@ -51,18 +51,18 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, explore
                 }`}
               >
                 <div className="relative">
-                  {/* Enhanced aura effect */}
+                  {/* Enhanced aura effect - ACTIVE */}
                   {currentView === 'feed' && (
                     <div className="absolute -inset-4 bg-gradient-to-br from-emerald-400/40 via-teal-400/30 to-emerald-400/40 rounded-full blur-2xl animate-pulse" />
                   )}
-                  {/* Hover aura for inactive state */}
+                  {/* Permanent subtle aura - INACTIVE */}
                   {currentView !== 'feed' && (
-                    <div className="absolute -inset-4 bg-gradient-to-br from-emerald-400/0 via-teal-400/0 to-emerald-400/0 group-hover:from-emerald-400/20 group-hover:via-teal-400/15 group-hover:to-emerald-400/20 rounded-full blur-xl transition-all duration-300" />
+                    <div className="absolute -inset-4 bg-gradient-to-br from-emerald-400/15 via-teal-400/10 to-emerald-400/15 group-hover:from-emerald-400/25 group-hover:via-teal-400/20 group-hover:to-emerald-400/25 rounded-full blur-xl transition-all duration-300" />
                   )}
                   <div className={`relative rounded-full p-4 transition-all ${
                     currentView === 'feed'
                       ? 'bg-emerald-500/20 scale-110 shadow-lg'
-                      : 'hover:bg-muted/50 hover:scale-105'
+                      : 'bg-muted/30 hover:bg-muted/50 hover:scale-105'
                   }`}>
                     <Home className="h-10 w-10 transition-transform" strokeWidth={currentView === 'feed' ? 3 : 2.5} />
                   </div>
@@ -128,18 +128,18 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, explore
                 }`}
               >
                 <div className="relative">
-                  {/* Enhanced aura effect */}
+                  {/* Enhanced aura effect - ACTIVE */}
                   {currentView === 'editor' && (
                     <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/40 via-yellow-400/30 to-amber-400/40 rounded-full blur-2xl animate-pulse" />
                   )}
-                  {/* Hover aura for inactive state */}
+                  {/* Permanent subtle aura - INACTIVE */}
                   {currentView !== 'editor' && (
-                    <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/0 via-yellow-400/0 to-amber-400/0 group-hover:from-amber-400/20 group-hover:via-yellow-400/15 group-hover:to-amber-400/20 rounded-full blur-xl transition-all duration-300" />
+                    <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/15 via-yellow-400/10 to-amber-400/15 group-hover:from-amber-400/25 group-hover:via-yellow-400/20 group-hover:to-amber-400/25 rounded-full blur-xl transition-all duration-300" />
                   )}
                   <div className={`relative rounded-full p-4 transition-all ${
                     currentView === 'editor'
                       ? 'bg-amber-500/20 scale-110 shadow-lg'
-                      : 'hover:bg-muted/50 hover:scale-105'
+                      : 'bg-muted/30 hover:bg-muted/50 hover:scale-105'
                   }`}>
                     <Plus className="h-10 w-10 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
                   </div>

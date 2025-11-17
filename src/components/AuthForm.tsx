@@ -5,12 +5,20 @@ import { Label } from "./ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { BrandLogo } from "./BrandLogo"
 import { PlaceholderArt } from "./PlaceholderArt"
-import { Sparkles, BookOpen, Flame, Trophy, Zap } from "lucide-react"
+import { Sparkles, BookOpen, Flame, Trophy, Zap, ExternalLink } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { Checkbox } from "./ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog"
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
-  onSignup: (email: string, password: string, name: string) => Promise<void>
+  onSignup: (email: string, password: string, name: string, acceptedTerms: boolean, marketingOptIn: boolean) => Promise<void>
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
@@ -25,6 +33,10 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
   const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [marketingOptIn, setMarketingOptIn] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [showMarketingModal, setShowMarketingModal] = useState(false)
 
   // Load saved theme on mount
   useEffect(() => {
@@ -88,7 +100,7 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
       if (isLogin) {
         await onLogin(email, password)
       } else {
-        await onSignup(email, password, name)
+        await onSignup(email, password, name, acceptedTerms, marketingOptIn)
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred')
@@ -291,6 +303,60 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
                   )}
                 </div>
 
+                {/* Terms & Conditions and Marketing Newsletter - Only for Signup */}
+                {!isLogin && (
+                  <div className="space-y-3 pt-2">
+                    {/* Terms & Conditions */}
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="terms"
+                        checked={acceptedTerms}
+                        onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                        required
+                        className="mt-0.5"
+                      />
+                      <label
+                        htmlFor="terms"
+                        className="text-sm text-muted-foreground leading-tight cursor-pointer"
+                      >
+                        I accept the{' '}
+                        <button
+                          type="button"
+                          onClick={() => setShowTermsModal(true)}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Terms & Conditions
+                        </button>
+                        {' '}*
+                      </label>
+                    </div>
+
+                    {/* Marketing Newsletter */}
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="marketing"
+                        checked={marketingOptIn}
+                        onCheckedChange={(checked) => setMarketingOptIn(checked as boolean)}
+                        className="mt-0.5"
+                      />
+                      <label
+                        htmlFor="marketing"
+                        className="text-sm text-muted-foreground leading-tight cursor-pointer"
+                      >
+                        Subscribe to{' '}
+                        <button
+                          type="button"
+                          onClick={() => setShowMarketingModal(true)}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Marketing Newsletter
+                        </button>
+                        {' '}(optional)
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 {error && (
                   <div className="p-4 rounded-lg bg-destructive/10 border-2 border-destructive/30 animate-in fade-in slide-in-from-top-2">
                     <p className="text-sm text-destructive font-medium">{error}</p>
@@ -455,6 +521,76 @@ export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Terms & Conditions Modal */}
+      <Dialog open={showTermsModal} onOpenChange={setShowTermsModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Terms & Conditions
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="pt-4 space-y-3 text-left">
+                <div>
+                  <strong>DEWII</strong> is the magazine feed branch of{' '}
+                  <span className="text-primary font-semibold">Hemp'in.org</span>, dedicated to bringing you curated content on sustainability, technology, and innovation.
+                </div>
+                <div>
+                  By creating an account, you agree to our content guidelines and community standards that promote respectful engagement and knowledge sharing.
+                </div>
+                <a 
+                  href="https://hempin.org/trust" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+                >
+                  Visit Trust Center
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setShowTermsModal(false)}>
+              Got it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Marketing Newsletter Modal */}
+      <Dialog open={showMarketingModal} onOpenChange={setShowMarketingModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-500" />
+              Marketing Newsletter
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="pt-4 space-y-3 text-left">
+                <div>
+                  Our <strong>Marketing Newsletter</strong> is a monthly digest featuring:
+                </div>
+                <ul className="list-disc list-inside space-y-1.5 text-sm">
+                  <li>Featured articles and trending topics</li>
+                  <li>Community highlights and achievements</li>
+                  <li>Platform updates and new features</li>
+                  <li>Exclusive sustainability insights</li>
+                </ul>
+                <div className="text-sm text-muted-foreground">
+                  You can manage your newsletter preferences and notification settings anytime in your account settings.
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setShowMarketingModal(false)}>
+              Understood
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <style>{`
         @keyframes shimmer {

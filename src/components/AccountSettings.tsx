@@ -5,6 +5,7 @@ import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { Switch } from './ui/switch'
 import { useState, useEffect, useRef } from 'react'
 import { BrandLogo } from './BrandLogo'
 
@@ -14,8 +15,10 @@ interface AccountSettingsProps {
   userPoints?: number
   userNickname?: string
   homeButtonTheme?: string
+  marketingOptIn?: boolean
   onLogout: () => void
   onUpdateProfile?: (nickname: string, theme: string) => Promise<void>
+  onUpdateMarketingPreference?: (marketingOptIn: boolean) => Promise<void>
 }
 
 export function AccountSettings({ 
@@ -24,8 +27,10 @@ export function AccountSettings({
   userPoints, 
   userNickname: initialNickname,
   homeButtonTheme: initialTheme,
+  marketingOptIn: initialMarketingOptIn,
   onLogout,
-  onUpdateProfile 
+  onUpdateProfile,
+  onUpdateMarketingPreference
 }: AccountSettingsProps) {
   const level = userPoints ? Math.floor(userPoints / 100) + 1 : 1
   
@@ -34,6 +39,7 @@ export function AccountSettings({
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [nicknameError, setNicknameError] = useState('')
+  const [marketingNewsletter, setMarketingNewsletter] = useState(initialMarketingOptIn || false)
   
   // Debounce timer for nickname auto-save
   const nicknameTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -48,8 +54,8 @@ export function AccountSettings({
       id: 'default', 
       name: 'Default', 
       gradient: 'from-primary to-primary/70', 
-      icon: Leaf,
-      description: 'Green eco'
+      icon: 'logo' as const, // Special case for DEWII logo
+      description: 'DEWII brand'
     },
     { 
       id: 'solar', 
@@ -160,6 +166,29 @@ export function AccountSettings({
 
     saveTheme()
   }, [selectedTheme])
+
+  // Auto-save marketing newsletter preference immediately when changed
+  useEffect(() => {
+    const saveMarketingPreference = async () => {
+      if (onUpdateMarketingPreference && marketingNewsletter !== initialMarketingOptIn) {
+        setIsSaving(true)
+        try {
+          console.log('Attempting to save marketing preference:', marketingNewsletter)
+          await onUpdateMarketingPreference(marketingNewsletter)
+          setShowSuccessMessage(true)
+          setTimeout(() => setShowSuccessMessage(false), 2000)
+        } catch (error: any) {
+          console.error('Error saving marketing preference:', error)
+          // Revert to previous value on error
+          setMarketingNewsletter(initialMarketingOptIn || false)
+        } finally {
+          setIsSaving(false)
+        }
+      }
+    }
+
+    saveMarketingPreference()
+  }, [marketingNewsletter])
 
   const getLevelTitle = (lvl: number) => {
     if (lvl >= 20) return '🌟 Legendary Scholar'
@@ -337,7 +366,26 @@ export function AccountSettings({
                         {/* Theme Preview */}
                         <div className="flex flex-col items-center gap-3">
                           <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center transition-all group-hover:scale-110 shadow-lg`}>
-                            <IconComponent className="w-8 h-8 text-white drop-shadow-lg" strokeWidth={2.5} />
+                            {theme.icon === 'logo' ? (
+                              // Hemp plant SVG - same style as other icons
+                              <svg 
+                                className="w-8 h-8 text-white drop-shadow-lg" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2.5" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                              >
+                                {/* Hemp/Cannabis leaf simplified icon */}
+                                <path d="M12 2C12 2 10.5 4 9 6C7.5 8 6 10 6 12C6 14 7 15 8 16C9 17 10 17.5 11 18V22M12 2C12 2 13.5 4 15 6C16.5 8 18 10 18 12C18 14 17 15 16 16C15 17 14 17.5 13 18V22M12 2V22M8 8C6 8.5 4 9.5 3 11M16 8C18 8.5 20 9.5 21 11M7 13C5.5 13 4 13.5 3 14.5M17 13C18.5 13 20 13.5 21 14.5" 
+                                  fill="currentColor" 
+                                  fillOpacity="0.2"
+                                />
+                              </svg>
+                            ) : (
+                              <IconComponent className="w-8 h-8 text-white drop-shadow-lg" strokeWidth={2.5} />
+                            )}
                             {selectedTheme === theme.id && (
                               <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
                                 <CheckCircle2 className="w-4 h-4 text-white" />
@@ -358,21 +406,6 @@ export function AccountSettings({
                       </button>
                     )
                   })}
-                </div>
-
-                {/* Theme Preview - Always Show */}
-                <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border/50">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-background flex items-center justify-center">
-                      <BrandLogo size="sm" theme={selectedTheme as any} showAnimation={false} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">Preview</p>
-                      <p className="text-xs text-muted-foreground">
-                        Your home button will look like this
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -410,6 +443,44 @@ export function AccountSettings({
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Newsletter Preferences */}
+          <Card className="border-2 border-blue-500/20 bg-card/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-blue-500" />
+                Newsletter Preferences
+              </CardTitle>
+              <CardDescription>
+                Manage your email subscriptions and notifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Marketing Newsletter Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-xl border-2 border-border/50 bg-muted/30 hover:bg-muted/50 transition-all">
+                <div className="flex-1 pr-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-semibold text-foreground">Marketing Newsletter</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Monthly digest with featured articles, community highlights, platform updates, and exclusive sustainability insights
+                  </p>
+                </div>
+                <Switch
+                  checked={marketingNewsletter}
+                  onCheckedChange={setMarketingNewsletter}
+                  className="flex-shrink-0"
+                />
+              </div>
+
+              {/* Future newsletter types placeholder */}
+              <div className="p-4 rounded-lg bg-muted/30 border border-dashed border-border">
+                <p className="text-xs text-muted-foreground text-center">
+                  More newsletter options coming soon! 🚀
+                </p>
+              </div>
             </CardContent>
           </Card>
 

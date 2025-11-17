@@ -59,6 +59,7 @@ interface UserProgress {
   lastReadDate: string | null
   nickname?: string
   homeButtonTheme?: string
+  marketingOptIn?: boolean
 }
 
 export default function App() {
@@ -330,7 +331,7 @@ export default function App() {
     }
   }
 
-  const handleSignup = async (email: string, password: string, name: string) => {
+  const handleSignup = async (email: string, password: string, name: string, acceptedTerms: boolean, marketingOptIn: boolean) => {
     try {
       const response = await fetch(`${serverUrl}/signup`, {
         method: 'POST',
@@ -338,7 +339,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${publicAnonKey}`
         },
-        body: JSON.stringify({ email, password, name })
+        body: JSON.stringify({ email, password, name, acceptedTerms, marketingOptIn })
       })
 
       if (!response.ok) {
@@ -535,6 +536,51 @@ export default function App() {
       console.log('=== FRONTEND: Profile update successful ===')
     } catch (error: any) {
       console.error('=== FRONTEND: Profile update error ===')
+      console.error('Error:', error)
+      console.error('Error message:', error.message)
+      throw error
+    }
+  }
+
+  const handleUpdateMarketingPreference = async (marketingOptIn: boolean) => {
+    if (!userId || !accessToken) {
+      console.error('User ID or access token not available')
+      throw new Error('User not authenticated')
+    }
+
+    try {
+      console.log('=== FRONTEND: Updating marketing preference ===')
+      console.log('Marketing Opt-In:', marketingOptIn)
+
+      const response = await fetch(`${serverUrl}/users/${userId}/marketing-preference`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ marketingOptIn })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Server error response:', errorData)
+        throw new Error(errorData.error || 'Failed to update marketing preference')
+      }
+
+      const data = await response.json()
+      console.log('Marketing preference update response:', data)
+      
+      // Update local state
+      if (userProgress) {
+        setUserProgress({
+          ...userProgress,
+          marketingOptIn
+        })
+      }
+      
+      console.log('=== FRONTEND: Marketing preference update successful ===')
+    } catch (error: any) {
+      console.error('=== FRONTEND: Marketing preference update error ===')
       console.error('Error:', error)
       console.error('Error message:', error.message)
       throw error
@@ -954,8 +1000,10 @@ export default function App() {
             userPoints={userProgress?.points}
             userNickname={userProgress?.nickname}
             homeButtonTheme={userProgress?.homeButtonTheme}
+            marketingOptIn={userProgress?.marketingOptIn}
             onLogout={handleLogout}
             onUpdateProfile={handleUpdateProfile}
+            onUpdateMarketingPreference={handleUpdateMarketingPreference}
           />
         )}
       </main>

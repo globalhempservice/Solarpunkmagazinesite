@@ -3,6 +3,7 @@ import { cors } from 'npm:hono/cors'
 import { logger } from 'npm:hono/logger'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import * as kv from './kv_store.tsx'
+import * as walletSecurity from './wallet_security.tsx'
 
 const app = new Hono()
 
@@ -688,11 +689,19 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       .eq('id', userId)
       .single()
     
+    // Get NADA points from wallet table
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('nada_points')
+      .eq('user_id', userId)
+      .single()
+    
     // Transform to camelCase for frontend
     const transformedProgress = {
       userId: progress.user_id,
       totalArticlesRead: progress.total_articles_read,
       points: progress.points,
+      nadaPoints: wallet?.nada_points || 0,
       currentStreak: progress.current_streak,
       longestStreak: progress.longest_streak,
       lastReadDate: progress.last_read_date,
@@ -1057,6 +1066,285 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
     console.log('Error message:', error.message)
     console.log('Error stack:', error.stack)
     return c.json({ error: 'Failed to update profile', details: error.message }, 500)
+  }
+})
+
+// Exchange points for NADA points (WITH SECURITY)
+app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
+  const userId = c.req.param('userId')
+  let pointsToExchange: number
+  
+  // Extract IP and User Agent for security logging
+  const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
+  const userAgent = c.req.header('user-agent') || 'unknown'
+  
+  try {
+    const body = await c.req.json()
+    pointsToExchange = body.pointsToExchange
+    
+    console.log('=== EXCHANGE POINTS REQUEST ===')
+    console.log('User ID:', userId)
+    console.log('Points to exchange:', pointsToExchange)
+    console.log('IP Address:', ipAddress)
+    console.log('User Agent:', userAgent)
+    
+    // Verify access token
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      console.log('ERROR: No access token provided')
+      await walletSecurity.createAuditLog(supabase, userId, 'exchange_failed', 
+        { reason: 'No access token', pointsToExchange }, ipAddress, userAgent, false)
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      console.log('ERROR: Auth failed', { authError, userId: user?.id, expectedUserId: userId })
+      await walletSecurity.createAuditLog(supabase, userId, 'exchange_failed', 
+        { reason: 'Auth failed', pointsToExchange }, ipAddress, userAgent, false)
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    console.log('Auth successful for user:', user.id)
+    
+    // ===== SECURITY CHECKS =====
+    
+    // 1. Validate pointsToExchange
+    if (!pointsToExchange || pointsToExchange < 50 || pointsToExchange % 50 !== 0) {
+      await walletSecurity.createAuditLog(supabase, userId, 'exchange_failed', 
+        { reason: 'Invalid amount', pointsToExchange }, ipAddress, userAgent, false)
+      return c.json({ error: 'Invalid exchange amount. Must be a multiple of 50.' }, 400)
+    }
+    
+    // 2. Check maximum single exchange amount
+    const amountCheck = walletSecurity.checkExchangeAmount(pointsToExchange)
+    if (!amountCheck.allowed) {
+      console.log('SECURITY: Exchange amount too high')
+      await walletSecurity.createAuditLog(supabase, userId, 'exchange_failed', 
+        { reason: 'Amount too high', pointsToExchange, limit: 5000 }, ipAddress, userAgent, false)
+      return c.json({ error: amountCheck.reason }, 400)
+    }
+    
+    // 3. Check rate limiting (5 exchanges per 5 minutes)
+    const rateLimit = await walletSecurity.checkRateLimit(supabase, userId)
+    if (!rateLimit.allowed) {
+      console.log('SECURITY: Rate limit exceeded')
+      await walletSecurity.createAuditLog(supabase, userId, 'rate_limit_hit', 
+        { reason: rateLimit.reason, pointsToExchange }, ipAddress, userAgent, false)
+      return c.json({ 
+        error: rateLimit.reason, 
+        retryAfter: rateLimit.retryAfter 
+      }, 429)
+    }
+    
+    // 4. Check daily limit (10 exchanges per day)
+    const dailyLimit = await walletSecurity.checkDailyLimit(supabase, userId)
+    if (!dailyLimit.allowed) {
+      console.log('SECURITY: Daily limit exceeded')
+      await walletSecurity.createAuditLog(supabase, userId, 'daily_limit_hit', 
+        { reason: dailyLimit.reason, pointsToExchange }, ipAddress, userAgent, false)
+      return c.json({ error: dailyLimit.reason }, 429)
+    }
+    
+    console.log('Daily exchanges remaining:', dailyLimit.remaining)
+    
+    // 5. Check fraud patterns
+    const fraudCheck = await walletSecurity.checkFraudPatterns(
+      supabase, userId, pointsToExchange, ipAddress, userAgent
+    )
+    
+    if (fraudCheck.suspicious) {
+      console.log('SECURITY WARNING: Suspicious activity detected')
+      console.log('Fraud reasons:', fraudCheck.reasons)
+      console.log('Risk score:', fraudCheck.riskScore)
+      
+      // Log but allow (for now - could block high-risk transactions)
+      await walletSecurity.createAuditLog(supabase, userId, 'suspicious_activity_detected', 
+        { 
+          reasons: fraudCheck.reasons, 
+          riskScore: fraudCheck.riskScore,
+          pointsToExchange 
+        }, ipAddress, userAgent, true)
+    }
+    
+    // ===== TRANSACTION EXECUTION =====
+    
+    // Get current progress from database
+    const { data: currentProgress, error: fetchError } = await supabase
+      .from('user_progress')
+      .select('points')
+      .eq('user_id', userId)
+      .single()
+    
+    if (fetchError) {
+      console.log('ERROR: Failed to fetch current progress:', fetchError)
+      await walletSecurity.createAuditLog(supabase, userId, 'exchange_failed', 
+        { reason: 'Database fetch error', error: fetchError.message, pointsToExchange }, 
+        ipAddress, userAgent, false)
+      return c.json({ error: 'Failed to fetch user progress', details: fetchError.message }, 500)
+    }
+    
+    console.log('Current progress:', currentProgress)
+    
+    // Check if user has enough points
+    const currentPoints = currentProgress?.points || 0
+    
+    // 6. Validate minimum balance
+    const balanceCheck = walletSecurity.validateMinimumBalance(currentPoints, pointsToExchange)
+    if (!balanceCheck.allowed) {
+      console.log('SECURITY: Insufficient balance')
+      await walletSecurity.createAuditLog(supabase, userId, 'exchange_failed', 
+        { reason: 'Insufficient points', currentPoints, pointsToExchange }, 
+        ipAddress, userAgent, false)
+      return c.json({ error: 'Not enough points' }, 400)
+    }
+    
+    // Get or create wallet
+    let { data: wallet, error: walletFetchError } = await supabase
+      .from('wallets')
+      .select('nada_points')
+      .eq('user_id', userId)
+      .single()
+    
+    if (walletFetchError && walletFetchError.code === 'PGRST116') {
+      // No wallet found, create one
+      console.log('Creating wallet for user:', userId)
+      const { data: newWallet, error: createWalletError } = await supabase
+        .from('wallets')
+        .insert([{ user_id: userId, nada_points: 0 }])
+        .select()
+        .single()
+      
+      if (createWalletError) {
+        console.log('ERROR: Failed to create wallet:', createWalletError)
+        return c.json({ error: 'Failed to create wallet', details: createWalletError.message }, 500)
+      }
+      
+      wallet = newWallet
+    } else if (walletFetchError) {
+      console.log('ERROR: Failed to fetch wallet:', walletFetchError)
+      return c.json({ error: 'Failed to fetch wallet', details: walletFetchError.message }, 500)
+    }
+    
+    const currentNadaPoints = wallet?.nada_points || 0
+    
+    // Calculate NADA points (50 app points = 1 NADA point)
+    const nadaPointsGained = pointsToExchange / 50
+    const newPoints = currentPoints - pointsToExchange
+    const newNadaPoints = currentNadaPoints + nadaPointsGained
+    
+    console.log('Exchange calculation:', {
+      currentPoints,
+      currentNadaPoints,
+      pointsToExchange,
+      nadaPointsGained,
+      newPoints,
+      newNadaPoints
+    })
+    
+    // Update points in user_progress
+    const { data: updatedProgress, error: updateError } = await supabase
+      .from('user_progress')
+      .update({ points: newPoints })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (updateError) {
+      console.log('ERROR: Failed to update points:', updateError)
+      return c.json({ error: 'Failed to exchange points', details: updateError.message }, 500)
+    }
+    
+    // Update NADA points in wallet
+    const { data: updatedWallet, error: walletUpdateError } = await supabase
+      .from('wallets')
+      .update({ nada_points: newNadaPoints })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (walletUpdateError) {
+      console.log('ERROR: Failed to update wallet:', walletUpdateError)
+      return c.json({ error: 'Failed to update wallet', details: walletUpdateError.message }, 500)
+    }
+    
+    // Create transaction record
+    const { error: transactionError } = await supabase
+      .from('wallet_transactions')
+      .insert([{
+        user_id: userId,
+        transaction_type: 'exchange',
+        amount: nadaPointsGained,
+        balance_after: newNadaPoints,
+        description: `Exchanged ${pointsToExchange} points for ${nadaPointsGained} NADA`
+      }])
+    
+    if (transactionError) {
+      console.log('WARNING: Failed to create transaction record:', transactionError)
+      // Don't fail the request if transaction record fails
+    }
+    
+    console.log('Points exchanged successfully:', updatedProgress)
+    console.log('Wallet updated:', updatedWallet)
+    
+    // Create successful audit log
+    await walletSecurity.createAuditLog(supabase, userId, 'exchange_success', 
+      { 
+        pointsExchanged: pointsToExchange,
+        nadaPointsGained,
+        newBalance: newNadaPoints,
+        remainingDailyExchanges: dailyLimit.remaining - 1
+      }, ipAddress, userAgent, true)
+    
+    // Get user achievements and read articles
+    const { data: userAchievements } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId)
+    
+    const { data: readArticles } = await supabase
+      .from('read_articles')
+      .select('article_id')
+      .eq('user_id', userId)
+    
+    // Transform to camelCase for frontend
+    const transformedProgress = {
+      userId: updatedProgress.user_id,
+      totalArticlesRead: updatedProgress.total_articles_read,
+      points: updatedProgress.points,
+      nadaPoints: updatedWallet?.nada_points || 0,
+      currentStreak: updatedProgress.current_streak,
+      longestStreak: updatedProgress.longest_streak,
+      lastReadDate: updatedProgress.last_read_date,
+      nickname: updatedProgress.nickname,
+      homeButtonTheme: updatedProgress.home_button_theme,
+      marketingOptIn: updatedProgress.marketing_opt_in,
+      achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
+      readArticles: (readArticles || []).map((ra: any) => ra.article_id)
+    }
+    
+    console.log('=== EXCHANGE SUCCESS ===')
+    console.log('NADA points gained:', nadaPointsGained)
+    
+    return c.json({ progress: transformedProgress, nadaPointsGained })
+  } catch (error: any) {
+    console.log('=== EXCHANGE ERROR ===')
+    console.log('Error:', error)
+    console.log('Error message:', error.message)
+    
+    // Log unexpected errors
+    try {
+      await walletSecurity.createAuditLog(supabase, userId, 'exchange_error', 
+        { 
+          error: error.message,
+          stack: error.stack,
+          pointsToExchange
+        }, ipAddress, userAgent, false)
+    } catch (auditError) {
+      console.log('Failed to create error audit log:', auditError)
+    }
+    
+    return c.json({ error: 'Failed to exchange points', details: error.message }, 500)
   }
 })
 

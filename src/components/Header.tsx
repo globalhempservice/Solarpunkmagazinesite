@@ -4,6 +4,7 @@ import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings, Zap, Shield } fro
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
+import { WalletPanel } from './WalletPanel'
 
 interface HeaderProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'settings'
@@ -11,6 +12,7 @@ interface HeaderProps {
   isAuthenticated: boolean
   onLogout: () => void
   userPoints?: number
+  nadaPoints?: number
   exploreMode?: 'grid' | 'swipe'
   onSwitchToGrid?: () => void
   currentStreak?: number
@@ -19,11 +21,12 @@ interface HeaderProps {
   homeButtonTheme?: string
   accessToken?: string
   serverUrl?: string
+  onExchangePoints?: (pointsToExchange: number) => Promise<void>
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, onPointsAnimationComplete, homeButtonTheme, accessToken, serverUrl }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, nadaPoints = 0, onPointsAnimationComplete, homeButtonTheme, accessToken, serverUrl, onExchangePoints }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
   const [previousPoints, setPreviousPoints] = useState(userPoints)
@@ -31,6 +34,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   const [showPointsAnimation, setShowPointsAnimation] = useState(false)
   const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isWalletOpen, setIsWalletOpen] = useState(false)
 
   // Check if user is admin
   useEffect(() => {
@@ -220,21 +224,22 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
 
         {/* RIGHT SIDE: Points Counter & Action Button */}
         <div className="absolute right-4 flex items-center gap-2">
-          {/* Points Counter - Right of Logo */}
-          <motion.div
+          {/* Points Counter - Right of Logo - CLICKABLE! */}
+          <motion.button
+            onClick={() => setIsWalletOpen(true)}
             key={userPoints}
             initial={{ scale: 1 }}
             animate={{ 
               scale: showPointsAnimation ? [1, 1.3, 1] : 1,
             }}
             transition={{ duration: 0.5 }}
-            className="relative"
+            className="relative group cursor-pointer"
           >
             <Badge 
               variant="secondary"
-              className="gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-md"
+              className="gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all"
             >
-              <Zap className={`w-3 h-3 sm:w-4 sm:h-4 fill-amber-500 ${showPointsAnimation ? 'animate-spin' : ''}`} />
+              <Zap className={`w-3 h-3 sm:w-4 sm:h-4 fill-amber-500 ${showPointsAnimation ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
               <span className="font-bold">{userPoints.toLocaleString()}</span>
             </Badge>
             
@@ -250,7 +255,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
                 <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-500 animate-ping" />
               </>
             )}
-          </motion.div>
+          </motion.button>
           
           {/* Browse button - Right of Points */}
           {currentView === 'feed' && (
@@ -396,6 +401,17 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Wallet Panel */}
+      {onExchangePoints && (
+        <WalletPanel
+          isOpen={isWalletOpen}
+          onClose={() => setIsWalletOpen(false)}
+          currentPoints={userPoints}
+          nadaPoints={nadaPoints}
+          onExchange={onExchangePoints}
+        />
+      )}
     </header>
   )
 }

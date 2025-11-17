@@ -61,6 +61,7 @@ interface UserProgress {
   userId: string
   totalArticlesRead: number
   points: number
+  nadaPoints?: number
   currentStreak: number
   longestStreak: number
   achievements: string[]
@@ -737,12 +738,54 @@ export default function App() {
         isAuthenticated={isAuthenticated}
         onLogout={handleLogout}
         userPoints={userProgress?.points}
+        nadaPoints={userProgress?.nadaPoints || 0}
         exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
         onSwitchToGrid={() => setCurrentView('feed')}
         currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
         homeButtonTheme={userProgress?.homeButtonTheme}
         accessToken={accessToken || undefined}
         serverUrl={serverUrl}
+        onExchangePoints={async (pointsToExchange) => {
+          if (!userId || !accessToken) return
+          
+          try {
+            const response = await fetch(`${serverUrl}/users/${userId}/exchange-points`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ pointsToExchange })
+            })
+            
+            if (!response.ok) {
+              const errorData = await response.json()
+              
+              // Handle rate limiting with specific messages
+              if (response.status === 429) {
+                if (errorData.retryAfter) {
+                  const minutes = Math.ceil(errorData.retryAfter / 60)
+                  toast.error(`⏳ ${errorData.error} Please wait ${minutes} minute${minutes > 1 ? 's' : ''}.`)
+                } else {
+                  toast.error(`⏳ ${errorData.error}`)
+                }
+                throw new Error(errorData.error)
+              }
+              
+              throw new Error(errorData.error || 'Failed to exchange points')
+            }
+            
+            const data = await response.json()
+            setUserProgress(data.progress)
+            toast.success(`🎉 Exchanged successfully! You got ${data.nadaPointsGained} NADA points!`)
+          } catch (error: any) {
+            console.error('Exchange error:', error)
+            if (!error.message.includes('⏳') && !error.message.includes('Rate limit') && !error.message.includes('Daily')) {
+              toast.error(error.message || 'Failed to exchange points')
+            }
+            throw error
+          }
+        }}
         onBack={() => {
           if (currentView === 'article') {
             setCurrentView(previousView === 'swipe' ? 'swipe' : 'feed')

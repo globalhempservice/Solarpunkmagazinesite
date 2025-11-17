@@ -1059,7 +1059,7 @@ app.post('/make-server-053bcd80/auth/reset-password', async (c) => {
     // The resetPasswordForEmail method sends a magic link to the user's email
     // The link will redirect to your app with a token in the URL
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://mag.hempin.org/reset-password'
+      redirectTo: 'https://mag.hempin.org/'
     })
     
     if (error) {

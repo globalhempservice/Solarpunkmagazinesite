@@ -19,6 +19,7 @@ import { BrowsePage } from './components/BrowsePage'
 import { AccountSettings } from './components/AccountSettings'
 import { PointsSystemPage } from './components/PointsSystemPage'
 import { ResetPasswordPage } from './components/ResetPasswordPage'
+import { ResetPasswordModal } from './components/ResetPasswordModal'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Skeleton } from './components/ui/skeleton'
 import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen } from 'lucide-react'
@@ -82,6 +83,8 @@ export default function App() {
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
   const [swipeRefReady, setSwipeRefReady] = useState(false)
   const [previousView, setPreviousView] = useState<'feed' | 'swipe'>('feed')
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [resetToken, setResetToken] = useState<string | null>(null)
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
   const supabase = createClient()
@@ -126,6 +129,23 @@ export default function App() {
     const checkSession = async () => {
       try {
         console.log('🔍 Checking for existing session...')
+        
+        // First check if URL contains recovery token
+        const hash = window.location.hash
+        if (hash) {
+          const params = new URLSearchParams(hash.substring(1))
+          const token = params.get('access_token')
+          const type = params.get('type')
+          
+          if (token && type === 'recovery') {
+            console.log('🔑 Recovery token detected in URL')
+            setResetToken(token)
+            setShowResetPasswordModal(true)
+            setInitializing(false)
+            return // Don't proceed with normal session check
+          }
+        }
+        
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
@@ -1054,6 +1074,40 @@ export default function App() {
           isAnimating: swipeModeRef.current?.isAnimating || false
         } : undefined}
       />
+      
+      {/* Reset Password Modal - Shows when user clicks magic link */}
+      {showResetPasswordModal && resetToken && (
+        <ResetPasswordModal
+          accessToken={resetToken}
+          onSuccess={async () => {
+            // Password updated successfully! User is now auto-logged in
+            console.log('✅ Password reset successful')
+            
+            // Clear the hash from URL
+            window.history.replaceState(null, '', window.location.pathname)
+            
+            // Close the modal
+            setShowResetPasswordModal(false)
+            setResetToken(null)
+            
+            // Refresh the session to get the updated user data
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session) {
+              setAccessToken(session.access_token)
+              setUserId(session.user.id)
+              setUserEmail(session.user.email)
+              setIsAuthenticated(true)
+            }
+          }}
+          onClose={() => {
+            // User cancelled - go back to login
+            setShowResetPasswordModal(false)
+            setResetToken(null)
+            setIsAuthenticated(false)
+            window.history.replaceState(null, '', window.location.pathname)
+          }}
+        />
+      )}
     </div>
   )
 }

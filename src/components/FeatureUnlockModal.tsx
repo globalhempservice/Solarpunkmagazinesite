@@ -75,7 +75,7 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
         </button>
 
         {/* Header with animated gradient */}
-        <div className={`relative overflow-hidden bg-gradient-to-br ${colors.gradient} p-8 pb-12`}>
+        <div className={`relative overflow-hidden bg-gradient-to-br ${colors.gradient} p-8 pb-10`}>
           {/* Animated background effects */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
           
@@ -96,7 +96,7 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', duration: 0.8, bounce: 0.5 }}
-            className="relative mx-auto w-24 h-24 mb-4"
+            className="relative mx-auto w-20 h-20 mb-4"
           >
             {/* Glow effect */}
             <div className="absolute inset-0 bg-white/30 rounded-full blur-xl animate-pulse" />
@@ -113,7 +113,7 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
                     transition={{ type: 'spring', duration: 0.6 }}
                     className={`bg-gradient-to-br ${colors.gradient} bg-clip-text text-transparent`}
                   >
-                    <Unlock className="w-12 h-12 stroke-current" style={{ WebkitTextStroke: '2px', WebkitTextStrokeColor: 'url(#gradient)' }} />
+                    <Unlock className="w-10 h-10 stroke-current" style={{ WebkitTextStroke: '2px', WebkitTextStrokeColor: 'url(#gradient)' }} />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -130,7 +130,7 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
                     }}
                     className="text-gray-400"
                   >
-                    <Lock className="w-12 h-12" />
+                    <Lock className="w-10 h-10" />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -166,7 +166,7 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-2xl font-black text-white text-center mb-2 uppercase tracking-wide"
+            className="text-2xl font-black text-white text-center mb-3 uppercase tracking-wide"
             style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
           >
             {feature.name}
@@ -186,13 +186,13 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
                   : 'bg-white/20 text-white backdrop-blur-sm'
               }`}
             >
-              {isUnlocked ? '✨ UNLOCKED!' : '🔒 LOCKED'}
+              {isUnlocked ? 'UNLOCKED' : 'LOCKED'}
             </Badge>
           </motion.div>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
           {/* Feature Icon Display */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -200,7 +200,7 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
             transition={{ delay: 0.5 }}
             className="flex justify-center"
           >
-            <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${colors.gradient} text-white`}>
+            <div className={`relative p-5 rounded-2xl bg-gradient-to-br ${colors.gradient} text-white`}>
               <div className="absolute inset-0 bg-white/10 rounded-2xl animate-pulse" />
               <div className="relative">
                 {featureIcons[featureId]}
@@ -213,7 +213,7 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="text-center text-muted-foreground"
+            className="text-center text-muted-foreground text-base"
           >
             {feature.description}
           </motion.p>
@@ -268,33 +268,27 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
             </div>
           </motion.div>
 
-          {/* Call to Action */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 }}
-          >
-            {isUnlocked ? (
+          {/* Call to Action Message - Only show when unlocked */}
+          {isUnlocked && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9 }}
+            >
               <div className={`p-4 rounded-xl bg-gradient-to-r ${colors.gradient} ${colors.glow} shadow-xl`}>
                 <p className="text-center text-white font-bold text-lg">
-                  🎉 Feature Unlocked! Start using it now!
+                  Feature Unlocked! Start using it now!
                 </p>
               </div>
-            ) : (
-              <div className={`p-4 rounded-xl border-2 ${colors.border} bg-gradient-to-br from-background to-muted`}>
-                <p className="text-center text-sm text-muted-foreground">
-                  Keep reading to unlock this awesome feature! 📚
-                </p>
-              </div>
-            )}
-          </motion.div>
+            </motion.div>
+          )}
 
           {/* Close Button */}
           <Button
             onClick={onClose}
             className={`w-full bg-gradient-to-r ${colors.gradient} hover:opacity-90 text-white font-bold py-6 text-lg shadow-lg ${colors.glow} border-0`}
           >
-            {isUnlocked ? 'Let\'s Go! 🚀' : 'Keep Reading 📖'}
+            {isUnlocked ? 'Let\'s Go! 🚀' : 'Keep Reading'}
           </Button>
         </div>
 

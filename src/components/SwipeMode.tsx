@@ -98,7 +98,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ liked: true })
+        body: JSON.stringify({ liked: true, articleId: currentArticle.id })
       })
         .then(res => res.json())
         .then(data => {
@@ -134,7 +134,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ liked: false })
+        body: JSON.stringify({ liked: false, articleId: currentArticle.id })
       })
         .then(res => res.json())
         .then(data => {

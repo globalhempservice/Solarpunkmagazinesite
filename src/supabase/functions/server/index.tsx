@@ -55,6 +55,17 @@ async function requireAuth(c: any, next: any) {
     console.log('Error message:', error.message)
     console.log('Error status:', error.status)
     console.log('Full error:', JSON.stringify(error, null, 2))
+    
+    // Check if token is expired
+    if (error.message?.includes('expired') || error.status === 401) {
+      return c.json({ 
+        error: 'Unauthorized', 
+        details: 'Session expired. Please log in again.',
+        code: 'token_expired',
+        shouldRefresh: true
+      }, 401)
+    }
+    
     return c.json({ 
       error: 'Unauthorized', 
       details: error.message || 'Auth session missing!',
@@ -69,6 +80,39 @@ async function requireAuth(c: any, next: any) {
   
   console.log('✅ Auth successful for user:', user.id)
   console.log('User email:', user.email)
+  c.set('userId', user.id)
+  c.set('user', user)
+  await next()
+}
+
+// Admin middleware - checks if user is the superadmin
+async function requireAdmin(c: any, next: any) {
+  const authHeader = c.req.header('Authorization')
+  const accessToken = authHeader?.split(' ')[1]
+  
+  if (!accessToken) {
+    console.log('❌ ADMIN MIDDLEWARE: No access token provided')
+    return c.json({ error: 'Unauthorized', details: 'No access token provided' }, 401)
+  }
+  
+  // Validate the user token
+  const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
+  
+  if (error || !user) {
+    console.log('❌ ADMIN MIDDLEWARE: Auth validation failed')
+    return c.json({ error: 'Unauthorized', details: 'Invalid token' }, 401)
+  }
+  
+  // Check if user is the admin (using environment variable)
+  const adminUserId = Deno.env.get('ADMIN_USER_ID')
+  
+  if (user.id !== adminUserId) {
+    console.log('🚫 ADMIN MIDDLEWARE: Access denied for user:', user.id)
+    console.log('🚫 User is not admin. Admin ID:', adminUserId)
+    return c.json({ error: 'Forbidden', details: 'Admin access required' }, 403)
+  }
+  
+  console.log('✅ ADMIN MIDDLEWARE: Admin access granted for user:', user.id)
   c.set('userId', user.id)
   c.set('user', user)
   await next()
@@ -1589,7 +1633,7 @@ app.post('/make-server-053bcd80/track-swipe', async (c) => {
     }
     
     const userId = user.id
-    const { liked } = await c.req.json()
+    const { liked, articleId } = await c.req.json()
     
     // Get current progress
     const { data: progress } = await supabase
@@ -1624,7 +1668,34 @@ app.post('/make-server-053bcd80/track-swipe', async (c) => {
       })
       .eq('user_id', userId)
     
-    console.log(`User ${userId} swiped (total: ${newSwipes}, liked: ${newLikes})`)
+    // Track per-article swipe stats using KV store
+    if (articleId) {
+      const swipeKey = `article_swipes:${articleId}`
+      console.log('Tracking swipe for article:', articleId, 'with key:', swipeKey)
+      
+      const existingStats = await kv.get(swipeKey) || { 
+        articleId, 
+        totalSwipes: 0, 
+        likes: 0, 
+        skips: 0 
+      }
+      
+      console.log('Existing stats before update:', existingStats)
+      
+      existingStats.totalSwipes += 1
+      if (liked) {
+        existingStats.likes += 1
+      } else {
+        existingStats.skips += 1
+      }
+      
+      console.log('New stats after update:', existingStats)
+      
+      await kv.set(swipeKey, existingStats)
+      console.log('Swipe stats saved to KV store')
+    }
+    
+    console.log(`User ${userId} swiped article ${articleId} (liked: ${liked}, total: ${newSwipes}, liked: ${newLikes})`)
     
     return c.json({ 
       success: true, 
@@ -3317,6 +3388,486 @@ app.post('/make-server-053bcd80/parse-reddit', async (c) => {
       error: 'Failed to parse Reddit post', 
       details: error.message 
     }, 500)
+  }
+})
+
+// ===== ADMIN ROUTES =====
+
+// Check if current user is admin
+app.get('/make-server-053bcd80/admin/check', requireAuth, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    
+    const isAdmin = userId === adminUserId
+    
+    console.log('Admin check for user:', userId)
+    console.log('Is admin:', isAdmin)
+    
+    return c.json({ isAdmin })
+  } catch (error: any) {
+    console.error('Error checking admin status:', error)
+    return c.json({ error: 'Failed to check admin status', details: error.message }, 500)
+  }
+})
+
+// Get admin dashboard stats
+app.get('/make-server-053bcd80/admin/stats', requireAdmin, async (c) => {
+  try {
+    console.log('=== FETCHING ADMIN STATS ===')
+    
+    // Get total users count from Supabase Auth
+    const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers()
+    const totalUsers = users?.length || 0
+    
+    // Get total articles count
+    const { count: totalArticles } = await supabase
+      .from('articles')
+      .select('*', { count: 'exact', head: true })
+    
+    // Get articles created in last 24 hours
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { count: articlesLast24h } = await supabase
+      .from('articles')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', oneDayAgo)
+    
+    // Get articles created in last 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { count: articlesLast7d } = await supabase
+      .from('articles')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', sevenDaysAgo)
+    
+    // Get all articles for view stats
+    const { data: allArticles } = await supabase
+      .from('articles')
+      .select('views')
+    
+    const totalViews = allArticles?.reduce((sum, article) => sum + (article.views || 0), 0) || 0
+    
+    // Calculate total points and articles read from user_progress table
+    const { data: allUserProgress } = await supabase
+      .from('user_progress')
+      .select('points, total_articles_read')
+    
+    const totalPoints = allUserProgress?.reduce((sum, p) => sum + (p.points || 0), 0) || 0
+    const totalArticlesRead = allUserProgress?.reduce((sum, p) => sum + (p.total_articles_read || 0), 0) || 0
+    
+    console.log('Stats:', {
+      totalUsers,
+      totalArticles,
+      articlesLast24h,
+      articlesLast7d,
+      totalViews,
+      totalPoints,
+      totalArticlesRead
+    })
+    
+    return c.json({
+      stats: {
+        totalUsers,
+        totalArticles: totalArticles || 0,
+        articlesLast24h: articlesLast24h || 0,
+        articlesLast7d: articlesLast7d || 0,
+        totalViews,
+        totalPoints,
+        totalArticlesRead
+      }
+    })
+  } catch (error: any) {
+    console.error('Error fetching admin stats:', error)
+    return c.json({ error: 'Failed to fetch stats', details: error.message }, 500)
+  }
+})
+
+// Get all users with their progress
+app.get('/make-server-053bcd80/admin/users', requireAdmin, async (c) => {
+  try {
+    console.log('=== FETCHING ALL USERS ===')
+    
+    // Get all users from Supabase Auth
+    const { data: { users }, error } = await supabase.auth.admin.listUsers()
+    
+    if (error) {
+      console.error('Error fetching users from auth:', error)
+      return c.json({ error: 'Failed to fetch users', details: error.message }, 500)
+    }
+    
+    // Get all user progress from user_progress table
+    const { data: allUserProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+    
+    // Get achievements for all users
+    const { data: allAchievements } = await supabase
+      .from('user_achievements')
+      .select('user_id, achievement_id')
+    
+    // Combine auth data with progress data
+    const usersWithProgress = users.map(user => {
+      const progress = allUserProgress?.find(p => p.user_id === user.id)
+      const achievements = allAchievements?.filter(a => a.user_id === user.id).map(a => a.achievement_id) || []
+      
+      return {
+        id: user.id,
+        email: user.email,
+        createdAt: user.created_at,
+        lastSignIn: user.last_sign_in_at,
+        nickname: progress?.nickname || null,
+        points: progress?.points || 0,
+        totalArticlesRead: progress?.total_articles_read || 0,
+        currentStreak: progress?.current_streak || 0,
+        longestStreak: progress?.longest_streak || 0,
+        achievements: achievements,
+        banned: user.banned_until ? true : false,
+        bannedUntil: user.banned_until || null
+      }
+    })
+    
+    // Sort by points descending
+    usersWithProgress.sort((a, b) => b.points - a.points)
+    
+    console.log('Found users:', usersWithProgress.length)
+    
+    return c.json({ users: usersWithProgress })
+  } catch (error: any) {
+    console.error('Error fetching users:', error)
+    return c.json({ error: 'Failed to fetch users', details: error.message }, 500)
+  }
+})
+
+// Ban/unban a user
+app.put('/make-server-053bcd80/admin/users/:userId/ban', requireAdmin, async (c) => {
+  try {
+    const targetUserId = c.req.param('userId')
+    const { banned, duration } = await c.req.json() // duration in hours, null for unban
+    
+    console.log('=== BAN/UNBAN USER ===')
+    console.log('Target user:', targetUserId)
+    console.log('Banned:', banned)
+    console.log('Duration:', duration)
+    
+    if (banned) {
+      // Calculate ban expiry
+      const banUntil = duration 
+        ? new Date(Date.now() + duration * 60 * 60 * 1000).toISOString()
+        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // Default 1 year
+      
+      // Ban the user using Supabase Admin API
+      const { error } = await supabase.auth.admin.updateUserById(targetUserId, {
+        ban_duration: duration ? `${duration}h` : '8760h' // hours
+      })
+      
+      if (error) {
+        console.error('Error banning user:', error)
+        return c.json({ error: 'Failed to ban user', details: error.message }, 500)
+      }
+      
+      console.log('User banned successfully until:', banUntil)
+    } else {
+      // Unban the user
+      const { error } = await supabase.auth.admin.updateUserById(targetUserId, {
+        ban_duration: 'none'
+      })
+      
+      if (error) {
+        console.error('Error unbanning user:', error)
+        return c.json({ error: 'Failed to unban user', details: error.message }, 500)
+      }
+      
+      console.log('User unbanned successfully')
+    }
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('Error banning/unbanning user:', error)
+    return c.json({ error: 'Failed to ban/unban user', details: error.message }, 500)
+  }
+})
+
+// Delete a user (permanent)
+app.delete('/make-server-053bcd80/admin/users/:userId', requireAdmin, async (c) => {
+  try {
+    const targetUserId = c.req.param('userId')
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    
+    console.log('=== DELETE USER ===')
+    console.log('Target user:', targetUserId)
+    
+    // Prevent admin from deleting themselves
+    if (targetUserId === adminUserId) {
+      return c.json({ error: 'Cannot delete admin user' }, 400)
+    }
+    
+    // Delete user's articles
+    const { error: articlesError } = await supabase
+      .from('articles')
+      .delete()
+      .eq('author_id', targetUserId)
+    
+    if (articlesError) {
+      console.error('Error deleting user articles:', articlesError)
+    }
+    
+    // Delete user's achievements
+    const { error: achievementsError } = await supabase
+      .from('user_achievements')
+      .delete()
+      .eq('user_id', targetUserId)
+    
+    if (achievementsError) {
+      console.error('Error deleting user achievements:', achievementsError)
+    }
+    
+    // Delete user's read articles
+    const { error: readArticlesError } = await supabase
+      .from('read_articles')
+      .delete()
+      .eq('user_id', targetUserId)
+    
+    if (readArticlesError) {
+      console.error('Error deleting read articles:', readArticlesError)
+    }
+    
+    // Delete user progress
+    const { error: progressError } = await supabase
+      .from('user_progress')
+      .delete()
+      .eq('user_id', targetUserId)
+    
+    if (progressError) {
+      console.error('Error deleting user progress:', progressError)
+    }
+    
+    // Delete user profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', targetUserId)
+    
+    if (profileError) {
+      console.error('Error deleting user profile:', profileError)
+    }
+    
+    // Delete user from Supabase Auth
+    const { error } = await supabase.auth.admin.deleteUser(targetUserId)
+    
+    if (error) {
+      console.error('Error deleting user from auth:', error)
+      return c.json({ error: 'Failed to delete user', details: error.message }, 500)
+    }
+    
+    console.log('User deleted successfully')
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('Error deleting user:', error)
+    return c.json({ error: 'Failed to delete user', details: error.message }, 500)
+  }
+})
+
+// Get user rankings (leaderboard)
+app.get('/make-server-053bcd80/admin/rankings', requireAdmin, async (c) => {
+  try {
+    console.log('=== FETCHING USER RANKINGS ===')
+    
+    // Get all user progress from user_progress table
+    const { data: allUserProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+    
+    // Get user emails from Supabase Auth
+    const { data: { users }, error } = await supabase.auth.admin.listUsers()
+    
+    if (error) {
+      console.error('Error fetching users:', error)
+    }
+    
+    // Get achievements for all users
+    const { data: allAchievements } = await supabase
+      .from('user_achievements')
+      .select('user_id, achievement_id')
+    
+    // Create rankings
+    const rankings = (allUserProgress || [])
+      .map(progress => {
+        const user = users?.find(u => u.id === progress.user_id)
+        const achievements = allAchievements?.filter(a => a.user_id === progress.user_id).map(a => a.achievement_id) || []
+        
+        return {
+          userId: progress.user_id,
+          email: user?.email || 'Unknown',
+          nickname: progress.nickname || user?.email?.split('@')[0] || 'Anonymous',
+          points: progress.points || 0,
+          totalArticlesRead: progress.total_articles_read || 0,
+          currentStreak: progress.current_streak || 0,
+          longestStreak: progress.longest_streak || 0,
+          achievements: achievements
+        }
+      })
+      .sort((a, b) => b.points - a.points)
+      .map((user, index) => ({
+        rank: index + 1,
+        ...user
+      }))
+    
+    console.log('Rankings generated:', rankings.length, 'users')
+    
+    return c.json({ rankings })
+  } catch (error: any) {
+    console.error('Error fetching rankings:', error)
+    return c.json({ error: 'Failed to fetch rankings', details: error.message }, 500)
+  }
+})
+
+// Get swipe statistics per article
+app.get('/make-server-053bcd80/admin/swipe-stats', requireAdmin, async (c) => {
+  try {
+    console.log('=== FETCHING SWIPE STATS ===')
+    
+    // Get all swipe stats from KV store
+    const allSwipeStats = await kv.getByPrefix('article_swipes:')
+    
+    console.log('Raw swipe stats from KV:', allSwipeStats.length, 'entries')
+    if (allSwipeStats.length > 0) {
+      console.log('Sample swipe stat:', allSwipeStats[0])
+    }
+    
+    // Get all articles to combine with swipe data
+    const { data: articles } = await supabase
+      .from('articles')
+      .select('id, title, category, cover_image, author, created_at')
+    
+    console.log('Total articles in DB:', articles?.length || 0)
+    
+    // Combine swipe stats with article info
+    const swipeStatsWithArticles = allSwipeStats
+      .map(stats => {
+        const article = articles?.find(a => a.id === stats.articleId)
+        const likeRate = stats.totalSwipes > 0 ? (stats.likes / stats.totalSwipes) * 100 : 0
+        
+        return {
+          articleId: stats.articleId,
+          title: article?.title || 'Unknown Article',
+          category: article?.category || 'Unknown',
+          coverImage: article?.cover_image || null,
+          author: article?.author || 'Anonymous',
+          createdAt: article?.created_at || null,
+          totalSwipes: stats.totalSwipes || 0,
+          likes: stats.likes || 0,
+          skips: stats.skips || 0,
+          likeRate: Math.round(likeRate)
+        }
+      })
+      .filter(stat => stat.totalSwipes > 0) // Only show articles that have been swiped
+      .sort((a, b) => b.likes - a.likes) // Sort by most likes
+    
+    console.log('Swipe stats generated:', swipeStatsWithArticles.length, 'articles with swipes')
+    
+    return c.json({ swipeStats: swipeStatsWithArticles })
+  } catch (error: any) {
+    console.error('Error fetching swipe stats:', error)
+    return c.json({ error: 'Failed to fetch swipe stats', details: error.message }, 500)
+  }
+})
+
+// Get views analytics
+app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) => {
+  try {
+    console.log('=== FETCHING VIEWS ANALYTICS ===')
+    
+    // Get all articles with their views
+    const { data: articles } = await supabase
+      .from('articles')
+      .select('id, title, category, cover_image, author, created_at, views')
+      .order('views', { ascending: false })
+    
+    if (!articles) {
+      return c.json({ error: 'No articles found' }, 404)
+    }
+    
+    // Calculate total views
+    const totalViews = articles.reduce((sum, article) => sum + (article.views || 0), 0)
+    
+    // Get views per day for the last 30 days
+    // We'll estimate this by distributing article views across creation date to now
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    
+    // Create a map of date -> views
+    const viewsByDay: { [key: string]: number } = {}
+    
+    // Initialize all days to 0
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(thirtyDaysAgo.getTime() + i * 24 * 60 * 60 * 1000)
+      const dateStr = date.toISOString().split('T')[0]
+      viewsByDay[dateStr] = 0
+    }
+    
+    // Get view activity from KV store (article_views:date:articleId)
+    const viewsData = await kv.getByPrefix('article_views:')
+    
+    // Aggregate views by day
+    viewsData.forEach(entry => {
+      const date = entry.date
+      if (date && viewsByDay[date] !== undefined) {
+        viewsByDay[date] = (viewsByDay[date] || 0) + (entry.views || 0)
+      }
+    })
+    
+    // Convert to array format for charts
+    const viewsPerDay = Object.entries(viewsByDay)
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([date, views]) => ({
+        date,
+        views
+      }))
+    
+    // Get top viewed articles
+    const topArticles = articles
+      .filter(a => a.views && a.views > 0)
+      .slice(0, 10)
+      .map(article => ({
+        id: article.id,
+        title: article.title,
+        category: article.category,
+        coverImage: article.cover_image,
+        author: article.author,
+        createdAt: article.created_at,
+        views: article.views || 0
+      }))
+    
+    // Calculate average views per article
+    const avgViewsPerArticle = articles.length > 0 ? Math.round(totalViews / articles.length) : 0
+    
+    // Calculate views growth (compare last 7 days to previous 7 days)
+    const last7Days = viewsPerDay.slice(-7).reduce((sum, day) => sum + day.views, 0)
+    const previous7Days = viewsPerDay.slice(-14, -7).reduce((sum, day) => sum + day.views, 0)
+    const growthRate = previous7Days > 0 ? ((last7Days - previous7Days) / previous7Days) * 100 : 0
+    
+    console.log('Views analytics generated:', {
+      totalViews,
+      avgViewsPerArticle,
+      topArticlesCount: topArticles.length,
+      viewsPerDayCount: viewsPerDay.length,
+      growthRate: growthRate.toFixed(1) + '%'
+    })
+    
+    return c.json({
+      viewsAnalytics: {
+        totalViews,
+        avgViewsPerArticle,
+        viewsPerDay,
+        topArticles,
+        growthRate: Math.round(growthRate * 10) / 10, // Round to 1 decimal
+        last7DaysViews: last7Days,
+        previous7DaysViews: previous7Days
+      }
+    })
+  } catch (error: any) {
+    console.error('Error fetching views analytics:', error)
+    return c.json({ error: 'Failed to fetch views analytics', details: error.message }, 500)
   }
 })
 

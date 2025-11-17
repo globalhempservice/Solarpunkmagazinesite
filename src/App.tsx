@@ -9,6 +9,7 @@ import { UserDashboard } from './components/UserDashboard'
 import { ArticleEditor } from './components/ArticleEditor'
 import { LinkedInImporter } from './components/LinkedInImporter'
 import { AdminPanel } from './components/AdminPanel'
+import { AdminDashboard } from './components/AdminDashboard'
 import { BottomNavbar } from './components/BottomNavbar'
 import { StreakBanner } from './components/StreakBanner'
 import { ReadingHistory } from './components/ReadingHistory'
@@ -300,6 +301,7 @@ export default function App() {
     try {
       console.log('📥 Fetching user articles for user:', userId)
       console.log('🔑 Using access token:', accessToken.substring(0, 20) + '...')
+      console.log('🔑 Token length:', accessToken.length)
       
       const response = await fetch(`${serverUrl}/my-articles`, {
         headers: {
@@ -312,7 +314,40 @@ export default function App() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('❌ Failed to fetch user articles. Status:', response.status, 'Error:', errorData)
-        setUserArticles([]) // Set to empty array instead of throwing
+        
+        // If authentication failed, try to refresh the session
+        if (response.status === 401) {
+          console.log('🔄 Authentication failed, checking session validity...')
+          
+          // First, try to get the current session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+          
+          if (sessionError || !session) {
+            console.error('❌ No valid session found, logging out user')
+            alert('Your session has expired. Please log in again.')
+            handleLogout()
+            return
+          }
+          
+          // If we have a session, try to refresh it
+          console.log('🔄 Attempting to refresh session...')
+          const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
+          
+          if (newSession?.access_token && !refreshError) {
+            console.log('✅ Session refreshed successfully')
+            console.log('🔑 New token:', newSession.access_token.substring(0, 20) + '...')
+            setAccessToken(newSession.access_token)
+            // The fetch will retry automatically when accessToken updates
+            return
+          } else {
+            console.error('❌ Failed to refresh session:', refreshError)
+            alert('Your session has expired. Please log in again.')
+            handleLogout()
+            return
+          }
+        }
+        
+        setUserArticles([])
         return
       }
 
@@ -321,7 +356,7 @@ export default function App() {
       setUserArticles(data.articles || [])
     } catch (error: any) {
       console.error('❌ Error fetching user articles:', error)
-      setUserArticles([]) // Ensure we set empty array on error
+      setUserArticles([])
     }
   }
 
@@ -700,12 +735,16 @@ export default function App() {
         onSwitchToGrid={() => setCurrentView('feed')}
         currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
         homeButtonTheme={userProgress?.homeButtonTheme}
+        accessToken={accessToken || undefined}
+        serverUrl={serverUrl}
         onBack={() => {
           if (currentView === 'article') {
             setCurrentView(previousView === 'swipe' ? 'swipe' : 'feed')
             setSelectedArticle(null)
           } else if (currentView === 'swipe') {
             setCurrentView('feed')
+          } else if (currentView === 'admin') {
+            setCurrentView('dashboard')
           } else {
             setCurrentView('dashboard')
           }
@@ -993,20 +1032,12 @@ export default function App() {
           />
         )}
 
-        {currentView === 'admin' && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-3xl">Admin Panel</h2>
-              <p className="text-muted-foreground">Manage all articles and view system data</p>
-            </div>
-            <AdminPanel
-              articles={articles}
-              onRefresh={fetchArticles}
-              onDeleteArticle={(id) => setArticles(articles.filter(a => a.id !== id))}
-              serverUrl={serverUrl}
-              accessToken={accessToken}
-            />
-          </div>
+        {currentView === 'admin' && accessToken && (
+          <AdminDashboard
+            accessToken={accessToken}
+            serverUrl={serverUrl}
+            onBack={() => setCurrentView('dashboard')}
+          />
         )}
 
         {currentView === 'reading-history' && userProgress && (

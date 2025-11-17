@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrandLogo } from "./BrandLogo"
-import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings, Zap } from 'lucide-react'
+import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings, Zap, Shield } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
@@ -17,17 +17,43 @@ interface HeaderProps {
   onBack?: () => void
   onPointsAnimationComplete?: () => void
   homeButtonTheme?: string
+  accessToken?: string
+  serverUrl?: string
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, onPointsAnimationComplete, homeButtonTheme }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, onPointsAnimationComplete, homeButtonTheme, accessToken, serverUrl }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
   const [previousPoints, setPreviousPoints] = useState(userPoints)
   const [pointsGained, setPointsGained] = useState(0)
   const [showPointsAnimation, setShowPointsAnimation] = useState(false)
   const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // Check if user is admin
+  useEffect(() => {
+    if (accessToken && serverUrl) {
+      checkAdminStatus()
+    }
+  }, [accessToken, serverUrl])
+
+  const checkAdminStatus = async () => {
+    if (!accessToken || !serverUrl) return
+    
+    try {
+      const response = await fetch(`${serverUrl}/admin/check`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setIsAdmin(data.isAdmin)
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error)
+    }
+  }
 
   // Detect points change and trigger animation
   useEffect(() => {
@@ -114,8 +140,26 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
       <div className="container mx-auto px-4 h-20 flex items-center justify-center relative">
         {/* LEFT SIDE: Back Button or Streak Badge */}
         <div className="absolute left-4 flex items-center gap-2">
+          {/* ADMIN Button - Leftmost position, only shows for admin users */}
+          {isAdmin && currentView !== 'admin' && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <Button
+                onClick={() => onNavigate('admin')}
+                size="sm"
+                className="gap-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-lg hover:shadow-xl transition-all group rounded-full px-3 sm:px-4 h-10 sm:h-12"
+              >
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
+                <span className="hidden sm:inline font-bold">ADMIN</span>
+              </Button>
+            </motion.div>
+          )}
+          
           {/* Back Button - Left of Logo */}
-          {(currentView === 'reading-history' || currentView === 'matched-articles' || currentView === 'achievements' || currentView === 'article') && onBack && (
+          {(currentView === 'reading-history' || currentView === 'matched-articles' || currentView === 'achievements' || currentView === 'article' || currentView === 'admin') && onBack && (
             <Button
               onClick={onBack}
               size="sm"

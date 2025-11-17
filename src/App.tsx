@@ -130,22 +130,6 @@ export default function App() {
       try {
         console.log('🔍 Checking for existing session...')
         
-        // First check if URL contains recovery token
-        const hash = window.location.hash
-        if (hash) {
-          const params = new URLSearchParams(hash.substring(1))
-          const token = params.get('access_token')
-          const type = params.get('type')
-          
-          if (token && type === 'recovery') {
-            console.log('🔑 Recovery token detected in URL')
-            setResetToken(token)
-            setShowResetPasswordModal(true)
-            setInitializing(false)
-            return // Don't proceed with normal session check
-          }
-        }
-        
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
@@ -175,7 +159,24 @@ export default function App() {
       }
     }
     
-    // Check if we're on the reset password page
+    // FIRST: Check if URL contains recovery token - do this BEFORE everything else
+    const hash = window.location.hash
+    if (hash) {
+      const params = new URLSearchParams(hash.substring(1))
+      const token = params.get('access_token')
+      const type = params.get('type')
+      
+      if (token && type === 'recovery') {
+        console.log('🔑 Recovery token detected in URL - showing reset modal')
+        setResetToken(token)
+        setShowResetPasswordModal(true)
+        setInitializing(false)
+        // Don't proceed with normal session check - just show the modal
+        return
+      }
+    }
+    
+    // Check if we're on the reset password page (legacy)
     if (window.location.pathname === '/reset-password') {
       setCurrentView('reset-password')
       setInitializing(false)
@@ -646,7 +647,45 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-    return <AuthForm onLogin={handleLogin} onSignup={handleSignup} />
+    return (
+      <>
+        <AuthForm onLogin={handleLogin} onSignup={handleSignup} />
+        
+        {/* Reset Password Modal - Shows even when not authenticated if recovery token is present */}
+        {showResetPasswordModal && resetToken && (
+          <ResetPasswordModal
+            accessToken={resetToken}
+            onSuccess={async () => {
+              // Password updated successfully! User is now auto-logged in
+              console.log('✅ Password reset successful')
+              
+              // Clear the hash from URL
+              window.history.replaceState(null, '', window.location.pathname)
+              
+              // Close the modal
+              setShowResetPasswordModal(false)
+              setResetToken(null)
+              
+              // Refresh the session to get the updated user data
+              const { data: { session } } = await supabase.auth.getSession()
+              if (session) {
+                setAccessToken(session.access_token)
+                setUserId(session.user.id)
+                setUserEmail(session.user.email)
+                setIsAuthenticated(true)
+              }
+            }}
+            onClose={() => {
+              // User cancelled - go back to login
+              setShowResetPasswordModal(false)
+              setResetToken(null)
+              setIsAuthenticated(false)
+              window.history.replaceState(null, '', window.location.pathname)
+            }}
+          />
+        )}
+      </>
+    )
   }
 
   return (
@@ -1074,40 +1113,6 @@ export default function App() {
           isAnimating: swipeModeRef.current?.isAnimating || false
         } : undefined}
       />
-      
-      {/* Reset Password Modal - Shows when user clicks magic link */}
-      {showResetPasswordModal && resetToken && (
-        <ResetPasswordModal
-          accessToken={resetToken}
-          onSuccess={async () => {
-            // Password updated successfully! User is now auto-logged in
-            console.log('✅ Password reset successful')
-            
-            // Clear the hash from URL
-            window.history.replaceState(null, '', window.location.pathname)
-            
-            // Close the modal
-            setShowResetPasswordModal(false)
-            setResetToken(null)
-            
-            // Refresh the session to get the updated user data
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session) {
-              setAccessToken(session.access_token)
-              setUserId(session.user.id)
-              setUserEmail(session.user.email)
-              setIsAuthenticated(true)
-            }
-          }}
-          onClose={() => {
-            // User cancelled - go back to login
-            setShowResetPasswordModal(false)
-            setResetToken(null)
-            setIsAuthenticated(false)
-            window.history.replaceState(null, '', window.location.pathname)
-          }}
-        />
-      )}
     </div>
   )
 }

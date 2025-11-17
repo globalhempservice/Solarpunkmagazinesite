@@ -3798,6 +3798,17 @@
     --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
   }
 
+  .from-gray-400\/15 {
+    --tw-gradient-from: color-mix(in srgb, oklch(.707 .022 261.325) 15%, transparent);
+    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .from-gray-400\/15 {
+      --tw-gradient-from: color-mix(in oklab, var(--color-gray-400) 15%, transparent);
+    }
+  }
+
   .from-green-400 {
     --tw-gradient-from: var(--color-green-400);
     --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
@@ -4518,6 +4529,18 @@
     --tw-gradient-via: var(--color-fuchsia-500);
     --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-via-stops);
+  }
+
+  .via-gray-400\/10 {
+    --tw-gradient-via: color-mix(in srgb, oklch(.707 .022 261.325) 10%, transparent);
+    --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-via-stops);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .via-gray-400\/10 {
+      --tw-gradient-via: color-mix(in oklab, var(--color-gray-400) 10%, transparent);
+    }
   }
 
   .via-green-500 {
@@ -5340,6 +5363,17 @@
   .to-fuchsia-600 {
     --tw-gradient-to: var(--color-fuchsia-600);
     --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+  }
+
+  .to-gray-400\/15 {
+    --tw-gradient-to: color-mix(in srgb, oklch(.707 .022 261.325) 15%, transparent);
+    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .to-gray-400\/15 {
+      --tw-gradient-to: color-mix(in oklab, var(--color-gray-400) 15%, transparent);
+    }
   }
 
   .to-gray-500 {
@@ -6451,6 +6485,10 @@
     color: var(--color-gray-400);
   }
 
+  .text-gray-500 {
+    color: var(--color-gray-500);
+  }
+
   .text-gray-600 {
     color: var(--color-gray-600);
   }
@@ -7391,6 +7429,33 @@
   }
 
   @media (hover: hover) {
+    .group-hover\:from-red-400\/20:is(:where(.group):hover *) {
+      --tw-gradient-from: color-mix(in srgb, oklch(.704 .191 22.216) 20%, transparent);
+      --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .group-hover\:from-red-400\/20:is(:where(.group):hover *) {
+        --tw-gradient-from: color-mix(in oklab, var(--color-red-400) 20%, transparent);
+      }
+    }
+  }
+
+  @media (hover: hover) {
+    .group-hover\:via-orange-400\/15:is(:where(.group):hover *) {
+      --tw-gradient-via: color-mix(in srgb, oklch(.75 .183 55.934) 15%, transparent);
+      --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
+      --tw-gradient-stops: var(--tw-gradient-via-stops);
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .group-hover\:via-orange-400\/15:is(:where(.group):hover *) {
+        --tw-gradient-via: color-mix(in oklab, var(--color-orange-400) 15%, transparent);
+      }
+    }
+  }
+
+  @media (hover: hover) {
     .group-hover\:via-teal-400\/20:is(:where(.group):hover *) {
       --tw-gradient-via: color-mix(in srgb, oklch(.777 .152 181.912) 20%, transparent);
       --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
@@ -7458,6 +7523,19 @@
   }
 
   @media (hover: hover) {
+    .group-hover\:to-red-400\/20:is(:where(.group):hover *) {
+      --tw-gradient-to: color-mix(in srgb, oklch(.704 .191 22.216) 20%, transparent);
+      --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .group-hover\:to-red-400\/20:is(:where(.group):hover *) {
+        --tw-gradient-to: color-mix(in oklab, var(--color-red-400) 20%, transparent);
+      }
+    }
+  }
+
+  @media (hover: hover) {
     .group-hover\:text-foreground:is(:where(.group):hover *) {
       color: var(--foreground);
     }
@@ -7472,6 +7550,12 @@
   @media (hover: hover) {
     .group-hover\:text-primary:is(:where(.group):hover *) {
       color: var(--primary);
+    }
+  }
+
+  @media (hover: hover) {
+    .group-hover\:text-red-500:is(:where(.group):hover *) {
+      color: var(--color-red-500);
     }
   }
 
@@ -9883,6 +9967,10 @@
     color: var(--color-emerald-800);
   }
 
+  .dark\:text-gray-400:is(.dark *) {
+    color: var(--color-gray-400);
+  }
+
   .dark\:text-indigo-400:is(.dark *) {
     color: var(--color-indigo-400);
   }
@@ -9933,6 +10021,12 @@
 
   .dark\:opacity-60:is(.dark *) {
     opacity: .6;
+  }
+
+  @media (hover: hover) {
+    .dark\:group-hover\:text-red-400:is(.dark *):is(:where(.group):hover *) {
+      color: var(--color-red-400);
+    }
   }
 
   @media (hover: hover) {

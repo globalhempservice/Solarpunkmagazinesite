@@ -1,10 +1,13 @@
-import { Home, User, Plus, Heart, X, RefreshCw } from 'lucide-react'
+import { Home, User, Plus, Heart, X, RefreshCw, Lock } from 'lucide-react'
 import { Button } from './ui/button'
+import { isFeatureUnlocked } from '../utils/featureUnlocks'
 
 interface BottomNavbarProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'swipe'
   onNavigate: (view: 'feed' | 'dashboard' | 'editor' | 'swipe') => void
   isAuthenticated: boolean
+  totalArticlesRead?: number
+  onFeatureUnlock?: (featureId: 'article-creation') => void
   exploreMode?: 'grid' | 'swipe'
   swipeControls?: {
     onSkip: () => void
@@ -14,13 +17,15 @@ interface BottomNavbarProps {
   }
 }
 
-export function BottomNavbar({ currentView, onNavigate, isAuthenticated, exploreMode, swipeControls }: BottomNavbarProps) {
+export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalArticlesRead = 0, onFeatureUnlock, exploreMode, swipeControls }: BottomNavbarProps) {
   if (!isAuthenticated) return null
 
   const handleNavigate = (view: 'feed' | 'dashboard' | 'editor' | 'swipe') => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     onNavigate(view)
   }
+
+  const isArticleCreationUnlocked = isFeatureUnlocked('article-creation', totalArticlesRead)
 
   // Always show the standard navbar - swipe controls are now in the page itself
   return (
@@ -115,12 +120,18 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, explore
               </Button>
             </div>
 
-            {/* Right Button - Create (Plus) - BIGGER with Aura */}
+            {/* Right Button - Create (Plus) - BIGGER with Aura - LOCKED at 25 articles */}
             <div className="flex-1 flex justify-center items-center">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleNavigate('editor')}
+                onClick={() => {
+                  if (isArticleCreationUnlocked) {
+                    handleNavigate('editor')
+                  } else if (onFeatureUnlock) {
+                    onFeatureUnlock('article-creation')
+                  }
+                }}
                 className={`flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-20 h-20 ${
                   currentView === 'editor'
                     ? 'text-amber-600 dark:text-amber-400 hempin:text-amber-500'
@@ -129,19 +140,29 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, explore
               >
                 <div className="relative">
                   {/* Enhanced aura effect - ACTIVE */}
-                  {currentView === 'editor' && (
+                  {currentView === 'editor' && isArticleCreationUnlocked && (
                     <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/40 via-yellow-400/30 to-amber-400/40 rounded-full blur-2xl animate-pulse" />
                   )}
                   {/* Permanent subtle aura - INACTIVE */}
-                  {currentView !== 'editor' && (
+                  {currentView !== 'editor' && isArticleCreationUnlocked && (
                     <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/15 via-yellow-400/10 to-amber-400/15 group-hover:from-amber-400/25 group-hover:via-yellow-400/20 group-hover:to-amber-400/25 rounded-full blur-xl transition-all duration-300" />
                   )}
+                  {/* Locked aura effect - red/gray when locked */}
+                  {!isArticleCreationUnlocked && (
+                    <div className="absolute -inset-4 bg-gradient-to-br from-gray-400/15 via-gray-400/10 to-gray-400/15 group-hover:from-red-400/20 group-hover:via-orange-400/15 group-hover:to-red-400/20 rounded-full blur-xl transition-all duration-300" />
+                  )}
                   <div className={`relative rounded-full p-4 transition-all ${
-                    currentView === 'editor'
+                    currentView === 'editor' && isArticleCreationUnlocked
                       ? 'bg-amber-500/20 scale-110 shadow-lg'
+                      : !isArticleCreationUnlocked
+                      ? 'bg-muted/50 hover:bg-muted/70 hover:scale-105'
                       : 'bg-muted/30 hover:bg-muted/50 hover:scale-105'
                   }`}>
-                    <Plus className="h-10 w-10 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
+                    {isArticleCreationUnlocked ? (
+                      <Plus className="h-10 w-10 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
+                    ) : (
+                      <Lock className="h-10 w-10 transition-transform text-gray-500 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400" strokeWidth={2.5} />
+                    )}
                   </div>
                 </div>
               </Button>

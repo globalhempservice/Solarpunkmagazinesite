@@ -1188,6 +1188,8 @@ export default function App() {
         currentView={currentView}
         onNavigate={setCurrentView}
         isAuthenticated={isAuthenticated}
+        totalArticlesRead={userProgress?.totalArticlesRead || 0}
+        onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
         exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
         swipeControls={currentView === 'swipe' ? {
           onSkip: () => swipeModeRef.current?.handleSkip(),

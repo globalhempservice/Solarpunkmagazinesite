@@ -54,17 +54,17 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
             onClick={onClose}
           />
 
-          {/* Wallet Panel */}
+          {/* Wallet Panel - Full Page Slide Down */}
           <motion.div
-            initial={{ y: -400, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -400, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-md z-[70] px-4"
+            initial={{ y: '-100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '-100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed top-0 left-0 right-0 z-[70] min-h-screen"
           >
-            <div className="bg-background border-4 border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-background min-h-screen overflow-auto">
               {/* Header with gradient */}
-              <div className="relative bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500 p-6 overflow-hidden">
+              <div className="relative bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500 pt-20 pb-8 px-6 overflow-hidden">
                 {/* Animated background pattern */}
                 <div className="absolute inset-0 opacity-20">
                   <div className="absolute inset-0" style={{
@@ -100,9 +100,9 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
                 {/* Close button */}
                 <button
                   onClick={onClose}
-                  className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all group"
+                  className="absolute top-6 right-6 z-10 p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all group"
                 >
-                  <X className="w-4 h-4 text-white group-hover:rotate-90 transition-transform" />
+                  <X className="w-5 h-5 text-white group-hover:rotate-90 transition-transform" />
                 </button>
 
                 {/* Title */}
@@ -115,7 +115,7 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
                     <Wallet className="w-12 h-12 text-white drop-shadow-lg" />
                   </motion.div>
                   <h2 className="text-2xl font-black text-white drop-shadow-lg tracking-wide">
-                    NADA WALLET
+                    Wallet
                   </h2>
                   <p className="text-white/90 text-sm font-medium mt-1">
                     Transform your points into NADA
@@ -123,7 +123,7 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
                 </div>
 
                 {/* Balances */}
-                <div className="relative grid grid-cols-2 gap-3">
+                <div className="relative grid grid-cols-2 gap-3 max-w-md mx-auto">
                   {/* App Points */}
                   <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 border-2 border-white shadow-lg">
                     <div className="flex items-center gap-2 mb-2">
@@ -149,7 +149,7 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
               </div>
 
               {/* Exchange Section */}
-              <div className="p-6 space-y-5">
+              <div className="max-w-md mx-auto p-6 space-y-5">
                 {/* Exchange Rate Info */}
                 <div className="flex items-center justify-center gap-3 p-4 bg-muted/50 rounded-xl border-2 border-border">
                   <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 px-3 py-1">
@@ -284,11 +284,6 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
                     </>
                   )}
                 </Button>
-
-                {/* Info text */}
-                <p className="text-xs text-center text-muted-foreground">
-                  NADA points are special currency for future features! 🚀
-                </p>
               </div>
             </div>
           </motion.div>

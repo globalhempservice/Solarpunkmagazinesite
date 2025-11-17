@@ -1071,6 +1071,8 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
 
 // Exchange points for NADA points (WITH SECURITY)
 app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
+  console.log('🔥🔥🔥 EXCHANGE ENDPOINT CALLED - SECURITY VERSION 2.0 🔥🔥🔥')
+  
   const userId = c.req.param('userId')
   let pointsToExchange: number
   

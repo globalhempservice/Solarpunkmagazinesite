@@ -26,6 +26,8 @@ export async function checkRateLimit(
 ): Promise<RateLimitCheck> {
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
   
+  console.log('🔒 RATE LIMIT CHECK:', { userId, fiveMinutesAgo })
+  
   const { data: recentTransactions, error } = await supabase
     .from('wallet_transactions')
     .select('id')
@@ -39,6 +41,8 @@ export async function checkRateLimit(
   }
   
   const count = recentTransactions?.length || 0
+  
+  console.log('🔒 RATE LIMIT: Found', count, 'recent exchanges (limit is 5)')
   
   if (count >= 5) {
     return {
@@ -60,6 +64,8 @@ export async function checkDailyLimit(
   today.setHours(0, 0, 0, 0)
   const todayStart = today.toISOString()
   
+  console.log('🔒 DAILY LIMIT CHECK:', { userId, todayStart })
+  
   const { data: todayTransactions, error } = await supabase
     .from('wallet_transactions')
     .select('id')
@@ -74,6 +80,8 @@ export async function checkDailyLimit(
   
   const count = todayTransactions?.length || 0
   const remaining = 10 - count
+  
+  console.log('🔒 DAILY LIMIT: Found', count, 'exchanges today (limit is 10), remaining:', remaining)
   
   if (count >= 10) {
     return {

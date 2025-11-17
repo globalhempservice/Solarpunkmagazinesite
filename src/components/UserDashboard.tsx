@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle, BarChart3 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
@@ -8,7 +8,8 @@ import { Switch } from "./ui/switch"
 import { Label } from "./ui/label"
 import { Separator } from "./ui/separator"
 import { Input } from "./ui/input"
-import { projectId } from "../utils/supabase/info"
+import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
+import { ComicLockOverlay } from './ComicLockOverlay'
 
 interface Article {
   id: string
@@ -49,6 +50,8 @@ interface UserDashboardProps {
   matchesCount?: number
   onViewAchievements?: () => void
   onViewPointsSystem?: () => void
+  onViewReadingAnalytics?: () => void
+  onFeatureUnlock?: (featureId: 'reading-analytics') => void
   accessToken?: string
 }
 
@@ -113,7 +116,7 @@ const lockedAchievements = [
   { id: 'streak-30', requiredStreak: 30 },
 ]
 
-export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements, onViewPointsSystem, accessToken }: UserDashboardProps) {
+export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements, onViewPointsSystem, onViewReadingAnalytics, onFeatureUnlock, accessToken }: UserDashboardProps) {
   const [hoveredStat, setHoveredStat] = useState<string | null>(null)
   const [fireIconClicked, setFireIconClicked] = useState(false)
   const [marketingNewsletter, setMarketingNewsletter] = useState(false)
@@ -468,6 +471,106 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Reading Analytics Card - Gated at 50 articles */}
+      <div 
+        className="relative overflow-hidden rounded-3xl cursor-pointer group"
+        onClick={() => {
+          const analyticsUnlocked = isFeatureUnlocked('reading-analytics', progress.totalArticlesRead)
+          
+          if (!analyticsUnlocked && onFeatureUnlock) {
+            onFeatureUnlock('reading-analytics')
+            return
+          }
+          
+          if (onViewReadingAnalytics) {
+            onViewReadingAnalytics()
+          }
+        }}
+      >
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-indigo-500/20 to-purple-500/20 animate-gradient-xy" />
+        
+        {/* Floating particles effect */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(15)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 bg-blue-400/30 rounded-full animate-float"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 5}s`,
+                animationDuration: `${3 + Math.random() * 4}s`
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Comic Lock Overlay - Show when locked */}
+        {!isFeatureUnlocked('reading-analytics', progress.totalArticlesRead) && (
+          <ComicLockOverlay 
+            articlesNeeded={FEATURE_UNLOCKS['reading-analytics'].requiredArticles - progress.totalArticlesRead} 
+          />
+        )}
+
+        <Card className="relative backdrop-blur-xl bg-card/80 border-2 border-blue-500/30 group-hover:border-blue-500/50 rounded-3xl shadow-2xl transition-all duration-300 group-hover:shadow-blue-500/20">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-between gap-6">
+              {/* Left: Icon and Text */}
+              <div className="flex items-center gap-6 flex-1">
+                {/* Icon */}
+                <div className="relative group/icon">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 blur-xl opacity-50 group-hover:opacity-75 animate-pulse" />
+                  <div className="relative bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-3xl p-6 transform group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-blue-500/50">
+                    <BarChart3 className="w-12 h-12 text-white drop-shadow-lg" />
+                  </div>
+                </div>
+                
+                {/* Text Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
+                      📊 Reading Analytics
+                    </h3>
+                    {isFeatureUnlocked('reading-analytics', progress.totalArticlesRead) && (
+                      <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30">
+                        Unlocked
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground mb-4">
+                    Deep insights into your reading habits with charts, graphs, and detailed statistics
+                  </p>
+                  
+                  {/* Feature Pills */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 rounded-full text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                      <Activity className="w-3 h-3" />
+                      <span>Activity Charts</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 rounded-full text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                      <TrendingUp className="w-3 h-3" />
+                      <span>Reading Velocity</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 rounded-full text-xs font-medium text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      <Target className="w-3 h-3" />
+                      <span>Milestones</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: CTA Arrow */}
+              <div className="flex items-center">
+                <div className="p-3 bg-blue-500/10 rounded-2xl border-2 border-blue-500/30 group-hover:border-blue-500/50 group-hover:bg-blue-500/20 transition-all">
+                  <ChevronRight className="w-8 h-8 text-blue-500 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* User Articles */}

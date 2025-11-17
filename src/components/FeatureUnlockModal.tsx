@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Lock, Unlock, Heart, Share2, Zap, TrendingUp, Palette, X } from 'lucide-react'
@@ -58,6 +58,14 @@ export function FeatureUnlockModal({ isOpen, onClose, featureId, currentProgress
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden border-4 border-border bg-background">
+        {/* Accessibility - Visually hidden but available for screen readers */}
+        <DialogTitle className="sr-only">
+          {feature.name} - {isUnlocked ? 'Unlocked' : 'Locked'} Feature
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          {feature.description} You have read {currentProgress} out of {feature.requiredArticles} articles required to unlock this feature.
+        </DialogDescription>
+        
         {/* Close button */}
         <button
           onClick={onClose}

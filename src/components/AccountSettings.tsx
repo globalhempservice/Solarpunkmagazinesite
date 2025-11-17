@@ -9,6 +9,8 @@ import { Switch } from './ui/switch'
 import { useState, useEffect, useRef } from 'react'
 import { BrandLogo } from './BrandLogo'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
+import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
+import { ComicLockOverlay } from './ComicLockOverlay'
 import {
   Dialog,
   DialogContent,
@@ -26,9 +28,11 @@ interface AccountSettingsProps {
   homeButtonTheme?: string
   marketingOptIn?: boolean
   accessToken?: string
+  totalArticlesRead?: number
   onLogout: () => void
   onUpdateProfile?: (nickname: string, theme: string) => Promise<void>
   onUpdateMarketingPreference?: (marketingOptIn: boolean) => Promise<void>
+  onFeatureUnlock?: (featureId: 'theme-customization') => void
 }
 
 export function AccountSettings({ 
@@ -39,9 +43,11 @@ export function AccountSettings({
   homeButtonTheme: initialTheme,
   marketingOptIn: initialMarketingOptIn,
   accessToken,
+  totalArticlesRead = 0,
   onLogout,
   onUpdateProfile,
-  onUpdateMarketingPreference
+  onUpdateMarketingPreference,
+  onFeatureUnlock
 }: AccountSettingsProps) {
   const level = userPoints ? Math.floor(userPoints / 100) + 1 : 1
   
@@ -379,210 +385,228 @@ export function AccountSettings({
         </div>
 
         <div className="space-y-6">
-          {/* Gamified Profile Customization */}
-          <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card/50 to-purple-500/5 backdrop-blur-sm relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10" />
+          {/* Gamified Profile Customization - Gated at 100 articles */}
+          <div 
+            className="relative"
+            onClick={() => {
+              const themeUnlocked = isFeatureUnlocked('theme-customization', totalArticlesRead)
+              
+              if (!themeUnlocked && onFeatureUnlock) {
+                onFeatureUnlock('theme-customization')
+              }
+            }}
+          >
+            {/* Comic Lock Overlay - Show when locked */}
+            {!isFeatureUnlocked('theme-customization', totalArticlesRead) && (
+              <ComicLockOverlay 
+                articlesNeeded={FEATURE_UNLOCKS['theme-customization'].requiredArticles - totalArticlesRead} 
+              />
+            )}
             
-            <CardHeader className="relative">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-                    <div className="relative bg-gradient-to-br from-primary to-primary/70 rounded-xl p-3">
-                      <Sparkles className="w-5 h-5 text-white" />
+            <Card className={`border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card/50 to-purple-500/5 backdrop-blur-sm relative overflow-hidden ${!isFeatureUnlocked('theme-customization', totalArticlesRead) ? 'pointer-events-none' : ''}`}>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10" />
+              
+              <CardHeader className="relative">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+                      <div className="relative bg-gradient-to-br from-primary to-primary/70 rounded-xl p-3">
+                        <Sparkles className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        Personalize Your Profile
+                        <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                          Auto-Save
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Changes save automatically as you type
+                      </CardDescription>
                     </div>
                   </div>
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      Personalize Your Profile
-                      <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400">
-                        Auto-Save
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      Changes save automatically as you type
-                    </CardDescription>
-                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="relative space-y-6">
-              {/* Success Message */}
-              {showSuccessMessage && (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">Saved!</p>
-                    <p className="text-sm text-muted-foreground">Your changes have been saved automatically.</p>
+              </CardHeader>
+              
+              <CardContent className="relative space-y-6">
+                {/* Success Message */}
+                {showSuccessMessage && (
+                  <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">Saved!</p>
+                      <p className="text-sm text-muted-foreground">Your changes have been saved automatically.</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Nickname Field */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="nickname" className="text-base font-semibold">
-                    Nickname
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    {isSaving && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                        Saving...
-                      </div>
-                    )}
+                {/* Nickname Field */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="nickname" className="text-base font-semibold">
+                      Nickname
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      {isSaving && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                          Saving...
+                        </div>
+                      )}
+                      <Badge 
+                        variant={isNicknameSet ? "default" : "outline"} 
+                        className={isNicknameSet ? "bg-emerald-500 hover:bg-emerald-600" : "bg-primary/10 border-primary/30"}
+                      >
+                        {isNicknameSet ? (
+                          <><CheckCircle2 className="w-3 h-3 mr-1" /> Earned {nicknamePoints} pts</>
+                        ) : (
+                          <><Zap className="w-3 h-3 mr-1" /> Earn {nicknamePoints} pts</>
+                        )}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <Input
+                    id="nickname"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Choose a cool nickname..."
+                    className={`h-12 border-2 ${nicknameError ? 'border-destructive' : ''}`}
+                    maxLength={20}
+                  />
+                  {nicknameError ? (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <span className="font-semibold">⚠️</span> {nicknameError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {nickname.length}/20 characters • {isNicknameSet ? 'Updates automatically!' : 'Type to save and earn points!'}
+                    </p>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Home Button Theme Selection */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">
+                      Home Button Theme
+                    </Label>
                     <Badge 
-                      variant={isNicknameSet ? "default" : "outline"} 
-                      className={isNicknameSet ? "bg-emerald-500 hover:bg-emerald-600" : "bg-primary/10 border-primary/30"}
+                      variant={isThemeCustomized ? "default" : "outline"}
+                      className={isThemeCustomized ? "bg-emerald-500 hover:bg-emerald-600" : "bg-primary/10 border-primary/30"}
                     >
-                      {isNicknameSet ? (
-                        <><CheckCircle2 className="w-3 h-3 mr-1" /> Earned {nicknamePoints} pts</>
+                      {isThemeCustomized ? (
+                        <><CheckCircle2 className="w-3 h-3 mr-1" /> Earned {themePoints} pts</>
                       ) : (
-                        <><Zap className="w-3 h-3 mr-1" /> Earn {nicknamePoints} pts</>
+                        <><Zap className="w-3 h-3 mr-1" /> Earn {themePoints} pts</>
                       )}
                     </Badge>
                   </div>
-                </div>
-                
-                <Input
-                  id="nickname"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="Choose a cool nickname..."
-                  className={`h-12 border-2 ${nicknameError ? 'border-destructive' : ''}`}
-                  maxLength={20}
-                />
-                {nicknameError ? (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <span className="font-semibold">⚠️</span> {nicknameError}
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Customize the color theme of your home feed icon (saves instantly)
                   </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {themes.map((theme) => {
+                      const IconComponent = theme.icon
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setSelectedTheme(theme.id)}
+                          className={`group relative p-4 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
+                            selectedTheme === theme.id
+                              ? 'border-primary bg-primary/10 shadow-lg'
+                              : 'border-border/50 hover:border-primary/30 bg-card/50'
+                          }`}
+                        >
+                          {/* Theme Preview */}
+                          <div className="flex flex-col items-center gap-3">
+                            <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center transition-all group-hover:scale-110 shadow-lg`}>
+                              {theme.icon === 'logo' ? (
+                                // Hemp plant SVG - same style as other icons
+                                <svg 
+                                  className="w-8 h-8 text-white drop-shadow-lg" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  strokeWidth="2.5" 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round"
+                                >
+                                  {/* Hemp/Cannabis leaf simplified icon */}
+                                  <path d="M12 2C12 2 10.5 4 9 6C7.5 8 6 10 6 12C6 14 7 15 8 16C9 17 10 17.5 11 18V22M12 2C12 2 13.5 4 15 6C16.5 8 18 10 18 12C18 14 17 15 16 16C15 17 14 17.5 13 18V22M12 2V22M8 8C6 8.5 4 9.5 3 11M16 8C18 8.5 20 9.5 21 11M7 13C5.5 13 4 13.5 3 14.5M17 13C18.5 13 20 13.5 21 14.5" 
+                                    fill="currentColor" 
+                                    fillOpacity="0.2"
+                                  />
+                                </svg>
+                              ) : (
+                                <IconComponent className="w-8 h-8 text-white drop-shadow-lg" strokeWidth={2.5} />
+                              )}
+                              {selectedTheme === theme.id && (
+                                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                                  <CheckCircle2 className="w-4 h-4 text-white" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-center">
+                              <p className={`text-sm font-semibold ${
+                                selectedTheme === theme.id ? 'text-foreground' : 'text-muted-foreground'
+                              }`}>
+                                {theme.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {theme.description}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Points Summary */}
+                {!isNicknameSet || !isThemeCustomized ? (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-amber-600 dark:text-amber-400">
+                          Earn up to {(isNicknameSet ? 0 : nicknamePoints) + (isThemeCustomized ? 0 : themePoints)} more points!
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {!isNicknameSet && !isThemeCustomized && `Set your nickname (+${nicknamePoints} pts) and customize your theme (+${themePoints} pts)`}
+                          {!isNicknameSet && isThemeCustomized && `Set your nickname to earn ${nicknamePoints} more points`}
+                          {isNicknameSet && !isThemeCustomized && `Customize your theme to earn ${themePoints} more points`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {nickname.length}/20 characters • {isNicknameSet ? 'Updates automatically!' : 'Type to save and earn points!'}
-                  </p>
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="flex items-start gap-2">
+                      <Crown className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                          Profile Complete!
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          You've earned all available profile points ({nicknamePoints + themePoints} total)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </div>
-
-              <Separator />
-
-              {/* Home Button Theme Selection */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">
-                    Home Button Theme
-                  </Label>
-                  <Badge 
-                    variant={isThemeCustomized ? "default" : "outline"}
-                    className={isThemeCustomized ? "bg-emerald-500 hover:bg-emerald-600" : "bg-primary/10 border-primary/30"}
-                  >
-                    {isThemeCustomized ? (
-                      <><CheckCircle2 className="w-3 h-3 mr-1" /> Earned {themePoints} pts</>
-                    ) : (
-                      <><Zap className="w-3 h-3 mr-1" /> Earn {themePoints} pts</>
-                    )}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Customize the color theme of your home feed icon (saves instantly)
-                </p>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {themes.map((theme) => {
-                    const IconComponent = theme.icon
-                    return (
-                      <button
-                        key={theme.id}
-                        type="button"
-                        onClick={() => setSelectedTheme(theme.id)}
-                        className={`group relative p-4 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
-                          selectedTheme === theme.id
-                            ? 'border-primary bg-primary/10 shadow-lg'
-                            : 'border-border/50 hover:border-primary/30 bg-card/50'
-                        }`}
-                      >
-                        {/* Theme Preview */}
-                        <div className="flex flex-col items-center gap-3">
-                          <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center transition-all group-hover:scale-110 shadow-lg`}>
-                            {theme.icon === 'logo' ? (
-                              // Hemp plant SVG - same style as other icons
-                              <svg 
-                                className="w-8 h-8 text-white drop-shadow-lg" 
-                                viewBox="0 0 24 24" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                strokeWidth="2.5" 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round"
-                              >
-                                {/* Hemp/Cannabis leaf simplified icon */}
-                                <path d="M12 2C12 2 10.5 4 9 6C7.5 8 6 10 6 12C6 14 7 15 8 16C9 17 10 17.5 11 18V22M12 2C12 2 13.5 4 15 6C16.5 8 18 10 18 12C18 14 17 15 16 16C15 17 14 17.5 13 18V22M12 2V22M8 8C6 8.5 4 9.5 3 11M16 8C18 8.5 20 9.5 21 11M7 13C5.5 13 4 13.5 3 14.5M17 13C18.5 13 20 13.5 21 14.5" 
-                                  fill="currentColor" 
-                                  fillOpacity="0.2"
-                                />
-                              </svg>
-                            ) : (
-                              <IconComponent className="w-8 h-8 text-white drop-shadow-lg" strokeWidth={2.5} />
-                            )}
-                            {selectedTheme === theme.id && (
-                              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                                <CheckCircle2 className="w-4 h-4 text-white" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-center">
-                            <p className={`text-sm font-semibold ${
-                              selectedTheme === theme.id ? 'text-foreground' : 'text-muted-foreground'
-                            }`}>
-                              {theme.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {theme.description}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Points Summary */}
-              {!isNicknameSet || !isThemeCustomized ? (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                  <div className="flex items-start gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-semibold text-amber-600 dark:text-amber-400">
-                        Earn up to {(isNicknameSet ? 0 : nicknamePoints) + (isThemeCustomized ? 0 : themePoints)} more points!
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {!isNicknameSet && !isThemeCustomized && `Set your nickname (+${nicknamePoints} pts) and customize your theme (+${themePoints} pts)`}
-                        {!isNicknameSet && isThemeCustomized && `Set your nickname to earn ${nicknamePoints} more points`}
-                        {isNicknameSet && !isThemeCustomized && `Customize your theme to earn ${themePoints} more points`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                  <div className="flex items-start gap-2">
-                    <Crown className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        Profile Complete!
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        You've earned all available profile points ({nicknamePoints + themePoints} total)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Newsletter Preferences */}
           <Card className="border-2 border-blue-500/20 bg-card/50 backdrop-blur-sm">

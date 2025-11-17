@@ -24,6 +24,7 @@ import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
 import { FeatureUnlockModal } from './components/FeatureUnlockModal'
 import { ComicLockOverlay } from './components/ComicLockOverlay'
+import { ReadingAnalytics } from './components/ReadingAnalytics'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Skeleton } from './components/ui/skeleton'
 import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen } from 'lucide-react'
@@ -75,7 +76,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
@@ -864,9 +865,26 @@ export default function App() {
 
               {/* Create Article Card */}
               <div 
-                onClick={() => setCurrentView('editor')}
+                onClick={() => {
+                  const totalRead = userProgress?.totalArticlesRead || 0
+                  const createUnlocked = isFeatureUnlocked('article-creation', totalRead)
+                  
+                  if (!createUnlocked) {
+                    setFeatureUnlockModal({ featureId: 'article-creation', isOpen: true })
+                    return
+                  }
+                  
+                  setCurrentView('editor')
+                }}
                 className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-[2px] shadow-lg shadow-emerald-500/50 cursor-pointer group hover:shadow-xl hover:shadow-emerald-500/60 transition-all"
               >
+                {/* Comic Lock Overlay - Show when locked */}
+                {!isFeatureUnlocked('article-creation', userProgress?.totalArticlesRead || 0) && (
+                  <ComicLockOverlay 
+                    articlesNeeded={FEATURE_UNLOCKS['article-creation'].requiredArticles - (userProgress?.totalArticlesRead || 0)} 
+                  />
+                )}
+                
                 {/* Animated background shimmer */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                 
@@ -1020,6 +1038,9 @@ export default function App() {
             matchesCount={matchedArticles.length}
             onViewAchievements={() => setCurrentView('achievements')}
             onViewPointsSystem={() => setCurrentView('points-system')}
+            onViewReadingAnalytics={() => setCurrentView('reading-analytics')}
+            onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+            accessToken={accessToken || undefined}
           />
         )}
 
@@ -1132,9 +1153,12 @@ export default function App() {
             userNickname={userProgress?.nickname}
             homeButtonTheme={userProgress?.homeButtonTheme}
             marketingOptIn={userProgress?.marketingOptIn}
+            totalArticlesRead={userProgress?.totalArticlesRead || 0}
+            accessToken={accessToken || undefined}
             onLogout={handleLogout}
             onUpdateProfile={handleUpdateProfile}
             onUpdateMarketingPreference={handleUpdateMarketingPreference}
+            onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
           />
         )}
 
@@ -1148,6 +1172,14 @@ export default function App() {
                 window.history.replaceState(null, '', window.location.pathname)
               }
             }}
+          />
+        )}
+
+        {currentView === 'reading-analytics' && userProgress && (
+          <ReadingAnalytics
+            progress={userProgress}
+            allArticles={articles}
+            onBack={() => setCurrentView('dashboard')}
           />
         )}
       </main>

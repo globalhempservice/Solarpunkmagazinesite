@@ -27,11 +27,14 @@ import {
   Sparkles,
   Zap,
   ExternalLink,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from "lucide-react"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 import { PlaceholderArt } from "./PlaceholderArt"
 import { ShareButton } from "./ShareButton"
+import { isFeatureUnlocked, FEATURE_UNLOCKS } from "../utils/featureUnlocks"
+import { FeatureUnlockModal } from "./FeatureUnlockModal"
 
 interface MediaItem {
   type: 'youtube' | 'audio' | 'image'
@@ -74,6 +77,7 @@ interface ArticleReaderProps {
 
 export function ArticleReader({ article, onBack, allArticles = [], userProgress, suggestedArticles, onArticleSelect, accessToken }: ArticleReaderProps) {
   const [isSliding, setIsSliding] = useState(false)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
 
   const handleExploreMore = () => {
     // Filter out the current article and select a random one
@@ -286,28 +290,63 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
           )}
           
           {/* Separate Share Card - Top */}
-          <Card className="relative overflow-hidden border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-fuchsia-500/10 shadow-lg">
+          <Card className={`relative overflow-hidden border-2 bg-gradient-to-br shadow-lg ${
+            !isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
+              ? 'border-amber-500/50 from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-70'
+              : 'border-purple-500/30 from-purple-500/10 via-pink-500/5 to-fuchsia-500/10'
+          }`}>
             {/* Subtle shimmer */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
             
             <CardContent className="relative p-5 md:p-6">
               <div className="flex items-center gap-4">
-                {/* Clickable Icon */}
-                <ShareButton article={article} accessToken={accessToken}>
-                  <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                    <Share2 className="w-6 h-6 text-white" />
+                {/* Clickable Icon or Locked State */}
+                {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
+                  <ShareButton article={article} accessToken={accessToken}>
+                    <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                      <Share2 className="w-6 h-6 text-white" />
+                    </button>
+                  </ShareButton>
+                ) : (
+                  <button 
+                    onClick={() => setShowUnlockModal(true)}
+                    className="group relative p-3 bg-gradient-to-br from-gray-400 to-gray-500 rounded-xl shadow-lg cursor-pointer"
+                  >
+                    <Lock className="w-6 h-6 text-white" />
                   </button>
-                </ShareButton>
+                )}
                 
                 {/* Text Content */}
                 <div className="flex-1">
-                  <h3 className="font-bold text-foreground text-lg">Share to Inspire</h3>
+                  <h3 className="font-bold text-foreground text-lg">
+                    {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
+                      ? 'Share to Inspire'
+                      : 'Unlock Sharing'}
+                  </h3>
+                  {!isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Read {FEATURE_UNLOCKS['article-sharing'].requiredArticles - (userProgress?.totalArticlesRead || 0)} more articles
+                    </p>
+                  )}
                 </div>
                 
                 {/* Bonus Badge */}
-                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-2 shadow-lg">
-                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                  +5 pts
+                <Badge className={`text-white border-0 px-4 py-2 shadow-lg ${
+                  isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                    : 'bg-gradient-to-r from-gray-400 to-gray-500'
+                }`}>
+                  {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                      +5 pts
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3.5 h-3.5 mr-1.5" />
+                      Locked
+                    </>
+                  )}
                 </Badge>
               </div>
             </CardContent>
@@ -508,28 +547,63 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
             )}
 
             {/* Share Card - Bottom (identical to top) */}
-            <Card className="relative overflow-hidden border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-fuchsia-500/10 shadow-lg">
+            <Card className={`relative overflow-hidden border-2 bg-gradient-to-br shadow-lg ${
+              !isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
+                ? 'border-amber-500/50 from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-70'
+                : 'border-purple-500/30 from-purple-500/10 via-pink-500/5 to-fuchsia-500/10'
+            }`}>
               {/* Subtle shimmer */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
               
               <CardContent className="relative p-5 md:p-6">
                 <div className="flex items-center gap-4">
-                  {/* Clickable Icon */}
-                  <ShareButton article={article} accessToken={accessToken}>
-                    <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                      <Share2 className="w-6 h-6 text-white" />
+                  {/* Clickable Icon or Locked State */}
+                  {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
+                    <ShareButton article={article} accessToken={accessToken}>
+                      <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                        <Share2 className="w-6 h-6 text-white" />
+                      </button>
+                    </ShareButton>
+                  ) : (
+                    <button 
+                      onClick={() => setShowUnlockModal(true)}
+                      className="group relative p-3 bg-gradient-to-br from-gray-400 to-gray-500 rounded-xl shadow-lg cursor-pointer"
+                    >
+                      <Lock className="w-6 h-6 text-white" />
                     </button>
-                  </ShareButton>
+                  )}
                   
                   {/* Text Content */}
                   <div className="flex-1">
-                    <h3 className="font-bold text-foreground text-lg">Share to Inspire</h3>
+                    <h3 className="font-bold text-foreground text-lg">
+                      {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
+                        ? 'Share to Inspire'
+                        : 'Unlock Sharing'}
+                    </h3>
+                    {!isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Read {FEATURE_UNLOCKS['article-sharing'].requiredArticles - (userProgress?.totalArticlesRead || 0)} more articles
+                      </p>
+                    )}
                   </div>
                   
                   {/* Bonus Badge */}
-                  <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-2 shadow-lg">
-                    <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                    +5 pts
+                  <Badge className={`text-white border-0 px-4 py-2 shadow-lg ${
+                    isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                      : 'bg-gradient-to-r from-gray-400 to-gray-500'
+                  }`}>
+                    {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                        +5 pts
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-3.5 h-3.5 mr-1.5" />
+                        Locked
+                      </>
+                    )}
                   </Badge>
                 </div>
               </CardContent>
@@ -570,6 +644,16 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
           }
         `}</style>
       </motion.div>
+
+      {/* Feature Unlock Modal */}
+      {showUnlockModal && (
+        <FeatureUnlockModal
+          isOpen={showUnlockModal}
+          onClose={() => setShowUnlockModal(false)}
+          featureId="article-sharing"
+          currentProgress={userProgress?.totalArticlesRead || 0}
+        />
+      )}
     </AnimatePresence>
   )
 }

@@ -22,6 +22,8 @@ import { AccountSettings } from './components/AccountSettings'
 import { PointsSystemPage } from './components/PointsSystemPage'
 import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
+import { FeatureUnlockModal } from './components/FeatureUnlockModal'
+import { ComicLockOverlay } from './components/ComicLockOverlay'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Skeleton } from './components/ui/skeleton'
 import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen } from 'lucide-react'
@@ -88,6 +90,7 @@ export default function App() {
   const [previousView, setPreviousView] = useState<'feed' | 'swipe'>('feed')
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
   const [resetToken, setResetToken] = useState<string | null>(null)
+  const [featureUnlockModal, setFeatureUnlockModal] = useState<{ featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization'; isOpen: boolean } | null>(null)
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
   const supabase = createClient()
@@ -776,19 +779,22 @@ export default function App() {
                   const swipeUnlocked = isFeatureUnlocked('swipe-mode', totalRead)
                   
                   if (!swipeUnlocked) {
-                    const feature = FEATURE_UNLOCKS['swipe-mode']
-                    const articlesNeeded = feature.requiredArticles - totalRead
-                    toast.error(`🔒 Feature Locked`, {
-                      description: `Read ${articlesNeeded} more article${articlesNeeded === 1 ? '' : 's'} to unlock Swipe Mode! (${totalRead}/${feature.requiredArticles})`
-                    })
+                    setFeatureUnlockModal({ featureId: 'swipe-mode', isOpen: true })
                     return
                   }
                   
                   setPreviousView('feed')
                   setCurrentView('swipe')
                 }}
-                className={`relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all ${!isFeatureUnlocked('swipe-mode', userProgress?.totalArticlesRead || 0) ? 'opacity-60' : ''}`}
+                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
               >
+                {/* Comic Lock Overlay - Show when locked */}
+                {!isFeatureUnlocked('swipe-mode', userProgress?.totalArticlesRead || 0) && (
+                  <ComicLockOverlay 
+                    articlesNeeded={FEATURE_UNLOCKS['swipe-mode'].requiredArticles - (userProgress?.totalArticlesRead || 0)} 
+                  />
+                )}
+                
                 {/* Animated background shimmer */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                 
@@ -1158,6 +1164,16 @@ export default function App() {
           isAnimating: swipeModeRef.current?.isAnimating || false
         } : undefined}
       />
+
+      {/* Feature Unlock Modal */}
+      {featureUnlockModal && (
+        <FeatureUnlockModal
+          isOpen={featureUnlockModal.isOpen}
+          onClose={() => setFeatureUnlockModal(null)}
+          featureId={featureUnlockModal.featureId}
+          currentProgress={userProgress?.totalArticlesRead || 0}
+        />
+      )}
     </div>
   )
 }

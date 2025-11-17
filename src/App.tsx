@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
+import { isFeatureUnlocked, FEATURE_UNLOCKS } from './utils/featureUnlocks'
 import { AuthForm } from './components/AuthForm'
 import { Header } from './components/Header'
 import { ArticleCard } from './components/ArticleCard'
@@ -27,6 +28,7 @@ import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen } from 'lucide-react'
 import { Input } from './components/ui/input'
 import { Button } from './components/ui/button'
 import { Badge } from './components/ui/badge'
+import { toast } from 'sonner@2.0.3'
 
 interface Article {
   id: string
@@ -770,10 +772,22 @@ export default function App() {
               {/* Swipe Mode Card */}
               <div 
                 onClick={() => {
+                  const totalRead = userProgress?.totalArticlesRead || 0
+                  const swipeUnlocked = isFeatureUnlocked('swipe-mode', totalRead)
+                  
+                  if (!swipeUnlocked) {
+                    const feature = FEATURE_UNLOCKS['swipe-mode']
+                    const articlesNeeded = feature.requiredArticles - totalRead
+                    toast.error(`🔒 Feature Locked`, {
+                      description: `Read ${articlesNeeded} more article${articlesNeeded === 1 ? '' : 's'} to unlock Swipe Mode! (${totalRead}/${feature.requiredArticles})`
+                    })
+                    return
+                  }
+                  
                   setPreviousView('feed')
                   setCurrentView('swipe')
                 }}
-                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
+                className={`relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all ${!isFeatureUnlocked('swipe-mode', userProgress?.totalArticlesRead || 0) ? 'opacity-60' : ''}`}
               >
                 {/* Animated background shimmer */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />

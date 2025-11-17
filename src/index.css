@@ -1684,6 +1684,10 @@
     border-bottom-left-radius: 3.40282e38px;
   }
 
+  .rounded-bl-lg {
+    border-bottom-left-radius: var(--radius);
+  }
+
   .border {
     border-style: var(--tw-border-style);
     border-width: 1px;

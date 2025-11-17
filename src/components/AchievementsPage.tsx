@@ -36,6 +36,11 @@ const achievementData: Record<string, {
   category: 'reading' | 'streak' | 'social' | 'creation' | 'explorer' | 'special'
   requirement: string
   tips?: string
+  unlocksFeature?: {
+    name: string
+    description: string
+    icon: string
+  }
 }> = {
   // === READING ACHIEVEMENTS (Progressive Levels) ===
   'first-read': {
@@ -58,7 +63,12 @@ const achievementData: Record<string, {
     points: 25,
     category: 'reading',
     requirement: 'Complete 5 articles',
-    tips: 'You\'re building momentum!'
+    tips: 'You\'re building momentum!',
+    unlocksFeature: {
+      name: 'Swipe Mode',
+      description: 'Discover articles Tinder-style',
+      icon: '🎯'
+    }
   },
   'reader-10': {
     name: 'Curious Mind',
@@ -69,7 +79,12 @@ const achievementData: Record<string, {
     points: 50,
     category: 'reading',
     requirement: 'Complete 10 articles',
-    tips: 'Keep exploring different topics!'
+    tips: 'Keep exploring different topics!',
+    unlocksFeature: {
+      name: 'Article Sharing',
+      description: 'Share articles with friends',
+      icon: '🔗'
+    }
   },
   'reader-25': {
     name: 'Knowledge Seeker',
@@ -80,7 +95,12 @@ const achievementData: Record<string, {
     points: 150,
     category: 'reading',
     requirement: 'Complete 25 articles',
-    tips: 'You\'re building an impressive knowledge base!'
+    tips: 'You\'re building an impressive knowledge base!',
+    unlocksFeature: {
+      name: 'Article Creation',
+      description: 'Write & import your own articles',
+      icon: '✍️'
+    }
   },
   'reader-50': {
     name: 'Voracious Reader',
@@ -91,7 +111,12 @@ const achievementData: Record<string, {
     points: 300,
     category: 'reading',
     requirement: 'Complete 50 articles',
-    tips: 'Your dedication is inspiring!'
+    tips: 'Your dedication is inspiring!',
+    unlocksFeature: {
+      name: 'Reading Analytics',
+      description: 'View detailed stats & history',
+      icon: '📊'
+    }
   },
   'reader-100': {
     name: 'Scholar Supreme',
@@ -102,7 +127,12 @@ const achievementData: Record<string, {
     points: 750,
     category: 'reading',
     requirement: 'Complete 100 articles',
-    tips: 'You\'ve achieved true mastery!'
+    tips: 'You\'ve achieved true mastery!',
+    unlocksFeature: {
+      name: 'Theme Customization',
+      description: 'Unlock all custom themes',
+      icon: '🎨'
+    }
   },
 
   // === STREAK ACHIEVEMENTS (Daily Consistency) ===
@@ -849,6 +879,19 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
                         <span className="relative text-sm font-bold text-white drop-shadow-lg tracking-wider">✨ UNLOCKED ✨</span>
                         <Sparkles className="relative w-5 h-5 text-white drop-shadow-lg animate-spin-slow" style={{ animationDirection: 'reverse' }} />
                       </div>
+
+                      {/* Unlocks Feature */}
+                      {achievement.unlocksFeature && (
+                        <div className="pt-4 border-t border-border/50">
+                          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                            <Target className="w-3 h-3" />
+                            <span>Unlocks: {achievement.unlocksFeature.name}</span>
+                          </div>
+                          <p className="text-xs text-center text-muted-foreground/80 italic">
+                            💡 {achievement.unlocksFeature.description}
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -936,6 +979,25 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
                           </p>
                         )}
                       </div>
+
+                      {/* Feature Unlock Preview */}
+                      {achievement.unlocksFeature && (
+                        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border-2 border-amber-500/30 p-4">
+                          <div className="absolute -top-1 -right-1">
+                            <div className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-bl-lg shadow-lg">
+                              UNLOCKS
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <div className="text-3xl flex-shrink-0">{achievement.unlocksFeature.icon}</div>
+                            <div className="flex-1">
+                              <div className="font-bold text-foreground mb-1">{achievement.unlocksFeature.name}</div>
+                              <div className="text-xs text-muted-foreground">{achievement.unlocksFeature.description}</div>
+                            </div>
+                            <Lock className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>

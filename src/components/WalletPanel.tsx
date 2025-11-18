@@ -153,7 +153,7 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
     try {
       await onExchange(pointsCost)
       setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 2000)
+      setTimeout(() => setShowSuccess(false), 3000) // Show success for 3 seconds
       setExchangeAmount(1) // Reset
     } catch (error: any) {
       // Check if it's a rate limit error (429 status)
@@ -785,6 +785,136 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
                     <Sparkles className="w-5 h-5 mr-2" strokeWidth={3} />
                     Transmute
                   </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Success Message Overlay - Fixed Position */}
+          <AnimatePresence>
+            {showSuccess && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[90] w-[90%] max-w-md"
+              >
+                <div className="relative overflow-hidden p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/95 dark:via-teal-950/95 dark:to-cyan-950/95 hempin:from-emerald-950/95 hempin:via-teal-950/95 hempin:to-cyan-950/95 border-4 border-emerald-400/50 dark:border-emerald-500/50 rounded-2xl shadow-[0_8px_0_rgba(16,185,129,0.3),0_0_60px_rgba(16,185,129,0.5)]">
+                  {/* Comic dots background */}
+                  <div className="absolute inset-0 opacity-10" style={{
+                    backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+                    backgroundSize: '8px 8px'
+                  }} />
+                  
+                  {/* Animated celebration sparkles */}
+                  <motion.div
+                    className="absolute top-2 left-2"
+                    animate={{ 
+                      rotate: [0, 15, -15, 0],
+                      scale: [1, 1.2, 1]
+                    }}
+                    transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 0.3 }}
+                  >
+                    <Sparkles className="w-6 h-6 text-yellow-400" />
+                  </motion.div>
+                  
+                  <motion.div
+                    className="absolute top-2 right-2"
+                    animate={{ 
+                      rotate: [0, -15, 15, 0],
+                      scale: [1, 1.3, 1]
+                    }}
+                    transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 0.2 }}
+                  >
+                    <Sparkles className="w-5 h-5 text-emerald-400" />
+                  </motion.div>
+                  
+                  <motion.div
+                    className="absolute bottom-2 left-1/4"
+                    animate={{ 
+                      y: [0, -8, 0],
+                      opacity: [0.6, 1, 0.6]
+                    }}
+                    transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.1 }}
+                  >
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                  </motion.div>
+                  
+                  <motion.div
+                    className="absolute bottom-2 right-1/4"
+                    animate={{ 
+                      y: [0, -6, 0],
+                      opacity: [0.6, 1, 0.6]
+                    }}
+                    transition={{ duration: 0.7, repeat: Infinity, repeatDelay: 0.4 }}
+                  >
+                    <Sparkles className="w-4 h-4 text-teal-400" />
+                  </motion.div>
+                  
+                  {/* POW! Comic burst effect */}
+                  <motion.div
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                    initial={{ scale: 0, rotate: -20 }}
+                    animate={{ scale: [0, 1.2, 1], rotate: [20, -10, 0] }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  >
+                    <div className="relative">
+                      <div className="absolute -inset-4 bg-gradient-to-r from-yellow-400 to-orange-400 opacity-30 blur-xl rounded-full" />
+                      <div className="relative text-6xl font-black text-yellow-500 opacity-20 select-none" style={{
+                        textShadow: '3px 3px 0 rgba(234, 179, 8, 0.3), -2px -2px 0 rgba(234, 179, 8, 0.2)',
+                        transform: 'rotate(-12deg)'
+                      }}>
+                        POW!
+                      </div>
+                    </div>
+                  </motion.div>
+                  
+                  <div className="relative flex items-center gap-4">
+                    {/* Animated checkmark icon */}
+                    <motion.div
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                      className="flex-shrink-0"
+                    >
+                      <div className="relative">
+                        <div className="absolute -inset-2 bg-emerald-500 blur-lg opacity-50 rounded-full" />
+                        <div className="relative bg-gradient-to-br from-emerald-400 to-teal-600 rounded-full p-3 border-4 border-emerald-300/50 shadow-[0_4px_0_rgba(16,185,129,0.4)]">
+                          <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                            <motion.path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              d="M5 13l4 4L19 7"
+                              initial={{ pathLength: 0 }}
+                              animate={{ pathLength: 1 }}
+                              transition={{ duration: 0.5, delay: 0.2 }}
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </motion.div>
+                    
+                    {/* Success text */}
+                    <div className="flex-1">
+                      <motion.p 
+                        className="text-xl font-black text-emerald-700 dark:text-emerald-300"
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                      >
+                        NADA Generated Successfully!
+                      </motion.p>
+                      <motion.p 
+                        className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1"
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                      >
+                        Your NADA points have been added to your wallet!
+                      </motion.p>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}

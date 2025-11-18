@@ -618,11 +618,73 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
               
               {/* Content */}
               <div className="prose prose-base md:prose-lg max-w-none">
-                {article.content.split('\n\n').map((paragraph, index) => (
-                  <p key={index} className="mb-4 text-foreground leading-relaxed">
-                    {paragraph}
-                  </p>
-                ))}
+                {article.content.split('\n\n').map((paragraph, index) => {
+                  // Handle horizontal rule (---)
+                  if (paragraph.trim() === '---') {
+                    return <hr key={index} className="my-8 border-border" />
+                  }
+                  
+                  // Handle headers (##)
+                  if (paragraph.startsWith('## ')) {
+                    return (
+                      <h2 key={index} className="text-2xl md:text-3xl font-bold text-foreground mt-8 mb-4">
+                        {paragraph.replace(/^## /, '')}
+                      </h2>
+                    )
+                  }
+                  
+                  // Handle links [text](url)
+                  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g
+                  const hasLinks = linkRegex.test(paragraph)
+                  
+                  if (hasLinks) {
+                    const parts = []
+                    let lastIndex = 0
+                    const regex = /\[([^\]]+)\]\(([^)]+)\)/g
+                    let match
+                    
+                    while ((match = regex.exec(paragraph)) !== null) {
+                      // Add text before the link
+                      if (match.index > lastIndex) {
+                        parts.push(paragraph.substring(lastIndex, match.index))
+                      }
+                      
+                      // Add the link
+                      parts.push(
+                        <a
+                          key={match.index}
+                          href={match[2]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80 underline font-medium inline-flex items-center gap-1"
+                        >
+                          {match[1]}
+                          <ExternalLink className="w-3 h-3 inline" />
+                        </a>
+                      )
+                      
+                      lastIndex = regex.lastIndex
+                    }
+                    
+                    // Add remaining text
+                    if (lastIndex < paragraph.length) {
+                      parts.push(paragraph.substring(lastIndex))
+                    }
+                    
+                    return (
+                      <p key={index} className="mb-4 text-foreground leading-relaxed">
+                        {parts}
+                      </p>
+                    )
+                  }
+                  
+                  // Regular paragraph
+                  return (
+                    <p key={index} className="mb-4 text-foreground leading-relaxed">
+                      {paragraph}
+                    </p>
+                  )
+                })}
               </div>
               
               {/* Media Attachments */}

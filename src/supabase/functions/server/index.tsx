@@ -3,6 +3,7 @@ import { cors } from 'npm:hono/cors'
 import { logger } from 'npm:hono/logger'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import * as walletSecurity from './wallet_security.tsx'
+import * as articleSecurity from './article_security.tsx'
 
 const app = new Hono()
 
@@ -746,17 +747,100 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
   }
 })
 
-// Mark article as read and update progress
-app.post('/make-server-053bcd80/users/:userId/read', async (c) => {
+// SECURITY: Generate read token when article is opened
+app.post('/make-server-053bcd80/articles/:articleId/start-reading', requireAuth, async (c) => {
   try {
-    const userId = c.req.param('userId')
-    const { articleId } = await c.req.json()
+    const articleId = c.req.param('articleId')
     
-    if (!articleId) {
-      return c.json({ error: 'Article ID is required' }, 400)
+    // Verify user is authenticated
+    const authHeader = c.req.header('Authorization')
+    const accessToken = authHeader?.split(' ')[1]
+    const { data: { user } } = await supabaseAuth.auth.getUser(accessToken!)
+    
+    if (!user?.id) {
+      return c.json({ error: 'Unauthorized' }, 401)
     }
     
+    // Generate read token
+    const readToken = articleSecurity.generateReadToken(user.id, articleId)
+    
+    console.log('🔐 Generated read token for user:', user.id, 'article:', articleId)
+    
+    return c.json({ readToken, startTime: Date.now() })
+  } catch (error) {
+    console.error('Error generating read token:', error)
+    return c.json({ error: 'Failed to generate read token' }, 500)
+  }
+})
+
+// Mark article as read and update progress (with advanced security)
+app.post('/make-server-053bcd80/users/:userId/read', requireAuth, async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const { 
+      articleId, 
+      readingStartTime,
+      readToken,          // SECURITY: One-time token from start-reading
+      scrollDepth,        // SECURITY: How far user scrolled (0-100)
+      scrollEvents,       // SECURITY: Number of scroll events
+      mouseMovements,     // SECURITY: Number of mouse movements
+      focusTime,          // SECURITY: Time tab was focused (ms)
+      fingerprint         // SECURITY: Device fingerprint
+    } = await c.req.json()
+    
+    // SECURITY: Verify authenticated user matches the userId in URL
+    const authHeader = c.req.header('Authorization')
+    const accessToken = authHeader?.split(' ')[1]
+    const { data: { user } } = await supabaseAuth.auth.getUser(accessToken!)
+    
+    if (user?.id !== userId) {
+      console.log('⚠️ SECURITY: User ID mismatch. Authenticated:', user?.id, 'Requested:', userId)
+      return c.json({ error: 'Unauthorized - User ID mismatch' }, 403)
+    }
+    
+    if (!articleId || !readToken) {
+      return c.json({ error: 'Article ID and read token are required' }, 400)
+    }
+    
+    // Get client IP
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown'
+    
     console.log('Marking article', articleId, 'as read for user', userId)
+    
+    // ============================================
+    // ADVANCED SECURITY CHECKS
+    // ============================================
+    const timeSpent = readingStartTime ? Date.now() - readingStartTime : 0
+    
+    const securityCheck = await articleSecurity.performSecurityCheck({
+      userId,
+      articleId,
+      readToken: readToken || '',
+      scrollDepth: scrollDepth || 0,
+      behavior: {
+        userId,
+        articleId,
+        timeSpent,
+        scrollDepth: scrollDepth || 0,
+        scrollEvents: scrollEvents || 0,
+        mouseMovements: mouseMovements || 0,
+        focusTime: focusTime || 0,
+        timestamp: Date.now()
+      },
+      ip,
+      fingerprint: fingerprint || 'unknown'
+    })
+    
+    if (!securityCheck.allowed) {
+      console.log('🚫 SECURITY: Read blocked. Reason:', securityCheck.reason, 'Score:', securityCheck.suspicionScore)
+      return c.json({ 
+        error: 'Security check failed', 
+        details: securityCheck.reason,
+        suspicionScore: securityCheck.suspicionScore 
+      }, 403)
+    }
+    
+    console.log('✅ SECURITY: All checks passed. Suspicion score:', securityCheck.suspicionScore)
     
     // Try to insert read_article (will fail if already read due to unique constraint)
     const { data: readArticle, error: readError } = await supabase
@@ -3297,6 +3381,120 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
       console.log('authorImage:', authorImage)
       console.log('publishDate:', publishDate)
       console.log('==========================')
+      
+      // ====================
+      // EXTRACT EMBEDDED URLS AND FETCH THEIR CONTENT
+      // ====================
+      console.log('=== EXTRACTING EMBEDDED WEB CONTENT ===')
+      
+      // Extract all URLs from content (including shortened ones)
+      const urlRegex = /https?:\/\/[^\s<>"]+/g
+      const foundUrls = content.match(urlRegex) || []
+      console.log(`Found ${foundUrls.length} URL(s) in content:`, foundUrls)
+      
+      // Filter out URLs we've already processed (YouTube, PDFs, LinkedIn itself)
+      const urlsToFetch = []
+      for (const rawUrl of foundUrls) {
+        // Clean up URL (remove trailing punctuation)
+        let cleanUrl = rawUrl.replace(/[.,;:!?\)]+$/, '')
+        
+        // Skip YouTube URLs (already handled)
+        if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
+          console.log('Skipping YouTube URL:', cleanUrl)
+          continue
+        }
+        
+        // Skip PDF URLs (already handled)
+        if (cleanUrl.toLowerCase().endsWith('.pdf')) {
+          console.log('Skipping PDF URL:', cleanUrl)
+          continue
+        }
+        
+        // Skip LinkedIn URLs (self-referential)
+        if (cleanUrl.includes('linkedin.com')) {
+          console.log('Skipping LinkedIn URL:', cleanUrl)
+          continue
+        }
+        
+        // Resolve shortened URLs
+        if (cleanUrl.includes('lnkd.in')) {
+          try {
+            console.log('Resolving LinkedIn shortened URL:', cleanUrl)
+            
+            // LinkedIn shortener redirects to an interstitial page with the actual URL
+            // We need to fetch the HTML and extract the destination URL
+            const redirectResponse = await fetch(cleanUrl, {
+              method: 'GET',
+              redirect: 'follow',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+              }
+            })
+            
+            const html = await redirectResponse.text()
+            
+            // Check if we got redirected to the final URL (sometimes it works)
+            if (redirectResponse.url && !redirectResponse.url.includes('lnkd.in') && !redirectResponse.url.includes('linkedin.com/safety')) {
+              cleanUrl = redirectResponse.url
+              console.log('✓ Resolved via redirect to:', cleanUrl)
+            } else {
+              // Parse the LinkedIn interstitial page to extract the actual destination URL
+              // The page displays the destination URL as text after "This link will take you to..."
+              // We need to extract it carefully, filtering out static assets
+              
+              const urlPattern = /https?:\/\/(?!.*linkedin\.com)(?!.*lnkd\.in)[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g
+              const foundDestUrls = html.match(urlPattern)
+              
+              if (foundDestUrls && foundDestUrls.length > 0) {
+                // Filter out LinkedIn static assets (images, CSS, JS, fonts, etc.)
+                const filteredUrls = foundDestUrls.filter(url => {
+                  const lowerUrl = url.toLowerCase()
+                  // Skip static assets
+                  if (lowerUrl.includes('/sc/h/') || // LinkedIn static content path
+                      lowerUrl.includes('/aero-v1/') || // LinkedIn aero static content
+                      lowerUrl.includes('static.licdn.com') || // Any LinkedIn static domain
+                      lowerUrl.match(/\.(css|js|jpg|jpeg|png|gif|svg|woff|woff2|ttf|eot|ico)(\?|$)/i)) { // File extensions
+                    return false
+                  }
+                  return true
+                })
+                
+                if (filteredUrls.length > 0) {
+                  // Get the first real destination URL
+                  cleanUrl = filteredUrls[0]
+                  console.log('✓ Extracted destination URL from interstitial page:', cleanUrl)
+                } else {
+                  console.log('⚠ Only found static assets, could not resolve lnkd.in URL, skipping')
+                  continue
+                }
+              } else {
+                console.log('⚠ Could not resolve lnkd.in URL, skipping')
+                continue
+              }
+            }
+            
+            // Re-check if resolved URL is YouTube/PDF/LinkedIn
+            if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be') ||
+                cleanUrl.toLowerCase().endsWith('.pdf') || cleanUrl.includes('linkedin.com')) {
+              console.log('Resolved URL is YouTube/PDF/LinkedIn, skipping')
+              continue
+            }
+          } catch (error) {
+            console.error('Error resolving shortened URL:', cleanUrl, error)
+            continue
+          }
+        }
+        
+        urlsToFetch.push(cleanUrl)
+      }
+      
+      console.log(`${urlsToFetch.length} URL(s) detected (will be shown to user):`, urlsToFetch)
+      
+      // Don't fetch content automatically - just return the URLs for the user to decide
+      // The frontend will let users click "Dig Deeper" to fetch content on demand
+      const embeddedUrls = urlsToFetch.slice(0, 5) // Limit to 5 URLs max
+      
+      console.log(`=== EMBEDDED URL DETECTION COMPLETE: ${embeddedUrls.length} URL(s) found ===`)
 
       return c.json({
         title,
@@ -3309,6 +3507,7 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
         youtubeUrls,
         pdfUrls,
         hashtags,
+        embeddedUrls,
         date: new Date().toISOString()
       })
     } catch (fetchError: any) {
@@ -3326,6 +3525,146 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
     console.error('Error parsing LinkedIn post:', error)
     return c.json({ 
       error: 'Failed to parse LinkedIn post', 
+      details: error.message 
+    }, 500)
+  }
+})
+
+// Fetch Embedded URL Content Route
+app.post('/make-server-053bcd80/fetch-embedded-url', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    
+    if (!url || typeof url !== 'string') {
+      return c.json({ error: 'URL is required' }, 400)
+    }
+
+    console.log('Fetching embedded content from:', url)
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const html = await response.text()
+      
+      // Extract metadata from the embedded page
+      let embeddedTitle = ''
+      let embeddedDescription = ''
+      let embeddedImage = ''
+      const embeddedImages: string[] = []
+      
+      // Extract title
+      const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                        html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i) ||
+                        html.match(/<title>([^<]+)<\/title>/i)
+      if (titleMatch) {
+        embeddedTitle = titleMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+      
+      // Extract description
+      const descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i) ||
+                       html.match(/<meta\s+name="twitter:description"\s+content="([^"]+)"/i) ||
+                       html.match(/<meta\s+name="description"\s+content="([^"]+)"/i)
+      if (descMatch) {
+        embeddedDescription = descMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#39;/g, "'")
+          .trim()
+      }
+      
+      // Extract main image
+      const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+                        html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i)
+      if (imageMatch) {
+        embeddedImage = imageMatch[1]
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+        embeddedImages.push(embeddedImage)
+      }
+      
+      // Try to extract article content
+      let articleContent = ''
+      
+      // Look for article body in common patterns
+      const articleMatch = html.match(/<article[^>]*>(.*?)<\/article>/is)
+      if (articleMatch) {
+        // Strip HTML tags and clean up
+        articleContent = articleMatch[1]
+          .replace(/<script[^>]*>.*?<\/script>/gis, '')
+          .replace(/<style[^>]*>.*?<\/style>/gis, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 2000) // Limit to first 2000 characters
+      }
+      
+      // If no article tag, try to get content from paragraphs
+      if (!articleContent) {
+        const paragraphs: string[] = []
+        const pMatches = html.matchAll(/<p[^>]*>(.*?)<\/p>/gis)
+        for (const pMatch of pMatches) {
+          const text = pMatch[1]
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (text.length > 50) {
+            paragraphs.push(text)
+          }
+          if (paragraphs.join(' ').length > 2000) break
+        }
+        articleContent = paragraphs.join('\n\n').substring(0, 2000)
+      }
+      
+      console.log(`✅ Extracted embedded content from ${url}:`)
+      console.log(`  - Title: ${embeddedTitle}`)
+      console.log(`  - Description: ${embeddedDescription.substring(0, 100)}...`)
+      console.log(`  - Content length: ${articleContent.length}`)
+      console.log(`  - Images: ${embeddedImages.length}`)
+      
+      return c.json({
+        url,
+        title: embeddedTitle,
+        description: embeddedDescription,
+        content: articleContent,
+        image: embeddedImage,
+        images: embeddedImages
+      })
+      
+    } catch (fetchError: any) {
+      console.error('Error fetching embedded URL:', fetchError)
+      return c.json({ 
+        error: 'Failed to fetch content from URL',
+        details: fetchError.message 
+      }, 500)
+    }
+  } catch (error: any) {
+    console.error('Error processing embedded URL:', error)
+    return c.json({ 
+      error: 'Failed to process embedded URL', 
       details: error.message 
     }, 500)
   }
@@ -5139,6 +5478,230 @@ app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
   } catch (error) {
     console.error('❌ Error fetching wallet statistics:', error)
     return c.json({ error: 'Failed to fetch wallet statistics', details: error.message }, 500)
+  }
+})
+
+// SECURITY: Admin endpoint to detect and fix fraudulent activity
+app.post('/make-server-053bcd80/admin/security/reset-user', requireAuth, async (c) => {
+  try {
+    const { userId, resetType } = await c.req.json()
+    
+    // Verify the requester is an admin
+    const authHeader = c.req.header('Authorization')
+    const accessToken = authHeader?.split(' ')[1]
+    const { data: { user } } = await supabaseAuth.auth.getUser(accessToken!)
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user?.id !== adminUserId) {
+      console.log('⚠️ SECURITY: Unauthorized admin access attempt by:', user?.id)
+      return c.json({ error: 'Unauthorized - Admin access required' }, 403)
+    }
+    
+    if (!userId) {
+      return c.json({ error: 'User ID is required' }, 400)
+    }
+    
+    console.log('🔒 SECURITY: Admin resetting user progress. User:', userId, 'Type:', resetType)
+    
+    if (resetType === 'full') {
+      // Reset all progress, achievements, and read articles
+      await supabase
+        .from('read_articles')
+        .delete()
+        .eq('user_id', userId)
+      
+      await supabase
+        .from('user_achievements')
+        .delete()
+        .eq('user_id', userId)
+      
+      await supabase
+        .from('user_progress')
+        .update({
+          total_articles_read: 0,
+          points: 0,
+          current_streak: 0,
+          longest_streak: 0,
+          last_read_date: null
+        })
+        .eq('user_id', userId)
+      
+      // Reset wallet NADA points
+      await supabase
+        .from('wallets')
+        .update({
+          nada_points: 0
+        })
+        .eq('user_id', userId)
+      
+      console.log('✅ SECURITY: Full reset completed for user:', userId)
+      return c.json({ success: true, message: 'User progress fully reset' })
+    } else if (resetType === 'suspicious-reads') {
+      // Only reset suspicious read articles (those read too quickly)
+      // Get all read articles with timestamps
+      const { data: readArticles } = await supabase
+        .from('read_articles')
+        .select('*, articles(reading_time)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+      
+      // Find suspicious patterns (more than 5 articles read within 1 minute)
+      const suspiciousIds: string[] = []
+      if (readArticles) {
+        for (let i = 0; i < readArticles.length - 4; i++) {
+          const firstTime = new Date(readArticles[i].created_at).getTime()
+          const fifthTime = new Date(readArticles[i + 4].created_at).getTime()
+          const timeDiffSeconds = (fifthTime - firstTime) / 1000
+          
+          if (timeDiffSeconds < 60) {
+            // 5 articles in less than 60 seconds is suspicious
+            for (let j = i; j <= i + 4; j++) {
+              suspiciousIds.push(readArticles[j].id)
+            }
+          }
+        }
+      }
+      
+      if (suspiciousIds.length > 0) {
+        // Delete suspicious reads
+        await supabase
+          .from('read_articles')
+          .delete()
+          .in('id', suspiciousIds)
+        
+        // Recalculate progress
+        const { data: remainingReads } = await supabase
+          .from('read_articles')
+          .select('id')
+          .eq('user_id', userId)
+        
+        const newTotalRead = remainingReads?.length || 0
+        const newPoints = newTotalRead * 10 // Base points only, achievements removed
+        
+        await supabase
+          .from('user_progress')
+          .update({
+            total_articles_read: newTotalRead,
+            points: newPoints
+          })
+          .eq('user_id', userId)
+        
+        console.log('✅ SECURITY: Removed', suspiciousIds.length, 'suspicious reads for user:', userId)
+        return c.json({ 
+          success: true, 
+          message: `Removed ${suspiciousIds.length} suspicious article reads`,
+          removedCount: suspiciousIds.length
+        })
+      } else {
+        return c.json({ success: true, message: 'No suspicious activity detected' })
+      }
+    }
+    
+    return c.json({ error: 'Invalid reset type' }, 400)
+  } catch (error) {
+    console.error('❌ SECURITY: Error resetting user:', error)
+    return c.json({ error: 'Failed to reset user', details: error.message }, 500)
+  }
+})
+
+// SECURITY: Admin endpoint to get security audit for a user
+app.get('/make-server-053bcd80/admin/security/audit/:userId', requireAuth, async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    // Verify the requester is an admin
+    const authHeader = c.req.header('Authorization')
+    const accessToken = authHeader?.split(' ')[1]
+    const { data: { user } } = await supabaseAuth.auth.getUser(accessToken!)
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user?.id !== adminUserId) {
+      console.log('⚠️ SECURITY: Unauthorized admin access attempt by:', user?.id)
+      return c.json({ error: 'Unauthorized - Admin access required' }, 403)
+    }
+    
+    // Get user's read history with timestamps
+    const { data: readArticles } = await supabase
+      .from('read_articles')
+      .select('*, articles(id, title, reading_time)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    // Analyze for suspicious patterns
+    const suspiciousPatterns = []
+    
+    if (readArticles && readArticles.length > 0) {
+      // Check for rapid-fire reads (5+ articles in 1 minute)
+      for (let i = 0; i < readArticles.length - 4; i++) {
+        const firstTime = new Date(readArticles[i].created_at).getTime()
+        const fifthTime = new Date(readArticles[i + 4].created_at).getTime()
+        const timeDiffSeconds = (fifthTime - firstTime) / 1000
+        
+        if (timeDiffSeconds < 60) {
+          suspiciousPatterns.push({
+            type: 'rapid-reading',
+            severity: 'high',
+            description: `5 articles read in ${Math.round(timeDiffSeconds)} seconds`,
+            timestamp: readArticles[i].created_at,
+            articleIds: readArticles.slice(i, i + 5).map(a => a.article_id)
+          })
+        }
+      }
+      
+      // Check for impossibly fast reads (article read in less than 3 seconds)
+      for (let i = 0; i < readArticles.length - 1; i++) {
+        const thisTime = new Date(readArticles[i].created_at).getTime()
+        const nextTime = new Date(readArticles[i + 1].created_at).getTime()
+        const timeDiffSeconds = Math.abs(thisTime - nextTime) / 1000
+        
+        if (timeDiffSeconds < 3) {
+          suspiciousPatterns.push({
+            type: 'instant-read',
+            severity: 'critical',
+            description: `Article read in ${timeDiffSeconds.toFixed(1)} seconds`,
+            timestamp: readArticles[i].created_at,
+            articleIds: [readArticles[i].article_id]
+          })
+        }
+      }
+    }
+    
+    // Get user progress
+    const { data: progress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    // Get user info
+    const { data: { user: userInfo } } = await supabase.auth.admin.getUserById(userId)
+    
+    const auditReport = {
+      userId,
+      email: userInfo?.email,
+      progress: {
+        totalArticlesRead: progress?.total_articles_read || 0,
+        points: progress?.points || 0,
+        currentStreak: progress?.current_streak || 0
+      },
+      readHistory: {
+        total: readArticles?.length || 0,
+        recent: readArticles?.slice(0, 10).map(ra => ({
+          articleId: ra.article_id,
+          articleTitle: ra.articles?.title,
+          timestamp: ra.created_at
+        }))
+      },
+      suspiciousPatterns,
+      riskLevel: suspiciousPatterns.length === 0 ? 'none' : 
+                 suspiciousPatterns.some(p => p.severity === 'critical') ? 'critical' :
+                 suspiciousPatterns.length > 5 ? 'high' : 'medium'
+    }
+    
+    return c.json({ audit: auditReport })
+  } catch (error) {
+    console.error('❌ SECURITY: Error auditing user:', error)
+    return c.json({ error: 'Failed to audit user', details: error.message }, 500)
   }
 })
 

@@ -7,7 +7,7 @@ import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Badge } from './ui/badge'
 import { Alert, AlertDescription } from './ui/alert'
-import { Loader2, Link as LinkIcon, FileText, CheckCircle, AlertCircle, Sparkles, Info } from 'lucide-react'
+import { Loader2, Link as LinkIcon, FileText, CheckCircle, AlertCircle, Sparkles, ExternalLink, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 
@@ -23,6 +23,16 @@ interface ParsedContent {
   date?: string
   images?: string[]
   hashtags?: string[]
+  embeddedUrls?: string[]
+}
+
+interface EmbeddedContentData {
+  url: string
+  title: string
+  description: string
+  content: string
+  image: string
+  images: string[]
 }
 
 export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImporterProps) {
@@ -31,6 +41,8 @@ export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImpo
   const [parsing, setParsing] = useState(false)
   const [parsedContent, setParsedContent] = useState<ParsedContent | null>(null)
   const [error, setError] = useState('')
+  const [fetchingUrls, setFetchingUrls] = useState<Set<string>>(new Set())
+  const [fetchedContent, setFetchedContent] = useState<Map<string, EmbeddedContentData>>(new Map())
   
   // Article form fields
   const [title, setTitle] = useState('')
@@ -64,6 +76,7 @@ export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImpo
     setError('')
     setParsing(true)
     setParsedContent(null)
+    setFetchedContent(new Map())
 
     try {
       const response = await fetch(
@@ -86,25 +99,99 @@ export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImpo
 
       setParsedContent(data)
       
-      // Pre-fill form fields
+      // Pre-fill form fields (without embedded content initially)
       setTitle(data.title || '')
       setContent(data.content || '')
       setCoverImage(data.images?.[0] || '')
       setTags(data.hashtags?.join(', ') || '')
 
+      // Success toast
+      let successMessage = 'LinkedIn post parsed!'
       if (data.images && data.images.length > 0) {
-        toast.success(`LinkedIn post parsed! Found ${data.images.length} image(s)`)
-      } else if (data.content && data.content !== 'Please copy the post content from LinkedIn and paste it here.') {
-        toast.success('LinkedIn post parsed! (Images were skipped - LinkedIn CDN is protected)')
-      } else {
-        toast.info('LinkedIn content ready - please paste your post content manually')
+        successMessage += ` Found ${data.images.length} image(s).`
       }
+      if (data.embeddedUrls && data.embeddedUrls.length > 0) {
+        successMessage += ` Found ${data.embeddedUrls.length} embedded URL(s)!`
+      }
+      
+      toast.success(successMessage)
     } catch (err: any) {
       console.error('Error parsing LinkedIn post:', err)
       setError(err.message || 'Failed to parse LinkedIn post. Please try again.')
       toast.error('Failed to parse LinkedIn post')
     } finally {
       setParsing(false)
+    }
+  }
+
+  const handleDigDeeper = async (url: string) => {
+    // Add to fetching set
+    setFetchingUrls(prev => new Set(prev).add(url))
+
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/fetch-embedded-url`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch embedded content')
+      }
+
+      // Store fetched content
+      setFetchedContent(prev => {
+        const newMap = new Map(prev)
+        newMap.set(url, data)
+        return newMap
+      })
+
+      // Append content to the textarea
+      setContent(prevContent => {
+        let newContent = prevContent
+
+        // Add separator if not already there
+        if (!newContent.endsWith('\n\n---\n\n') && !newContent.endsWith('\n\n')) {
+          newContent += '\n\n---\n\n'
+        } else if (!newContent.endsWith('\n\n---\n\n')) {
+          newContent += '---\n\n'
+        }
+
+        // Add embedded article
+        newContent += `## ${data.title}\n\n`
+        
+        if (data.description) {
+          newContent += `${data.description}\n\n`
+        }
+        
+        if (data.content) {
+          newContent += `${data.content}\n\n`
+        }
+        
+        newContent += `[Read original article](${url})\n\n`
+
+        return newContent
+      })
+
+      toast.success(`Content from "${data.title}" added to article!`)
+    } catch (err: any) {
+      console.error('Error fetching embedded content:', err)
+      toast.error(`Failed to fetch content from URL`)
+    } finally {
+      // Remove from fetching set
+      setFetchingUrls(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(url)
+        return newSet
+      })
     }
   }
 
@@ -125,6 +212,21 @@ export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImpo
         caption: `Image ${index + 1} from LinkedIn post`,
         position: index
       })) || []
+      
+      // Add embedded content images to media attachments
+      let currentPosition = mediaAttachments.length
+      for (const [url, embeddedData] of fetchedContent.entries()) {
+        if (embeddedData.images && embeddedData.images.length > 0) {
+          for (const img of embeddedData.images) {
+            mediaAttachments.push({
+              type: 'image',
+              url: img,
+              caption: `From: ${embeddedData.title}`,
+              position: currentPosition++
+            })
+          }
+        }
+      }
 
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/articles`,
@@ -158,6 +260,7 @@ export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImpo
       // Reset form
       setLinkedInUrl('')
       setParsedContent(null)
+      setFetchedContent(new Map())
       setTitle('')
       setContent('')
       setCoverImage('')
@@ -231,6 +334,11 @@ export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImpo
                     Found {parsedContent.images.length} image{parsedContent.images.length > 1 ? 's' : ''} that will be attached as media.
                   </span>
                 )}
+                {parsedContent.embeddedUrls && parsedContent.embeddedUrls.length > 0 && (
+                  <span className="block mt-2 font-bold text-emerald-700 dark:text-emerald-300">
+                    🔗 Found {parsedContent.embeddedUrls.length} embedded URL{parsedContent.embeddedUrls.length > 1 ? 's' : ''} - click "Dig Deeper" below to extract content!
+                  </span>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -243,6 +351,78 @@ export function LinkedInImporter({ accessToken, onArticleCreated }: LinkedInImpo
           )}
         </CardContent>
       </Card>
+
+      {/* Step 1.5: Dig Deeper - Embedded URLs */}
+      {parsedContent && parsedContent.embeddedUrls && parsedContent.embeddedUrls.length > 0 && (
+        <Card className="border-2 border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-cyan-500/5">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Search className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <CardTitle>Dig Deeper - Embedded Links</CardTitle>
+            </div>
+            <CardDescription>
+              Click to extract full content from linked articles
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {parsedContent.embeddedUrls.map((url, idx) => {
+              const isFetching = fetchingUrls.has(url)
+              const hasFetched = fetchedContent.has(url)
+              const embeddedData = fetchedContent.get(url)
+
+              return (
+                <div key={idx} className="p-4 bg-card border-2 border-border rounded-lg space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm text-muted-foreground truncate">{url}</span>
+                      </div>
+                      {hasFetched && embeddedData && (
+                        <div className="mt-2">
+                          <h4 className="font-semibold text-foreground mb-1">{embeddedData.title}</h4>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{embeddedData.description}</p>
+                          {embeddedData.images && embeddedData.images.length > 0 && (
+                            <Badge variant="secondary" className="mt-2">
+                              {embeddedData.images.length} image{embeddedData.images.length > 1 ? 's' : ''} found
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      onClick={() => handleDigDeeper(url)}
+                      disabled={isFetching || hasFetched}
+                      size="sm"
+                      className={hasFetched 
+                        ? "bg-emerald-500 hover:bg-emerald-600" 
+                        : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                      }
+                    >
+                      {isFetching ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Fetching...
+                        </>
+                      ) : hasFetched ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Added
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 mr-2" />
+                          Dig Deeper
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Step 2: Edit and Create Article */}
       {parsedContent && (

@@ -34,6 +34,7 @@ import {
 import { motion } from 'motion/react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { WalletsTab } from './WalletsTab'
+import { SecurityAudit } from './SecurityAudit'
 
 interface DashboardStats {
   totalUsers: number
@@ -191,7 +192,7 @@ interface AdminDashboardProps {
   onEditArticle?: (articleId: string) => void
 }
 
-type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets'
+type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security'
 
 export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -1323,6 +1324,14 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
           walletStats={walletStats} 
           onRefresh={refreshWalletStats}
           isRefreshing={refreshingWallets}
+        />
+      )}
+
+      {/* Security Tab - Fraud Detection & User Auditing */}
+      {activeTab === 'security' && (
+        <SecurityAudit
+          accessToken={accessToken}
+          serverUrl={serverUrl}
         />
       )}
     </motion.div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from './utils/featureUnlocks'
+import { ReadingSecurityTracker } from './utils/readingSecurityTracker'
 import { AuthForm } from './components/AuthForm'
 import { Header } from './components/Header'
 import { ArticleCard } from './components/ArticleCard'
@@ -82,6 +83,7 @@ export default function App() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
+  const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null)
@@ -463,26 +465,62 @@ export default function App() {
       console.error('Error incrementing view count:', error)
     }
 
-    // Mark as read and update progress
-    if (userId && userProgress && !userProgress.readArticles.includes(article.id)) {
-      try {
-        const response = await fetch(`${serverUrl}/users/${userId}/read`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`
-          },
-          body: JSON.stringify({ articleId: article.id })
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setUserProgress(data.progress)
-          // Achievement notifications removed - points shown in navbar
-        }
-      } catch (error) {
-        console.error('Error updating reading progress:', error)
+    // ============================================
+    // ADVANCED SECURITY: Initialize reading tracker
+    // ============================================
+    if (userId && accessToken && userProgress && !userProgress.readArticles.includes(article.id)) {
+      // Clean up previous tracker if exists
+      if (securityTrackerRef.current) {
+        securityTrackerRef.current.cleanup()
       }
+      
+      // Create new tracker for this article
+      const tracker = new ReadingSecurityTracker(article.id)
+      securityTrackerRef.current = tracker
+      
+      // Start reading session (get token from server)
+      await tracker.startReading(serverUrl, accessToken)
+      
+      // Wait minimum time before allowing mark as read
+      const minReadingTimeMs = Math.max(3000, (article.readingTime || 5) * 60 * 1000 * 0.1)
+      
+      setTimeout(async () => {
+        // Verify user is still viewing the article
+        if (selectedArticle?.id === article.id && currentView === 'article' && securityTrackerRef.current) {
+          try {
+            // Get all security metrics from tracker
+            const metrics = securityTrackerRef.current.getMetrics()
+            
+            const response = await fetch(`${serverUrl}/users/${userId}/read`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ 
+                articleId: article.id,
+                ...metrics  // Include all security metrics
+              })
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              setUserProgress(data.progress)
+              console.log('✅ Article marked as read successfully')
+              
+              // Cleanup tracker
+              securityTrackerRef.current.cleanup()
+              securityTrackerRef.current = null
+            } else {
+              const error = await response.json()
+              console.error('🚫 Security check failed:', error)
+              toast.error(error.details || 'Failed to mark article as read')
+            }
+          } catch (error) {
+            console.error('Error updating reading progress:', error)
+          }
+        }
+      }, minReadingTimeMs)
     }
   }
 

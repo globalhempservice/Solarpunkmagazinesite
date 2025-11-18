@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { Loader2, Sparkles, CheckCircle2, AlertCircle, FileText, Download, Image as ImageIcon, Video, Lock } from "lucide-react"
+import { Loader2, Sparkles, CheckCircle2, AlertCircle, FileText, Download, Image as ImageIcon, Video, Lock, Search, ExternalLink } from "lucide-react"
 import { Badge } from "./ui/badge"
 import { Alert, AlertDescription } from "./ui/alert"
 import { toast } from "sonner"
@@ -27,6 +27,7 @@ interface ExtractedContent {
   mediaUrl?: string
   mediaType?: 'image' | 'video' | 'carousel'
   hashtags?: string[]
+  embeddedUrls?: string[]
   error?: string
 }
 
@@ -92,6 +93,10 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
   const [parsing, setParsing] = useState(false)
   const [error, setError] = useState('')
   const [extractedData, setExtractedData] = useState<ExtractedContent | null>(null)
+  
+  // Embedded URL state
+  const [fetchingUrls, setFetchingUrls] = useState<Set<string>>(new Set())
+  const [fetchedEmbeddedContent, setFetchedEmbeddedContent] = useState<Map<string, any>>(new Map())
   
   // Selection state - all true by default
   const [selectedContent, setSelectedContent] = useState({
@@ -384,6 +389,60 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
     setError('')
   }
 
+  const handleDigDeeper = async (embeddedUrl: string) => {
+    setFetchingUrls(prev => new Set(prev).add(embeddedUrl))
+
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/fetch-embedded-url`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: embeddedUrl }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch embedded content')
+      }
+
+      // Store fetched content
+      setFetchedEmbeddedContent(prev => {
+        const newMap = new Map(prev)
+        newMap.set(embeddedUrl, data)
+        return newMap
+      })
+
+      // Update extracted data to append embedded content
+      if (extractedData) {
+        const separator = extractedData.content?.endsWith('\n\n') ? '---\n\n' : '\n\n---\n\n'
+        const embeddedText = `${separator}## ${data.title}\n\n${data.description ? data.description + '\n\n' : ''}${data.content ? data.content + '\n\n' : ''}[Read original article](${embeddedUrl})\n\n`
+        
+        setExtractedData({
+          ...extractedData,
+          content: (extractedData.content || '') + embeddedText,
+          images: [...(extractedData.images || []), ...(data.images || [])]
+        })
+      }
+
+      toast.success(`Content from "${data.title}" added!`)
+    } catch (err: any) {
+      console.error('Error fetching embedded content:', err)
+      toast.error(`Failed to fetch content from URL`)
+    } finally {
+      setFetchingUrls(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(embeddedUrl)
+        return newSet
+      })
+    }
+  }
+
   const platformInfo = extractedData ? getPlatformInfo(extractedData.platform) : getPlatformInfo('unknown')
   const Icon = platformInfo.icon
 
@@ -591,6 +650,79 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
                     </Label>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Dig Deeper - Embedded URLs Section */}
+            {extractedData.embeddedUrls && extractedData.embeddedUrls.length > 0 && (
+              <div className="space-y-3 pt-3 border-t border-border/50">
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <h4 className="text-sm font-semibold">Dig Deeper - Embedded Links</h4>
+                  <Badge variant="secondary" className="text-xs">
+                    {extractedData.embeddedUrls.length}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">Extract full content from linked articles</p>
+                
+                <div className="space-y-2">
+                  {extractedData.embeddedUrls.map((embeddedUrl, idx) => {
+                    const isFetching = fetchingUrls.has(embeddedUrl)
+                    const hasFetched = fetchedEmbeddedContent.has(embeddedUrl)
+                    const embeddedData = fetchedEmbeddedContent.get(embeddedUrl)
+
+                    return (
+                      <div key={idx} className="p-3 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border-2 border-blue-500/20 rounded-lg space-y-2">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                              <span className="text-xs text-muted-foreground truncate">{embeddedUrl}</span>
+                            </div>
+                            {hasFetched && embeddedData && (
+                              <div className="mt-2">
+                                <h5 className="text-sm font-semibold text-foreground mb-1">{embeddedData.title}</h5>
+                                <p className="text-xs text-muted-foreground line-clamp-2">{embeddedData.description}</p>
+                                {embeddedData.images && embeddedData.images.length > 0 && (
+                                  <Badge variant="secondary" className="mt-2 text-xs">
+                                    {embeddedData.images.length} image{embeddedData.images.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={() => handleDigDeeper(embeddedUrl)}
+                            disabled={isFetching || hasFetched}
+                            size="sm"
+                            className={hasFetched 
+                              ? "bg-emerald-500 hover:bg-emerald-600" 
+                              : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                            }
+                          >
+                            {isFetching ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                <span className="text-xs">Loading...</span>
+                              </>
+                            ) : hasFetched ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                                <span className="text-xs">Added</span>
+                              </>
+                            ) : (
+                              <>
+                                <Search className="w-3.5 h-3.5 mr-1.5" />
+                                <span className="text-xs">Dig Deeper</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>

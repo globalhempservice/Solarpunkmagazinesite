@@ -153,7 +153,7 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
     try {
       await onExchange(pointsCost)
       setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 3000) // Show success for 3 seconds
+      setTimeout(() => setShowSuccess(false), 6000) // Show success for 6 seconds - extended for better visibility
       setExchangeAmount(1) // Reset
     } catch (error: any) {
       // Check if it's a rate limit error (429 status)
@@ -798,7 +798,7 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: -20 }}
                 transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[90] w-[90%] max-w-md"
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-[90%] max-w-md"
               >
                 <div className="relative overflow-hidden p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/95 dark:via-teal-950/95 dark:to-cyan-950/95 hempin:from-emerald-950/95 hempin:via-teal-950/95 hempin:to-cyan-950/95 border-4 border-emerald-400/50 dark:border-emerald-500/50 rounded-2xl shadow-[0_8px_0_rgba(16,185,129,0.3),0_0_60px_rgba(16,185,129,0.5)]">
                   {/* Comic dots background */}

@@ -6,15 +6,19 @@ import { Textarea } from "./ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Badge } from "./ui/badge"
-import { Sparkles, Award, Target, CheckCircle2, Circle, Plus, Trash2, Music, Youtube, ImageIcon, Star, ExternalLink, ChevronDown, ChevronUp } from "lucide-react"
+import { Sparkles, Award, Target, CheckCircle2, Circle, Plus, Trash2, Music, Youtube, ImageIcon, Star, ExternalLink, ChevronDown, ChevronUp, FileText } from "lucide-react"
 import { SimplifiedURLImporter } from './SimplifiedURLImporter'
+import { projectId, publicAnonKey } from '../utils/supabase/info'
 
 // Clean version - no old LinkedIn importer code
 
 interface MediaItem {
-  type: 'youtube' | 'audio' | 'image' | 'spotify'
+  type: 'youtube' | 'audio' | 'image' | 'spotify' | 'pdf'
   url: string
   caption?: string
+  title?: string
+  previewUrl?: string
+  isLinkedInDocument?: boolean
 }
 
 interface ArticleEditorProps {
@@ -33,6 +37,7 @@ interface ArticleEditorProps {
   }) => void
   onCancel: () => void
   onNavigateToLinkedIn?: () => void
+  accessToken?: string
   initialData?: {
     title: string
     content: string
@@ -85,7 +90,7 @@ const categories = [
   'Future Vision'
 ]
 
-export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialData, article, onUpdate }: ArticleEditorProps) {
+export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, accessToken, initialData, article, onUpdate }: ArticleEditorProps) {
   const [title, setTitle] = useState(initialData?.title || article?.title || '')
   const [content, setContent] = useState(initialData?.content || article?.content || '')
   const [excerpt, setExcerpt] = useState(initialData?.excerpt || article?.excerpt || '')
@@ -101,7 +106,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
   const [publishDate, setPublishDate] = useState(initialData?.publishDate || article?.publishDate || '')
   const [sourceUrl, setSourceUrl] = useState('')
   
-  const [newMediaType, setNewMediaType] = useState<'youtube' | 'audio' | 'image' | 'spotify'>('youtube')
+  const [newMediaType, setNewMediaType] = useState<'youtube' | 'audio' | 'image' | 'spotify' | 'pdf'>('youtube')
   const [newMediaUrl, setNewMediaUrl] = useState('')
   const [newMediaCaption, setNewMediaCaption] = useState('')
   
@@ -216,7 +221,8 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
       author,
       authorImage,
       authorTitle,
-      publishDate
+      publishDate,
+      sourceUrl
     }
     
     // If editing, use onUpdate, otherwise use onSave
@@ -398,7 +404,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
             {/* Media Type Selection - Logo Icons */}
             <div className="space-y-2">
               <Label>Select Media Type</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {/* YouTube */}
                 <button
                   type="button"
@@ -514,22 +520,108 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
                     </span>
                   </div>
                 </button>
+
+                {/* PDF */}
+                <button
+                  type="button"
+                  onClick={() => setNewMediaType('pdf')}
+                  className={`relative p-4 rounded-2xl border-2 transition-all duration-300 group hover:scale-105 ${
+                    newMediaType === 'pdf'
+                      ? 'border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/20'
+                      : 'border-border/50 hover:border-orange-500/30 bg-card/50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                      newMediaType === 'pdf' 
+                        ? 'bg-orange-600' 
+                        : 'bg-orange-600/20 group-hover:bg-orange-600/40'
+                    }`}>
+                      <FileText className={`w-6 h-6 ${
+                        newMediaType === 'pdf' ? 'text-white' : 'text-orange-600'
+                      }`} />
+                    </div>
+                    <span className={`text-xs font-semibold transition-colors ${
+                      newMediaType === 'pdf' ? 'text-orange-600' : 'text-muted-foreground'
+                    }`}>
+                      PDF
+                    </span>
+                  </div>
+                </button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>URL</Label>
-              <Input
-                value={newMediaUrl}
-                onChange={(e) => setNewMediaUrl(e.target.value)}
-                placeholder={
-                  newMediaType === 'youtube' ? 'https://youtube.com/watch?v=...' :
-                  newMediaType === 'spotify' ? 'https://open.spotify.com/episode/...' :
-                  newMediaType === 'audio' ? 'https://example.com/audio.mp3' :
-                  'https://example.com/image.jpg'
-                }
-                className="border-2"
-              />
+              <Label>{newMediaType === 'pdf' ? 'PDF File or URL' : 'URL'}</Label>
+              {newMediaType === 'pdf' ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      id="pdf-file-upload"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file || !accessToken) return
+                        
+                        console.log('📤 Uploading PDF:', file.name)
+                        
+                        try {
+                          const formData = new FormData()
+                          formData.append('file', file)
+                          
+                          const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/upload`, {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${accessToken}`
+                            },
+                            body: formData
+                          })
+                          
+                          if (!response.ok) {
+                            const errorData = await response.json()
+                            throw new Error(errorData.error || 'Upload failed')
+                          }
+                          
+                          const data = await response.json()
+                          setNewMediaUrl(data.url)
+                          console.log('✅ PDF uploaded successfully:', data.url)
+                        } catch (error) {
+                          console.error('❌ Error uploading PDF:', error)
+                          alert('Failed to upload PDF. Please try again.')
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="pdf-file-upload"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500/10 to-red-500/10 hover:from-orange-500/20 hover:to-red-500/20 border-2 border-orange-500/30 rounded-lg cursor-pointer transition-all"
+                    >
+                      <FileText className="w-4 h-4 text-orange-600" />
+                      <span className="text-sm font-semibold text-orange-600">Upload PDF File</span>
+                    </label>
+                  </div>
+                  <div className="text-center text-xs text-muted-foreground">or</div>
+                  <Input
+                    value={newMediaUrl}
+                    onChange={(e) => setNewMediaUrl(e.target.value)}
+                    placeholder="https://example.com/document.pdf"
+                    className="border-2"
+                  />
+                </div>
+              ) : (
+                <Input
+                  value={newMediaUrl}
+                  onChange={(e) => setNewMediaUrl(e.target.value)}
+                  placeholder={
+                    newMediaType === 'youtube' ? 'https://youtube.com/watch?v=...' :
+                    newMediaType === 'spotify' ? 'https://open.spotify.com/episode/...' :
+                    newMediaType === 'audio' ? 'https://example.com/audio.mp3' :
+                    'https://example.com/image.jpg'
+                  }
+                  className="border-2"
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1101,7 +1193,7 @@ export function ArticleEditor({ onSave, onCancel, onNavigateToLinkedIn, initialD
   )
 }
 
-function getMediaIcon(type: 'youtube' | 'audio' | 'image' | 'spotify') {
+function getMediaIcon(type: 'youtube' | 'audio' | 'image' | 'spotify' | 'pdf') {
   switch (type) {
     case 'youtube':
       return Youtube
@@ -1111,6 +1203,8 @@ function getMediaIcon(type: 'youtube' | 'audio' | 'image' | 'spotify') {
       return ImageIcon
     case 'spotify':
       return Music
+    case 'pdf':
+      return FileText
   }
 }
 

@@ -2,7 +2,6 @@ import { Hono } from 'npm:hono'
 import { cors } from 'npm:hono/cors'
 import { logger } from 'npm:hono/logger'
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import * as kv from './kv_store.tsx'
 import * as walletSecurity from './wallet_security.tsx'
 
 const app = new Hono()
@@ -19,13 +18,23 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 // Create a separate client for auth validation
 const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey)
 
-// Initialize storage bucket for article media
+// Initialize storage buckets for article media and PDFs
 async function initStorage() {
-  const bucketName = 'make-053bcd80-magazine-media'
+  // Media bucket for images
+  const mediaBucketName = 'make-053bcd80-magazine-media'
   const { data: buckets } = await supabase.storage.listBuckets()
-  const bucketExists = buckets?.some(bucket => bucket.name === bucketName)
-  if (!bucketExists) {
-    await supabase.storage.createBucket(bucketName, { public: false })
+  const mediaBucketExists = buckets?.some(bucket => bucket.name === mediaBucketName)
+  if (!mediaBucketExists) {
+    await supabase.storage.createBucket(mediaBucketName, { public: false })
+    console.log('✅ Created media bucket:', mediaBucketName)
+  }
+  
+  // PDF/Documents bucket
+  const pdfBucketName = 'make-053bcd80-documents'
+  const pdfBucketExists = buckets?.some(bucket => bucket.name === pdfBucketName)
+  if (!pdfBucketExists) {
+    await supabase.storage.createBucket(pdfBucketName, { public: false })
+    console.log('✅ Created documents bucket:', pdfBucketName)
   }
 }
 
@@ -170,7 +179,8 @@ app.get('/make-server-053bcd80/articles', async (c) => {
       author: article.author,
       authorImage: article.author_image,
       authorTitle: article.author_title,
-      publishDate: article.publish_date
+      publishDate: article.publish_date,
+      hidden: article.hidden || false
     }))
     
     return c.json({ articles: transformedArticles })
@@ -226,7 +236,8 @@ app.get('/make-server-053bcd80/articles/:id', async (c) => {
       author: article.author,
       authorImage: article.author_image,
       authorTitle: article.author_title,
-      publishDate: article.publish_date
+      publishDate: article.publish_date,
+      hidden: article.hidden || false
     }
     
     return c.json({ article: transformedArticle })
@@ -277,7 +288,8 @@ app.get('/make-server-053bcd80/my-articles', requireAuth, async (c) => {
       author: article.author,
       authorImage: article.author_image,
       authorTitle: article.author_title,
-      publishDate: article.publish_date
+      publishDate: article.publish_date,
+      hidden: article.hidden || false
     })) || []
     
     return c.json({ articles: transformedArticles })
@@ -603,22 +615,37 @@ app.post('/make-server-053bcd80/articles/:id/view', async (c) => {
       return c.json({ error: 'Failed to increment views', details: error.message }, 500)
     }
     
-    // Track daily views in KV store for analytics
+    // Track daily views in article_views table for analytics
     const today = new Date().toISOString().split('T')[0]
-    const viewKey = `article_views:${today}:${id}`
     
-    console.log('Storing daily view with key:', viewKey)
+    console.log('Tracking daily view for article:', id, 'on date:', today)
     
-    const existingDailyViews = await kv.get(viewKey) || {
-      date: today,
-      articleId: id,
-      views: 0
+    // Check if record exists for today
+    const { data: existingView } = await supabase
+      .from('article_views')
+      .select('id, views')
+      .eq('article_id', id)
+      .eq('date', today)
+      .single()
+    
+    if (existingView) {
+      // Update existing record
+      await supabase
+        .from('article_views')
+        .update({ views: existingView.views + 1 })
+        .eq('id', existingView.id)
+      console.log('Daily view incremented to:', existingView.views + 1)
+    } else {
+      // Insert new record
+      await supabase
+        .from('article_views')
+        .insert({
+          article_id: id,
+          date: today,
+          views: 1
+        })
+      console.log('Daily view created with count: 1')
     }
-    
-    existingDailyViews.views += 1
-    
-    await kv.set(viewKey, existingDailyViews)
-    console.log('Daily view tracked:', existingDailyViews)
     
     return c.json({ views: data?.views || 0 })
   } catch (error) {
@@ -1278,6 +1305,10 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
         transaction_type: 'exchange',
         amount: nadaPointsGained,
         balance_after: newNadaPoints,
+        points_exchanged: pointsToExchange,
+        nada_received: nadaPointsGained,
+        ip_address: ipAddress,
+        risk_score: riskScore,
         description: `Exchanged ${pointsToExchange} points for ${nadaPointsGained} NADA`
       }])
     
@@ -1497,22 +1528,41 @@ app.delete('/make-server-053bcd80/auth/delete-account', async (c) => {
     const userId = user.id
     console.log('Deleting account for user:', userId)
     
-    // Delete all user data from kv_store (progress, achievements, etc.)
-    // Note: In production, you might want to log this or create a soft delete
-    const keysToDelete = [
-      `user_progress:${userId}`,
-      `user_achievements:${userId}`,
-      `user_profile:${userId}`
-    ]
-    
-    for (const key of keysToDelete) {
-      try {
-        await kv.del(key)
-        console.log(`Deleted key: ${key}`)
-      } catch (error) {
-        console.log(`Error deleting key ${key}:`, error)
-        // Continue even if some keys fail
-      }
+    // Delete all user data from database tables
+    // Note: Most user data will cascade delete when auth user is deleted
+    // but we'll explicitly delete from main tables for clarity
+    try {
+      // Delete user progress (includes profile data)
+      await supabase
+        .from('user_progress')
+        .delete()
+        .eq('user_id', userId)
+      console.log('Deleted user_progress')
+      
+      // Delete user achievements
+      await supabase
+        .from('user_achievements')
+        .delete()
+        .eq('user_id', userId)
+      console.log('Deleted user_achievements')
+      
+      // Delete user articles
+      await supabase
+        .from('articles')
+        .delete()
+        .eq('user_id', userId)
+      console.log('Deleted user articles')
+      
+      // Delete wallet
+      await supabase
+        .from('wallets')
+        .delete()
+        .eq('user_id', userId)
+      console.log('Deleted wallet')
+      
+    } catch (error) {
+      console.log('Error deleting user data:', error)
+      // Continue even if some deletions fail
     }
     
     // Delete the user from Supabase Auth
@@ -1977,31 +2027,52 @@ app.post('/make-server-053bcd80/track-swipe', async (c) => {
       })
       .eq('user_id', userId)
     
-    // Track per-article swipe stats using KV store
+    // Track per-article swipe stats in article_swipe_stats table
     if (articleId) {
-      const swipeKey = `article_swipes:${articleId}`
-      console.log('Tracking swipe for article:', articleId, 'with key:', swipeKey)
+      console.log('Tracking swipe for article:', articleId, 'liked:', liked)
       
-      const existingStats = await kv.get(swipeKey) || { 
-        articleId, 
-        totalSwipes: 0, 
-        likes: 0, 
-        skips: 0 
-      }
+      // Get existing stats
+      const { data: existingStats } = await supabase
+        .from('article_swipe_stats')
+        .select('*')
+        .eq('article_id', articleId)
+        .single()
       
       console.log('Existing stats before update:', existingStats)
       
-      existingStats.totalSwipes += 1
-      if (liked) {
-        existingStats.likes += 1
+      if (existingStats) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('article_swipe_stats')
+          .update({
+            total_swipes: existingStats.total_swipes + 1,
+            likes: existingStats.likes + (liked ? 1 : 0),
+            skips: existingStats.skips + (liked ? 0 : 1)
+          })
+          .eq('article_id', articleId)
+        
+        if (updateError) {
+          console.error('Error updating swipe stats:', updateError)
+        } else {
+          console.log('Swipe stats updated successfully')
+        }
       } else {
-        existingStats.skips += 1
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from('article_swipe_stats')
+          .insert({
+            article_id: articleId,
+            total_swipes: 1,
+            likes: liked ? 1 : 0,
+            skips: liked ? 0 : 1
+          })
+        
+        if (insertError) {
+          console.error('Error inserting swipe stats:', insertError)
+        } else {
+          console.log('Swipe stats created successfully')
+        }
       }
-      
-      console.log('New stats after update:', existingStats)
-      
-      await kv.set(swipeKey, existingStats)
-      console.log('Swipe stats saved to KV store')
     }
     
     console.log(`User ${userId} swiped article ${articleId} (liked: ${liked}, total: ${newSwipes}, liked: ${newLikes})`)
@@ -2128,7 +2199,11 @@ app.post('/make-server-053bcd80/upload', requireAuth, async (c) => {
     }
     
     const fileName = `${crypto.randomUUID()}-${file.name}`
-    const bucketName = 'make-053bcd80-magazine-media'
+    // Use documents bucket for PDFs, media bucket for other files
+    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    const bucketName = isPDF ? 'make-053bcd80-documents' : 'make-053bcd80-magazine-media'
+    
+    console.log(`Uploading ${file.name} (${file.type}) to ${bucketName}`)
     
     const arrayBuffer = await file.arrayBuffer()
     const uint8Array = new Uint8Array(arrayBuffer)
@@ -2144,12 +2219,20 @@ app.post('/make-server-053bcd80/upload', requireAuth, async (c) => {
       return c.json({ error: 'Failed to upload file', details: error.message }, 500)
     }
     
-    // Generate signed URL (valid for 1 year)
+    // Generate signed URL (valid for 10 years for PDFs, 1 year for other media)
+    const urlExpiry = isPDF ? 315360000 : 31536000 // 10 years vs 1 year
     const { data: signedUrlData } = await supabase.storage
       .from(bucketName)
-      .createSignedUrl(fileName, 31536000)
+      .createSignedUrl(fileName, urlExpiry)
     
-    return c.json({ url: signedUrlData?.signedUrl, fileName })
+    console.log(`✅ File uploaded successfully: ${fileName}`)
+    
+    return c.json({ 
+      url: signedUrlData?.signedUrl, 
+      fileName,
+      isPDF,
+      bucketName
+    })
   } catch (error) {
     console.log('Error uploading file:', error)
     return c.json({ error: 'Failed to upload file', details: error.message }, 500)
@@ -2162,6 +2245,74 @@ app.get('/make-server-053bcd80/health', (c) => {
 })
 
 // ===== LINKEDIN POST PARSER =====
+
+// Upload PDF to Supabase storage
+async function uploadPdfToStorage(pdfUrl: string, fileName: string): Promise<string | null> {
+  try {
+    console.log('Attempting to download PDF from:', pdfUrl)
+    
+    // Download the PDF with proper headers
+    const pdfResponse = await fetch(pdfUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/pdf,*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': pdfUrl,
+      }
+    })
+    
+    if (!pdfResponse.ok) {
+      console.log('Failed to download PDF:', pdfResponse.status, pdfResponse.statusText)
+      return null
+    }
+    
+    const pdfBlob = await pdfResponse.blob()
+    
+    // Check if blob is valid
+    if (pdfBlob.size === 0) {
+      console.log('Downloaded PDF is empty')
+      return null
+    }
+    
+    // Check file size (limit to 50MB)
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    if (pdfBlob.size > maxSize) {
+      console.log('PDF too large:', pdfBlob.size, 'bytes')
+      return null
+    }
+    
+    const arrayBuffer = await pdfBlob.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+    
+    // Generate unique filename
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const uniqueFileName = `${crypto.randomUUID()}-${sanitizedFileName}`
+    const bucketName = 'make-053bcd80-documents'
+    
+    // Upload to Supabase storage
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(uniqueFileName, uint8Array, {
+        contentType: 'application/pdf'
+      })
+    
+    if (error) {
+      console.log('Failed to upload PDF to storage:', error)
+      return null
+    }
+    
+    // Generate signed URL (valid for 10 years)
+    const { data: signedUrlData } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(uniqueFileName, 315360000)
+    
+    console.log('✅ PDF uploaded successfully:', signedUrlData?.signedUrl)
+    return signedUrlData?.signedUrl || null
+  } catch (error) {
+    console.log('Error uploading PDF:', error)
+    return null
+  }
+}
 
 // Upload external image URL to Supabase storage
 async function uploadExternalImage(imageUrl: string, index: number): Promise<string | null> {
@@ -2886,6 +3037,246 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
         }
       }
 
+      // ===== EXTRACT AND UPLOAD PDFs/DOCUMENTS =====
+      const pdfUrls: Array<{ url: string; title: string; previewUrl?: string }> = []
+      
+      console.log('🔍 Starting PDF/Document detection...')
+      
+      // Pattern 1: LinkedIn Document Carousel/Viewer (most common for embedded PDFs)
+      // Look for document carousel indicators
+      const documentCarouselPatterns = [
+        /data-urn=["']urn:li:digitalmediaAsset:([^"']+)["']/gi,
+        /document-carousel|document-viewer|documentCarousel/gi,
+        /"annotatedDocument"[^}]*"urn":"urn:li:([^"]+)"/gi,
+        /"digitalMediaAsset":"urn:li:digitalmediaAsset:([^"]+)"/gi
+      ]
+      
+      // Check if this post contains a document
+      let hasDocumentCarousel = false
+      for (const pattern of documentCarouselPatterns) {
+        if (pattern.test(html)) {
+          hasDocumentCarousel = true
+          console.log('✅ Found LinkedIn document carousel pattern')
+          break
+        }
+      }
+      
+      // Pattern 2: Look for document download URLs in various formats
+      const documentUrlPatterns = [
+        // LinkedIn media CDN URLs for documents
+        /["'](https?:\/\/media[^"']*\.licdn\.com\/dms\/document\/[^"']+)["']/gi,
+        // Document viewer URLs
+        /["'](https?:\/\/[^"']*linkedin\.com\/[^"']*\/document[^"']*\/download[^"']*)["']/gi,
+        // Direct PDF links
+        /<a[^>]*href=["']([^"']*\.pdf[^"']*)["'][^>]*>/gi,
+      ]
+      
+      for (const pattern of documentUrlPatterns) {
+        let match
+        while ((match = pattern.exec(html)) !== null) {
+          let docUrl = match[1]
+          console.log('Found potential document URL:', docUrl)
+          
+          // Clean up the URL
+          docUrl = docUrl.replace(/&amp;/g, '&')
+          
+          // Try to extract document title from context
+          const contextStart = Math.max(0, match.index - 300)
+          const contextEnd = Math.min(html.length, match.index + 300)
+          const context = html.slice(contextStart, contextEnd)
+          
+          // Look for title in various formats
+          const titlePatterns = [
+            /data-document-title=["']([^"']+)["']/i,
+            /aria-label=["']([^"']*document[^"']*)["']/i,
+            /title=["']([^"']{10,100})["']/i,
+            /alt=["']([^"']{10,100})["']/i,
+          ]
+          
+          let docTitle = 'LinkedIn Document'
+          for (const titlePattern of titlePatterns) {
+            const titleMatch = context.match(titlePattern)
+            if (titleMatch && titleMatch[1] && titleMatch[1].trim().length > 0) {
+              docTitle = titleMatch[1].trim()
+              break
+            }
+          }
+          
+          // If we found a LinkedIn media URL, return it directly (it's already a CDN URL)
+          if (docUrl.includes('licdn.com/dms/document')) {
+            console.log('📄 Found LinkedIn document CDN URL:', docUrl)
+            
+            try {
+              // Fetch the manifest to get preview images
+              const manifestResponse = await fetch(docUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  'Accept': 'application/json'
+                }
+              })
+              
+              if (manifestResponse.ok) {
+                const manifest = await manifestResponse.json()
+                console.log('📋 LinkedIn document manifest received')
+                
+                // Get the largest preview image (1280 or 1920)
+                let previewUrl = ''
+                if (manifest.perResolutions && Array.isArray(manifest.perResolutions)) {
+                  const largePreview = manifest.perResolutions.find((r: any) => r.width >= 1280) || 
+                                      manifest.perResolutions.find((r: any) => r.width >= 800) ||
+                                      manifest.perResolutions[0]
+                  
+                  if (largePreview?.imageManifestUrl) {
+                    previewUrl = largePreview.imageManifestUrl
+                    console.log('🖼️ Using preview image URL:', previewUrl)
+                  }
+                }
+                
+                // Add as a LinkedIn document (not a downloadable PDF)
+                pdfUrls.push({ 
+                  url: '', // No direct download URL
+                  title: docTitle,
+                  previewUrl: previewUrl,
+                  isLinkedInDocument: true // Flag to indicate this is a LinkedIn-hosted document
+                })
+              } else {
+                // Fallback: just add the document reference without preview
+                pdfUrls.push({ 
+                  url: '', 
+                  title: docTitle,
+                  isLinkedInDocument: true
+                })
+              }
+            } catch (error) {
+              console.log('⚠️ Could not fetch LinkedIn document manifest:', error)
+              // Fallback: just add the document reference
+              pdfUrls.push({ 
+                url: '', 
+                title: docTitle,
+                isLinkedInDocument: true
+              })
+            }
+          } else if (docUrl.endsWith('.pdf') || docUrl.includes('.pdf?')) {
+            // Try to download and upload regular PDFs
+            const filename = docTitle.replace(/[^a-zA-Z0-9\s-]/g, '_') + '.pdf'
+            const uploadedPdfUrl = await uploadPdfToStorage(docUrl, filename)
+            if (uploadedPdfUrl && !pdfUrls.some(p => p.url === uploadedPdfUrl)) {
+              pdfUrls.push({ 
+                url: uploadedPdfUrl, 
+                title: docTitle,
+                isLinkedInDocument: false // This is a real downloadable PDF
+              })
+              console.log('✅ PDF uploaded successfully')
+            }
+          }
+        }
+      }
+      
+      // Pattern 3: Look for PDF URLs in meta tags
+      const ogDocumentMatch = html.match(/<meta[^>]*property=["']og:document["'][^>]*content=["']([^"']+)["']/i)
+      if (ogDocumentMatch) {
+        const docUrl = ogDocumentMatch[1].replace(/&amp;/g, '&')
+        console.log('Found PDF in og:document meta tag:', docUrl)
+        
+        if (!pdfUrls.some(p => p.url === docUrl)) {
+          pdfUrls.push({ 
+            url: docUrl, 
+            title: 'Document from LinkedIn Post'
+          })
+        }
+      }
+      
+      // Pattern 4: Check shortened URLs for PDFs
+      if (lnkdMatches && lnkdMatches.length > 0) {
+        for (const shortUrl of lnkdMatches) {
+          try {
+            const redirectResponse = await fetch(shortUrl, {
+              method: 'HEAD',
+              redirect: 'follow',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              }
+            })
+            
+            const finalUrl = redirectResponse.url
+            if (finalUrl.toLowerCase().includes('.pdf') || finalUrl.includes('/document/')) {
+              console.log('🔗 Shortened URL resolves to document:', finalUrl)
+              
+              const urlParts = finalUrl.split('/')
+              const filename = urlParts[urlParts.length - 1].split('?')[0] || 'document.pdf'
+              const docTitle = filename.replace('.pdf', '').replace(/_/g, ' ')
+              
+              if (finalUrl.includes('licdn.com')) {
+                // LinkedIn CDN - use directly
+                if (!pdfUrls.some(p => p.url === finalUrl)) {
+                  pdfUrls.push({ url: finalUrl, title: docTitle })
+                }
+              } else {
+                // External PDF - download and upload
+                const uploadedPdfUrl = await uploadPdfToStorage(finalUrl, filename)
+                if (uploadedPdfUrl && !pdfUrls.some(p => p.url === uploadedPdfUrl)) {
+                  pdfUrls.push({ url: uploadedPdfUrl, title: docTitle })
+                  console.log('✅ Shortened link PDF uploaded successfully')
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error checking shortened URL for PDF:', shortUrl, error)
+          }
+        }
+      }
+      
+      // Pattern 5: Look for document references in JSON-LD or embedded data
+      const dataScriptMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/gis)
+      if (dataScriptMatches) {
+        for (const scriptMatch of dataScriptMatches) {
+          try {
+            const scriptContent = scriptMatch.match(/<script[^>]*>(.*?)<\/script>/is)
+            if (scriptContent) {
+              const jsonData = JSON.parse(scriptContent[1])
+              
+              // Look for document/file attachments
+              if (jsonData.associatedMedia || jsonData.attachment) {
+                const media = jsonData.associatedMedia || jsonData.attachment
+                const mediaArray = Array.isArray(media) ? media : [media]
+                
+                for (const item of mediaArray) {
+                  if (item.contentUrl && (item['@type'] === 'DigitalDocument' || item.encodingFormat === 'application/pdf')) {
+                    const docUrl = item.contentUrl
+                    const docTitle = item.name || item.headline || 'Document from LinkedIn'
+                    
+                    console.log('📋 Found document in structured data:', docUrl)
+                    if (!pdfUrls.some(p => p.url === docUrl)) {
+                      pdfUrls.push({ url: docUrl, title: docTitle })
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Continue to next script
+          }
+        }
+      }
+      
+      console.log('📊 Total PDFs/Documents found:', pdfUrls.length)
+      if (pdfUrls.length > 0) {
+        console.log('📄 Document details:', JSON.stringify(pdfUrls, null, 2))
+      } else if (hasDocumentCarousel) {
+        console.log('⚠️ Document carousel detected but URLs not extracted - LinkedIn may require authentication')
+        console.log('ℹ️ LinkedIn embeds documents in a carousel viewer that requires authentication to download')
+        console.log('💡 Users can still view the document on LinkedIn by clicking the source URL')
+        // Add a placeholder to indicate document exists but couldn't be extracted
+        pdfUrls.push({
+          url: '',
+          title: '📄 Document attached to LinkedIn post',
+          previewUrl: '',
+          isLinkedInDocument: true
+        })
+      }
+      
+      console.log('=== PDF EXTRACTION COMPLETE ===')
+
       console.log('Successfully parsed LinkedIn post')
       console.log('Title:', title)
       console.log('Content length:', content.length)
@@ -2894,6 +3285,8 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
       console.log('Final Image URLs:', JSON.stringify(finalImages))
       console.log('YouTube URLs found:', youtubeUrls.length)
       console.log('YouTube URLs:', JSON.stringify(youtubeUrls))
+      console.log('PDF URLs found:', pdfUrls.length)
+      console.log('PDF URLs:', JSON.stringify(pdfUrls, null, 2))
       console.log('Hashtags:', hashtags)
       console.log('=== FINAL RESPONSE DATA ===')
       console.log('author:', author)
@@ -2911,6 +3304,7 @@ app.post('/make-server-053bcd80/parse-linkedin', async (c) => {
         publishDate,
         images: finalImages,
         youtubeUrls,
+        pdfUrls,
         hashtags,
         date: new Date().toISOString()
       })
@@ -3976,6 +4370,110 @@ app.delete('/make-server-053bcd80/admin/users/:userId', requireAdmin, async (c) 
   }
 })
 
+// Get all articles for admin (including hidden ones)
+app.get('/make-server-053bcd80/admin/articles', requireAdmin, async (c) => {
+  try {
+    console.log('=== FETCHING ALL ARTICLES (ADMIN) ===')
+    
+    // Get all articles from database, including hidden ones
+    const { data: articles, error } = await supabase
+      .from('articles')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Error fetching articles:', error)
+      return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+    }
+    
+    console.log('Found articles:', articles?.length || 0)
+    
+    // Transform SQL articles to frontend format (snake_case -> camelCase)
+    const transformedArticles = (articles || []).map(article => ({
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      excerpt: article.excerpt,
+      category: article.category,
+      coverImage: article.cover_image,
+      readingTime: article.reading_time,
+      authorId: article.author_id,
+      views: article.views || 0,
+      likes: article.likes || 0,
+      createdAt: article.created_at,
+      updatedAt: article.updated_at,
+      media: article.media || [],
+      source: article.source,
+      sourceUrl: article.source_url,
+      author: article.author,
+      authorImage: article.author_image,
+      authorTitle: article.author_title,
+      publishDate: article.publish_date,
+      hidden: article.hidden || false
+    }))
+    
+    return c.json({ articles: transformedArticles })
+  } catch (error: any) {
+    console.error('Error fetching articles:', error)
+    return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+  }
+})
+
+// Delete an article (admin)
+app.delete('/make-server-053bcd80/admin/articles/:articleId', requireAdmin, async (c) => {
+  try {
+    const articleId = c.req.param('articleId')
+    
+    console.log('=== DELETE ARTICLE (ADMIN) ===')
+    console.log('Article ID:', articleId)
+    
+    // Delete from SQL database
+    const { error } = await supabase
+      .from('articles')
+      .delete()
+      .eq('id', articleId)
+    
+    if (error) {
+      console.error('Error deleting article:', error)
+      return c.json({ error: 'Failed to delete article', details: error.message }, 500)
+    }
+    
+    console.log('Article deleted successfully')
+    
+    return c.json({ success: true, message: 'Article deleted successfully' })
+  } catch (error: any) {
+    console.error('Error deleting article:', error)
+    return c.json({ error: 'Failed to delete article', details: error.message }, 500)
+  }
+})
+
+// Toggle article visibility (admin) - Currently not supported without hidden column
+app.put('/make-server-053bcd80/admin/articles/:articleId/visibility', requireAdmin, async (c) => {
+  try {
+    const articleId = c.req.param('articleId')
+    const { hidden } = await c.req.json()
+    
+    console.log('=== TOGGLE ARTICLE VISIBILITY (ADMIN) ===')
+    console.log('Article ID:', articleId)
+    console.log('Hidden:', hidden)
+    
+    // Note: The 'hidden' column doesn't exist in the articles table yet
+    // For now, we'll just return success without updating
+    // In a production environment, you would need to add this column via Supabase dashboard:
+    // ALTER TABLE articles ADD COLUMN hidden BOOLEAN DEFAULT false;
+    
+    console.log('Note: Hidden column not available - visibility toggle not implemented')
+    
+    return c.json({ 
+      success: true, 
+      message: 'Visibility toggle not available. Delete article instead or add hidden column via Supabase dashboard.' 
+    })
+  } catch (error: any) {
+    console.error('Error updating article visibility:', error)
+    return c.json({ error: 'Failed to update article visibility', details: error.message }, 500)
+  }
+})
+
 // Get user rankings (leaderboard)
 app.get('/make-server-053bcd80/admin/rankings', requireAdmin, async (c) => {
   try {
@@ -4035,46 +4533,55 @@ app.get('/make-server-053bcd80/admin/swipe-stats', requireAdmin, async (c) => {
   try {
     console.log('=== FETCHING SWIPE STATS ===')
     
-    // Get all swipe stats from KV store
-    const allSwipeStats = await kv.getByPrefix('article_swipes:')
+    // Get all swipe stats from article_swipe_stats table joined with articles
+    const { data: swipeStatsWithArticles, error: statsError } = await supabase
+      .from('article_swipe_stats')
+      .select(`
+        article_id,
+        total_swipes,
+        likes,
+        skips,
+        like_rate,
+        articles (
+          id,
+          title,
+          category,
+          cover_image,
+          author,
+          created_at
+        )
+      `)
+      .order('likes', { ascending: false })
     
-    console.log('Raw swipe stats from KV:', allSwipeStats.length, 'entries')
-    if (allSwipeStats.length > 0) {
-      console.log('Sample swipe stat:', allSwipeStats[0])
+    if (statsError) {
+      console.error('Error fetching swipe stats:', statsError)
+      throw statsError
     }
     
-    // Get all articles to combine with swipe data
-    const { data: articles } = await supabase
-      .from('articles')
-      .select('id, title, category, cover_image, author, created_at')
+    console.log('Raw swipe stats from DB:', swipeStatsWithArticles?.length || 0, 'entries')
+    if (swipeStatsWithArticles && swipeStatsWithArticles.length > 0) {
+      console.log('Sample swipe stat:', swipeStatsWithArticles[0])
+    }
     
-    console.log('Total articles in DB:', articles?.length || 0)
+    // Format the response
+    const formattedStats = (swipeStatsWithArticles || [])
+      .filter(stat => stat.total_swipes > 0) // Only show articles that have been swiped
+      .map(stat => ({
+        articleId: stat.article_id,
+        title: stat.articles?.title || 'Unknown Article',
+        category: stat.articles?.category || 'Unknown',
+        coverImage: stat.articles?.cover_image || null,
+        author: stat.articles?.author || 'Anonymous',
+        createdAt: stat.articles?.created_at || null,
+        totalSwipes: stat.total_swipes || 0,
+        likes: stat.likes || 0,
+        skips: stat.skips || 0,
+        likeRate: Math.round(stat.like_rate || 0)
+      }))
     
-    // Combine swipe stats with article info
-    const swipeStatsWithArticles = allSwipeStats
-      .map(stats => {
-        const article = articles?.find(a => a.id === stats.articleId)
-        const likeRate = stats.totalSwipes > 0 ? (stats.likes / stats.totalSwipes) * 100 : 0
-        
-        return {
-          articleId: stats.articleId,
-          title: article?.title || 'Unknown Article',
-          category: article?.category || 'Unknown',
-          coverImage: article?.cover_image || null,
-          author: article?.author || 'Anonymous',
-          createdAt: article?.created_at || null,
-          totalSwipes: stats.totalSwipes || 0,
-          likes: stats.likes || 0,
-          skips: stats.skips || 0,
-          likeRate: Math.round(likeRate)
-        }
-      })
-      .filter(stat => stat.totalSwipes > 0) // Only show articles that have been swiped
-      .sort((a, b) => b.likes - a.likes) // Sort by most likes
+    console.log('Swipe stats generated:', formattedStats.length, 'articles with swipes')
     
-    console.log('Swipe stats generated:', swipeStatsWithArticles.length, 'articles with swipes')
-    
-    return c.json({ swipeStats: swipeStatsWithArticles })
+    return c.json({ swipeStats: formattedStats })
   } catch (error: any) {
     console.error('Error fetching swipe stats:', error)
     return c.json({ error: 'Failed to fetch swipe stats', details: error.message }, 500)
@@ -4114,21 +4621,30 @@ app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) =
       viewsByDay[dateStr] = 0
     }
     
-    // Get view activity from KV store (article_views:date:articleId)
-    const viewsData = await kv.getByPrefix('article_views:')
+    // Get view activity from article_views table
+    const { data: viewsData, error: viewsError } = await supabase
+      .from('article_views')
+      .select('date, views')
+      .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
     
-    console.log('Raw views data from KV:', viewsData.length, 'entries')
-    if (viewsData.length > 0) {
+    if (viewsError) {
+      console.error('Error fetching views data:', viewsError)
+    }
+    
+    console.log('Raw views data from DB:', viewsData?.length || 0, 'entries')
+    if (viewsData && viewsData.length > 0) {
       console.log('Sample view entry:', viewsData[0])
     }
     
     // Aggregate views by day
-    viewsData.forEach(entry => {
-      const date = entry.date
-      if (date && viewsByDay[date] !== undefined) {
-        viewsByDay[date] = (viewsByDay[date] || 0) + (entry.views || 0)
-      }
-    })
+    if (viewsData) {
+      viewsData.forEach(entry => {
+        const date = entry.date
+        if (date && viewsByDay[date] !== undefined) {
+          viewsByDay[date] = (viewsByDay[date] || 0) + (entry.views || 0)
+        }
+      })
+    }
     
     console.log('Views aggregated by day:', Object.keys(viewsByDay).filter(k => viewsByDay[k] > 0).length, 'days with views')
     
@@ -4489,15 +5005,15 @@ app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
     
     // Calculate statistics
     const totalTransactions = allTransactions?.length || 0
-    const totalPointsExchanged = allTransactions?.reduce((sum, tx) => sum + tx.points_exchanged, 0) || 0
-    const totalNadaGenerated = allTransactions?.reduce((sum, tx) => sum + tx.nada_received, 0) || 0
+    const totalPointsExchanged = allTransactions?.reduce((sum, tx) => sum + (tx.points_exchanged || 0), 0) || 0
+    const totalNadaGenerated = allTransactions?.reduce((sum, tx) => sum + (tx.nada_received || 0), 0) || 0
     const averageExchangeAmount = totalTransactions > 0 ? totalPointsExchanged / totalTransactions : 0
     
     // Calculate 24h stats
     const now = new Date()
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     const last24hTransactions = allTransactions?.filter(tx => new Date(tx.created_at) >= yesterday) || []
-    const last24hVolume = last24hTransactions.reduce((sum, tx) => sum + tx.points_exchanged, 0)
+    const last24hVolume = last24hTransactions.reduce((sum, tx) => sum + (tx.points_exchanged || 0), 0)
     
     // Group transactions by day (last 30 days)
     const transactionsPerDay: { date: string; count: number; volume: number }[] = []
@@ -4512,7 +5028,7 @@ app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
       transactionsPerDay.push({
         date: dateStr,
         count: dayTransactions.length,
-        volume: dayTransactions.reduce((sum, tx) => sum + tx.points_exchanged, 0)
+        volume: dayTransactions.reduce((sum, tx) => sum + (tx.points_exchanged || 0), 0)
       })
     }
     
@@ -4531,8 +5047,8 @@ app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
       const existing = userExchangeStats.get(tx.user_id)
       if (existing) {
         existing.totalExchanges++
-        existing.totalPointsExchanged += tx.points_exchanged
-        existing.totalNadaGenerated += tx.nada_received
+        existing.totalPointsExchanged += (tx.points_exchanged || 0)
+        existing.totalNadaGenerated += (tx.nada_received || 0)
         if (new Date(tx.created_at) > new Date(existing.lastExchange)) {
           existing.lastExchange = tx.created_at
         }
@@ -4551,8 +5067,8 @@ app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
           email: authData?.user?.email || 'Unknown',
           nickname: userData?.nickname || null,
           totalExchanges: 1,
-          totalPointsExchanged: tx.points_exchanged,
-          totalNadaGenerated: tx.nada_received,
+          totalPointsExchanged: (tx.points_exchanged || 0),
+          totalNadaGenerated: (tx.nada_received || 0),
           lastExchange: tx.created_at
         })
       }
@@ -4562,17 +5078,23 @@ app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
       .sort((a, b) => b.totalNadaGenerated - a.totalNadaGenerated)
       .slice(0, 10)
     
-    // Get recent transactions with user details
+    // Get recent transactions with user details (show top 50 for pagination)
     const recentTransactions = await Promise.all(
-      (allTransactions?.slice(0, 10) || []).map(async (tx) => {
+      (allTransactions?.slice(0, 50) || []).map(async (tx) => {
         const { data: authData } = await supabaseAuth.auth.admin.getUserById(tx.user_id)
+        const { data: userData } = await supabase
+          .from('user_progress')
+          .select('nickname')
+          .eq('user_id', tx.user_id)
+          .single()
         
         return {
           id: tx.id,
           userId: tx.user_id,
           email: authData?.user?.email || 'Unknown',
-          pointsExchanged: tx.points_exchanged,
-          nadaReceived: tx.nada_received,
+          nickname: userData?.nickname || null,
+          pointsExchanged: tx.points_exchanged || 0,
+          nadaReceived: tx.nada_received || 0,
           timestamp: tx.created_at,
           ipAddress: tx.ip_address || 'N/A',
           riskScore: tx.risk_score || 0

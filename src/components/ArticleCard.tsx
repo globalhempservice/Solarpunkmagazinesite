@@ -17,9 +17,10 @@ interface ArticleCardProps {
     source?: string
     sourceUrl?: string
     media?: Array<{
-      type: 'youtube' | 'audio' | 'image'
+      type: 'youtube' | 'audio' | 'image' | 'pdf'
       url: string
       caption?: string
+      title?: string
     }>
   }
   onClick: () => void

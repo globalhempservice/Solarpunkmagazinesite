@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Card } from './ui/card'
 import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import { 
   Wallet,
   DollarSign,
@@ -9,7 +11,10 @@ import {
   AlertCircle,
   Shield,
   Trophy,
-  CreditCard
+  CreditCard,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
@@ -36,6 +41,7 @@ interface WalletStats {
     id: string
     userId: string
     email: string
+    nickname: string | null
     pointsExchanged: number
     nadaReceived: number
     timestamp: string
@@ -48,9 +54,29 @@ interface WalletStats {
 
 interface WalletsTabProps {
   walletStats: WalletStats
+  onRefresh: () => Promise<void>
+  isRefreshing?: boolean
 }
 
-export function WalletsTab({ walletStats }: WalletsTabProps) {
+export function WalletsTab({ walletStats, onRefresh, isRefreshing = false }: WalletsTabProps) {
+  const [exchangersPage, setExchangersPage] = useState(0)
+  const [transactionsPage, setTransactionsPage] = useState(0)
+  
+  const ITEMS_PER_PAGE = 10
+  
+  // Pagination for top exchangers
+  const totalExchangersPages = Math.ceil((walletStats.topExchangers?.length || 0) / ITEMS_PER_PAGE)
+  const paginatedExchangers = (walletStats.topExchangers || []).slice(
+    exchangersPage * ITEMS_PER_PAGE,
+    (exchangersPage + 1) * ITEMS_PER_PAGE
+  )
+  
+  // Pagination for recent transactions
+  const totalTransactionsPages = Math.ceil((walletStats.recentTransactions?.length || 0) / ITEMS_PER_PAGE)
+  const paginatedTransactions = (walletStats.recentTransactions || []).slice(
+    transactionsPage * ITEMS_PER_PAGE,
+    (transactionsPage + 1) * ITEMS_PER_PAGE
+  )
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -62,10 +88,21 @@ export function WalletsTab({ walletStats }: WalletsTabProps) {
           </h2>
           <p className="text-sm text-muted-foreground mt-1">Points exchange system & NADA trading</p>
         </div>
-        <div className="text-right">
-          <div className="text-sm text-muted-foreground">Exchange Rate</div>
-          <div className="text-2xl font-bold text-emerald-500">{walletStats.exchangeRate}:1</div>
-          <div className="text-xs text-muted-foreground">Points to NADA</div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-sm text-muted-foreground">Exchange Rate</div>
+            <div className="text-2xl font-bold text-emerald-500">{walletStats.exchangeRate}:1</div>
+            <div className="text-xs text-muted-foreground">Points to NADA</div>
+          </div>
+          <Button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            size="lg"
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            <RefreshCw className={`w-5 h-5 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
         </div>
       </div>
 
@@ -165,7 +202,7 @@ export function WalletsTab({ walletStats }: WalletsTabProps) {
           Transaction Volume & Activity
         </h3>
         <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={walletStats.transactionsPerDay}>
+          <AreaChart data={walletStats.transactionsPerDay || []}>
             <defs>
               <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -244,43 +281,83 @@ export function WalletsTab({ walletStats }: WalletsTabProps) {
               </tr>
             </thead>
             <tbody>
-              {walletStats.topExchangers.map((exchanger, index) => (
-                <tr key={exchanger.userId} className="border-b last:border-0">
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      {index === 0 && <span className="text-2xl">🥇</span>}
-                      {index === 1 && <span className="text-2xl">🥈</span>}
-                      {index === 2 && <span className="text-2xl">🥉</span>}
-                      {index > 2 && <span className="text-muted-foreground">#{index + 1}</span>}
-                    </div>
-                  </td>
-                  <td className="py-4">
-                    <div>
-                      <div className="font-medium">{exchanger.nickname || 'Anonymous'}</div>
-                      <div className="text-xs text-muted-foreground">{exchanger.email}</div>
-                    </div>
-                  </td>
-                  <td className="py-4 text-right">
-                    <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                      {exchanger.totalExchanges}
-                    </Badge>
-                  </td>
-                  <td className="py-4 text-right font-medium">
-                    {exchanger.totalPointsExchanged.toLocaleString()}
-                  </td>
-                  <td className="py-4 text-right">
-                    <div className="font-bold text-purple-600 dark:text-purple-400">
-                      {exchanger.totalNadaGenerated.toLocaleString()}
-                    </div>
-                  </td>
-                  <td className="py-4 text-right text-sm text-muted-foreground">
-                    {new Date(exchanger.lastExchange).toLocaleDateString()}
+              {paginatedExchangers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No exchange data available yet
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paginatedExchangers.map((exchanger, index) => {
+                  const globalRank = exchangersPage * ITEMS_PER_PAGE + index
+                  return (
+                    <tr key={exchanger.userId} className="border-b last:border-0">
+                      <td className="py-4">
+                        <div className="flex items-center gap-2">
+                          {globalRank === 0 && <span className="text-2xl">🥇</span>}
+                          {globalRank === 1 && <span className="text-2xl">🥈</span>}
+                          {globalRank === 2 && <span className="text-2xl">🥉</span>}
+                          {globalRank > 2 && <span className="text-muted-foreground">#{globalRank + 1}</span>}
+                        </div>
+                      </td>
+                      <td className="py-4">
+                        <div>
+                          <div className="font-medium">{exchanger.nickname || 'Anonymous'}</div>
+                          <div className="text-xs text-muted-foreground">{exchanger.email}</div>
+                        </div>
+                      </td>
+                      <td className="py-4 text-right">
+                        <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                          {exchanger.totalExchanges || 0}
+                        </Badge>
+                      </td>
+                      <td className="py-4 text-right font-medium">
+                        {(exchanger.totalPointsExchanged || 0).toLocaleString()}
+                      </td>
+                      <td className="py-4 text-right">
+                        <div className="font-bold text-purple-600 dark:text-purple-400">
+                          {(exchanger.totalNadaGenerated || 0).toLocaleString()}
+                        </div>
+                      </td>
+                      <td className="py-4 text-right text-sm text-muted-foreground">
+                        {exchanger.lastExchange ? new Date(exchanger.lastExchange).toLocaleDateString() : 'N/A'}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination for Top Exchangers */}
+        {totalExchangersPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Page {exchangersPage + 1} of {totalExchangersPages} • Showing {paginatedExchangers.length} of {walletStats.topExchangers?.length || 0} exchangers
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExchangersPage(prev => Math.max(0, prev - 1))}
+                disabled={exchangersPage === 0}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExchangersPage(prev => Math.min(totalExchangersPages - 1, prev + 1))}
+                disabled={exchangersPage === totalExchangersPages - 1}
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Recent Transactions */}
@@ -290,49 +367,84 @@ export function WalletsTab({ walletStats }: WalletsTabProps) {
           Recent Transactions
         </h3>
         <div className="space-y-3">
-          {walletStats.recentTransactions.map((tx) => (
-            <div 
-              key={tx.id} 
-              className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-lg ${
-                  tx.riskScore > 50 ? 'bg-red-100 dark:bg-red-950' : 'bg-green-100 dark:bg-green-950'
-                }`}>
-                  {tx.riskScore > 50 ? (
-                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                  ) : (
-                    <ArrowUpRight className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  )}
-                </div>
-                <div>
-                  <div className="font-medium">{tx.email}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-2">
-                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
-                    <span>•</span>
-                    <span>IP: {tx.ipAddress}</span>
-                    {tx.riskScore > 50 && (
-                      <>
-                        <span>•</span>
-                        <Badge variant="destructive" className="text-xs">
-                          Risk: {tx.riskScore}%
-                        </Badge>
-                      </>
+          {paginatedTransactions.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              No recent transactions
+            </div>
+          ) : (
+            paginatedTransactions.map((tx) => (
+              <div 
+                key={tx.id} 
+                className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className={`p-2 rounded-lg ${
+                    (tx.riskScore || 0) > 50 ? 'bg-red-100 dark:bg-red-950' : 'bg-green-100 dark:bg-green-950'
+                  }`}>
+                    {(tx.riskScore || 0) > 50 ? (
+                      <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                    ) : (
+                      <ArrowUpRight className="w-5 h-5 text-green-600 dark:text-green-400" />
                     )}
+                  </div>
+                  <div>
+                    <div className="font-medium">{tx.nickname || tx.email || 'Unknown'}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span>{tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'N/A'}</span>
+                      <span>•</span>
+                      <span>IP: {tx.ipAddress || 'N/A'}</span>
+                      {(tx.riskScore || 0) > 50 && (
+                        <>
+                          <span>•</span>
+                          <Badge variant="destructive" className="text-xs">
+                            Risk: {tx.riskScore}%
+                          </Badge>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-lg">
+                    <span className="text-red-600 dark:text-red-400">-{(tx.pointsExchanged || 0).toLocaleString()}</span>
+                    <span className="text-muted-foreground text-sm"> pts</span>
+                  </div>
+                  <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                    +{(tx.nadaReceived || 0).toLocaleString()} NADA
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-bold text-lg">
-                  <span className="text-red-600 dark:text-red-400">-{tx.pointsExchanged.toLocaleString()}</span>
-                  <span className="text-muted-foreground text-sm"> pts</span>
-                </div>
-                <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">
-                  +{tx.nadaReceived.toLocaleString()} NADA
-                </div>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
+        
+        {/* Pagination for Recent Transactions */}
+        {totalTransactionsPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Page {transactionsPage + 1} of {totalTransactionsPages} • Showing {paginatedTransactions.length} of {walletStats.recentTransactions?.length || 0} transactions
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTransactionsPage(prev => Math.max(0, prev - 1))}
+                disabled={transactionsPage === 0}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTransactionsPage(prev => Math.min(totalTransactionsPages - 1, prev + 1))}
+                disabled={transactionsPage === totalTransactionsPages - 1}
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   )

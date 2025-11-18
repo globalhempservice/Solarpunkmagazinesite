@@ -28,7 +28,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
-  CreditCard
+  CreditCard,
+  Edit
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -149,6 +150,7 @@ interface WalletStats {
     id: string
     userId: string
     email: string
+    nickname: string | null
     pointsExchanged: number
     nadaReceived: number
     timestamp: string
@@ -159,23 +161,49 @@ interface WalletStats {
   fraudAlerts: number
 }
 
+interface Article {
+  id: string
+  title: string
+  content: string
+  excerpt: string
+  category: string
+  coverImage: string
+  readingTime: number
+  authorId: string
+  views: number
+  likes: number
+  createdAt: string
+  updatedAt: string
+  media: any[]
+  source: string | null
+  sourceUrl: string | null
+  author: string | null
+  authorImage: string | null
+  authorTitle: string | null
+  publishDate: string | null
+  hidden: boolean
+}
+
 interface AdminDashboardProps {
   accessToken: string
   serverUrl: string
   onBack: () => void
+  onEditArticle?: (articleId: string) => void
 }
 
 type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets'
 
-export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboardProps) {
+export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [users, setUsers] = useState<User[]>([])
+  const [articles, setArticles] = useState<Article[]>([])
   const [rankings, setRankings] = useState<Ranking[]>([])
   const [swipeStats, setSwipeStats] = useState<SwipeStat[]>([])
   const [viewsAnalytics, setViewsAnalytics] = useState<ViewsAnalytics | null>(null)
   const [nadaFeedback, setNadaFeedback] = useState<NadaFeedback | null>(null)
   const [walletStats, setWalletStats] = useState<WalletStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshingWallets, setRefreshingWallets] = useState(false)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
   useEffect(() => {
@@ -187,11 +215,14 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
       setLoading(true)
       
       // Fetch all data in parallel for faster loading
-      const [statsRes, usersRes, rankingsRes, swipeStatsRes, viewsAnalyticsRes, nadaFeedbackRes, walletStatsRes] = await Promise.all([
+      const [statsRes, usersRes, articlesRes, rankingsRes, swipeStatsRes, viewsAnalyticsRes, nadaFeedbackRes, walletStatsRes] = await Promise.all([
         fetch(`${serverUrl}/admin/stats`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }),
         fetch(`${serverUrl}/admin/users`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        }),
+        fetch(`${serverUrl}/admin/articles`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }),
         fetch(`${serverUrl}/admin/rankings`, {
@@ -221,6 +252,12 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
       if (usersRes.ok) {
         const data = await usersRes.json()
         setUsers(data.users)
+      }
+
+      // Process articles
+      if (articlesRes.ok) {
+        const data = await articlesRes.json()
+        setArticles(data.articles || [])
       }
 
       // Process rankings
@@ -256,6 +293,25 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
       console.error('Error fetching admin data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const refreshWalletStats = async () => {
+    try {
+      setRefreshingWallets(true)
+      
+      const walletStatsRes = await fetch(`${serverUrl}/admin/wallet-stats`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      
+      if (walletStatsRes.ok) {
+        const data = await walletStatsRes.json()
+        setWalletStats(data.walletStats)
+      }
+    } catch (error) {
+      console.error('Error refreshing wallet stats:', error)
+    } finally {
+      setRefreshingWallets(false)
     }
   }
 
@@ -302,6 +358,27 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
     } catch (error: any) {
       console.error('Error deleting user:', error)
       alert('Failed to delete user')
+    }
+  }
+
+  const handleDeleteArticle = async (articleId: string, title: string) => {
+    if (!confirm(`PERMANENTLY DELETE article "${title}"? This cannot be undone!`)) return
+
+    try {
+      const response = await fetch(`${serverUrl}/admin/articles/${articleId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (response.ok) {
+        await fetchAdminData()
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete article: ${error.details || error.error}`)
+      }
+    } catch (error: any) {
+      console.error('Error deleting article:', error)
+      alert('Failed to delete article')
     }
   }
 
@@ -635,53 +712,108 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
             </Card>
           </div>
 
-          {/* Merged Articles List with Views and Swipes */}
+          {/* All Articles List with Management Actions */}
           <div className="space-y-3">
-            <h3 className="font-bold">All Articles</h3>
-            {viewsAnalytics.topArticles.map((article, index) => {
-              const swipeStat = swipeStats.find(s => s.articleId === article.id)
-              
-              return (
-                <Card key={article.id} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-sm truncate">{article.title}</p>
-                        <Badge variant="secondary" className="text-xs">
-                          {article.category}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-2">by {article.author}</p>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold">All Articles ({articles.length})</h3>
+              <p className="text-xs text-muted-foreground">Click to edit • Delete permanently</p>
+            </div>
+            
+            {articles.length === 0 ? (
+              <Card className="p-8 text-center">
+                <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">No articles found</p>
+              </Card>
+            ) : (
+              articles.map((article) => {
+                const swipeStat = swipeStats.find(s => s.articleId === article.id)
+                
+                return (
+                  <Card 
+                    key={article.id} 
+                    className="p-4 transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Cover Image Thumbnail */}
+                      {article.coverImage && (
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                          <img 
+                            src={article.coverImage} 
+                            alt={article.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
                       
-                      <div className="flex items-center gap-4 text-xs">
-                        <span className="flex items-center gap-1 text-blue-500 font-bold">
-                          <Eye className="w-3 h-3" />
-                          {article.views.toLocaleString()}
-                        </span>
-                        {swipeStat && (
-                          <>
-                            <span className="flex items-center gap-1 text-green-500">
-                              <Heart className="w-3 h-3" />
-                              {swipeStat.likes}
-                            </span>
-                            <span className="flex items-center gap-1 text-red-500">
-                              <X className="w-3 h-3" />
-                              {swipeStat.skips}
-                            </span>
-                            <span className="flex items-center gap-1 text-orange-500 font-bold">
-                              {swipeStat.likeRate.toFixed(0)}% match
-                            </span>
-                          </>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium text-sm truncate">{article.title}</p>
+                          <Badge variant="secondary" className="text-xs">
+                            {article.category}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          by {article.author || 'Unknown'} • {article.readingTime} min read
+                        </p>
+                        
+                        <div className="flex items-center gap-4 text-xs">
+                          <span className="flex items-center gap-1 text-blue-500 font-bold">
+                            <Eye className="w-3 h-3" />
+                            {article.views.toLocaleString()}
+                          </span>
+                          <span className="flex items-center gap-1 text-pink-500">
+                            <Heart className="w-3 h-3" />
+                            {article.likes}
+                          </span>
+                          {swipeStat && (
+                            <>
+                              <span className="flex items-center gap-1 text-green-500">
+                                <ThumbsUp className="w-3 h-3" />
+                                {swipeStat.likes}
+                              </span>
+                              <span className="flex items-center gap-1 text-red-500">
+                                <ThumbsDown className="w-3 h-3" />
+                                {swipeStat.skips}
+                              </span>
+                              <span className="flex items-center gap-1 text-orange-500 font-bold">
+                                {swipeStat.likeRate.toFixed(0)}% match
+                              </span>
+                            </>
+                          )}
+                          <span className="text-muted-foreground ml-auto">
+                            {new Date(article.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {onEditArticle && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onEditArticle(article.id)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Edit article"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                         )}
-                        <span className="text-muted-foreground ml-auto">
-                          {new Date(article.createdAt).toLocaleDateString()}
-                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteArticle(article.id, article.title)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Delete article permanently"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              )
-            })}
+                  </Card>
+                )
+              })
+            )}
           </div>
         </div>
       )}
@@ -1187,7 +1319,11 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
 
       {/* Wallets Tab - Financial Analytics */}
       {activeTab === 'wallets' && walletStats && (
-        <WalletsTab walletStats={walletStats} />
+        <WalletsTab 
+          walletStats={walletStats} 
+          onRefresh={refreshWalletStats}
+          isRefreshing={refreshingWallets}
+        />
       )}
     </motion.div>
   )

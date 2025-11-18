@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react"
+import { Loader2, Sparkles, CheckCircle2, AlertCircle, FileText, Download, Image as ImageIcon, Video, Lock } from "lucide-react"
 import { Badge } from "./ui/badge"
 import { Alert, AlertDescription } from "./ui/alert"
 import { toast } from "sonner"
@@ -23,6 +23,7 @@ interface ExtractedContent {
   location?: string
   images?: string[]
   youtubeUrls?: string[]
+  pdfUrls?: Array<{ url: string; title: string; previewUrl?: string }>
   mediaUrl?: string
   mediaType?: 'image' | 'video' | 'carousel'
   hashtags?: string[]
@@ -40,9 +41,10 @@ interface GamifiedImporterProps {
     publishDate?: string
     sourceUrl: string
     media: Array<{
-      type: 'youtube' | 'audio' | 'image' | 'spotify'
+      type: 'youtube' | 'audio' | 'image' | 'spotify' | 'pdf'
       url: string
       caption?: string
+      title?: string
     }>
   }) => void
 }
@@ -103,6 +105,7 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
     location: true,
     images: true,
     youtubeUrls: true,
+    pdfUrls: true,
     mediaUrl: true
   })
 
@@ -299,9 +302,10 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
 
     // Build media array
     const media: Array<{
-      type: 'youtube' | 'audio' | 'image' | 'spotify'
+      type: 'youtube' | 'audio' | 'image' | 'spotify' | 'pdf'
       url: string
       caption?: string
+      title?: string
     }> = []
 
     // Add YouTube videos
@@ -311,6 +315,18 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
           type: 'youtube',
           url,
           caption: `Video ${index + 1} from ${extractedData.platformName}`
+        })
+      })
+    }
+
+    // Add PDFs
+    if (selectedContent.pdfUrls && extractedData.pdfUrls && extractedData.pdfUrls.length > 0) {
+      extractedData.pdfUrls.forEach((pdf) => {
+        media.push({
+          type: 'pdf',
+          url: pdf.url,
+          title: pdf.title,
+          caption: `Document from ${extractedData.platformName}`
         })
       })
     }
@@ -335,7 +351,7 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
       })
     }
 
-    onImport({
+    const importData = {
       title,
       content,
       excerpt,
@@ -345,10 +361,17 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
       publishDate: selectedContent.publishDate ? extractedData.publishDate : undefined,
       sourceUrl: url,
       media
-    })
+    }
+
+    console.log('📦 Importing article data:', importData)
+    console.log('📄 PDF count in media:', media.filter(m => m.type === 'pdf').length)
+    console.log('📄 PDF details:', media.filter(m => m.type === 'pdf'))
+
+    onImport(importData)
 
     const mediaCount = media.length
-    toast.success(`Imported! Added ${mediaCount} media item(s).`)
+    const pdfCount = media.filter(m => m.type === 'pdf').length
+    toast.success(`Imported! Added ${mediaCount} media item(s)${pdfCount > 0 ? ` (${pdfCount} PDF)` : ''}.`)
     
     setExtractedData(null)
     setUrl('')
@@ -475,6 +498,99 @@ export function GamifiedImporter({ onImport }: GamifiedImporterProps) {
                   onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, author: checked as boolean })}
                 />
                 <Label htmlFor="check-author" className="cursor-pointer text-sm">By {extractedData.author}</Label>
+              </div>
+            )}
+
+            {/* Media Attachments Preview */}
+            {((extractedData.images && extractedData.images.length > 0) || 
+              (extractedData.youtubeUrls && extractedData.youtubeUrls.length > 0) ||
+              (extractedData.pdfUrls && extractedData.pdfUrls.length > 0)) && (
+              <div className="space-y-3 pt-3 border-t border-border/50">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Media Attachments
+                </h4>
+                
+                {/* PDFs */}
+                {extractedData.pdfUrls && extractedData.pdfUrls.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="check-pdfs"
+                        checked={selectedContent.pdfUrls}
+                        onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, pdfUrls: checked as boolean })}
+                      />
+                      <Label htmlFor="check-pdfs" className="cursor-pointer text-sm font-medium">
+                        Documents ({extractedData.pdfUrls.length})
+                      </Label>
+                    </div>
+                    <div className="ml-6 space-y-2">
+                      {extractedData.pdfUrls.map((pdf, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20">
+                            <FileText className="w-4 h-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                            <span className="text-xs flex-1 truncate" title={pdf.title}>{pdf.title}</span>
+                            {pdf.url && pdf.url.trim() !== '' ? (
+                              <a 
+                                href={pdf.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
+                                onClick={(e) => e.stopPropagation()}
+                                title="Download PDF"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                            ) : pdf.isLinkedInDocument ? (
+                              <span className="text-xs text-orange-600/70 dark:text-orange-400/70" title="LinkedIn hosted document">
+                                LinkedIn
+                              </span>
+                            ) : (
+                              <Lock className="w-3.5 h-3.5 text-orange-600/50 dark:text-orange-400/50" title="Authentication required" />
+                            )}
+                          </div>
+                          {pdf.previewUrl && (
+                            <img 
+                              src={pdf.previewUrl} 
+                              alt={`Preview of ${pdf.title}`} 
+                              className="w-full rounded-lg border border-orange-500/20"
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* YouTube Videos */}
+                {extractedData.youtubeUrls && extractedData.youtubeUrls.length > 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-gradient-to-r from-red-500/10 to-pink-500/10 border border-red-500/20">
+                    <Checkbox
+                      id="check-youtube"
+                      checked={selectedContent.youtubeUrls}
+                      onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, youtubeUrls: checked as boolean })}
+                    />
+                    <Video className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <Label htmlFor="check-youtube" className="cursor-pointer text-xs flex-1">
+                      YouTube Videos ({extractedData.youtubeUrls.length})
+                    </Label>
+                  </div>
+                )}
+
+                {/* Images */}
+                {extractedData.images && extractedData.images.length > 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
+                    <Checkbox
+                      id="check-images"
+                      checked={selectedContent.images}
+                      onCheckedChange={(checked) => setSelectedContent({ ...selectedContent, images: checked as boolean })}
+                    />
+                    <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <Label htmlFor="check-images" className="cursor-pointer text-xs flex-1">
+                      Images ({extractedData.images.length})
+                    </Label>
+                  </div>
+                )}
               </div>
             )}
           </div>

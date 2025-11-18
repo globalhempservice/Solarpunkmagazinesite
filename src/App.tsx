@@ -51,9 +51,12 @@ interface Article {
   authorTitle?: string
   publishDate?: string
   media?: Array<{
-    type: 'youtube' | 'audio' | 'image'
+    type: 'youtube' | 'audio' | 'image' | 'pdf'
     url: string
     caption?: string
+    title?: string
+    previewUrl?: string
+    isLinkedInDocument?: boolean
   }>
 }
 
@@ -1098,6 +1101,7 @@ export default function App() {
             onCancel={() => setCurrentView('feed')}
             article={editingArticle}
             onUpdate={handleUpdateArticle}
+            accessToken={accessToken || undefined}
           />
         )}
 
@@ -1126,6 +1130,12 @@ export default function App() {
             accessToken={accessToken}
             serverUrl={serverUrl}
             onBack={() => setCurrentView('dashboard')}
+            onEditArticle={(articleId) => {
+              const article = articles.find(a => a.id === articleId)
+              if (article) {
+                handleEditArticle(article)
+              }
+            }}
           />
         )}
 

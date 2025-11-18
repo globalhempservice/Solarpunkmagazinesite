@@ -28,7 +28,10 @@ import {
   Zap,
   ExternalLink,
   ArrowRight,
-  Lock
+  Lock,
+  FileText,
+  Download,
+  Image as ImageIcon
 } from "lucide-react"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 import { PlaceholderArt } from "./PlaceholderArt"
@@ -37,9 +40,12 @@ import { isFeatureUnlocked, FEATURE_UNLOCKS } from "../utils/featureUnlocks"
 import { FeatureUnlockModal } from "./FeatureUnlockModal"
 
 interface MediaItem {
-  type: 'youtube' | 'audio' | 'image'
+  type: 'youtube' | 'audio' | 'image' | 'pdf'
   url: string
   caption?: string
+  title?: string
+  previewUrl?: string
+  isLinkedInDocument?: boolean
 }
 
 interface Article {
@@ -78,6 +84,10 @@ interface ArticleReaderProps {
 export function ArticleReader({ article, onBack, allArticles = [], userProgress, suggestedArticles, onArticleSelect, accessToken }: ArticleReaderProps) {
   const [isSliding, setIsSliding] = useState(false)
   const [showUnlockModal, setShowUnlockModal] = useState(false)
+
+  // Debug: Log media to console
+  console.log('📰 Article Media:', article.media)
+  console.log('📄 PDF count:', article.media?.filter(m => m.type === 'pdf').length || 0)
 
   const handleExploreMore = () => {
     // Filter out the current article and select a random one
@@ -165,6 +175,74 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                 {mediaItem.caption}
               </p>
             )}
+          </div>
+        )
+      
+      case 'pdf':
+        const isLinkedInDoc = (mediaItem as any).isLinkedInDocument
+        const previewUrl = (mediaItem as any).previewUrl
+        
+        return (
+          <div key={index} className="my-6 space-y-3">
+            <div className="p-6 bg-gradient-to-br from-orange-500/10 to-red-500/10 border-2 border-orange-500/20 rounded-xl">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-lg mb-1">
+                    {mediaItem.title || 'Document'}
+                  </h4>
+                  {isLinkedInDoc && (
+                    <p className="text-xs text-orange-600/80 dark:text-orange-400/80 mb-2">
+                      LinkedIn Document (Preview Only)
+                    </p>
+                  )}
+                  {mediaItem.caption && (
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {mediaItem.caption}
+                    </p>
+                  )}
+                  
+                  {/* Preview Image */}
+                  {previewUrl && (
+                    <img 
+                      src={previewUrl} 
+                      alt={`Preview of ${mediaItem.title || 'document'}`}
+                      className="w-full rounded-lg border-2 border-orange-500/20 mb-3"
+                    />
+                  )}
+                  
+                  {/* Action Button */}
+                  {mediaItem.url && mediaItem.url.trim() !== '' ? (
+                    <a
+                      href={mediaItem.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-lg transition-all font-semibold text-sm shadow-md hover:shadow-lg"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download PDF
+                    </a>
+                  ) : article.sourceUrl ? (
+                    <a
+                      href={article.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-lg transition-all font-semibold text-sm shadow-md hover:shadow-lg"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Full Document on LinkedIn
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Lock className="w-4 h-4" />
+                      <span>This document requires authentication to download</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )
       
@@ -369,6 +447,22 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
               {/* Title */}
               <h1 className="text-3xl md:text-4xl text-foreground">{article.title}</h1>
               
+              {/* View Original Article Link - More prominent version */}
+              {article.sourceUrl && (
+                <div className="mt-4">
+                  <a
+                    href={article.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border-2 border-blue-500/40 hover:border-blue-500/60 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl group"
+                  >
+                    <ExternalLink className="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-blue-600 dark:text-blue-400">View Original Article</span>
+                    <ArrowRight className="w-4 h-4 text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                </div>
+              )}
+              
               {/* LinkedIn Author Info Box - Shows only if LinkedIn metadata exists */}
               {(article.author || article.authorImage) && (
                 <Card className="relative overflow-hidden border-0 shadow-lg">
@@ -483,6 +577,42 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                     View Original
                     <ExternalLink className="w-4 h-4" />
                   </a>
+                </div>
+              )}
+
+              {/* Media Attachments Summary */}
+              {article.media && article.media.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-gradient-to-r from-primary/5 to-purple-500/5 border border-border">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    Attachments:
+                  </div>
+                  {article.media.filter(m => m.type === 'pdf').length > 0 && (
+                    <Badge variant="outline" className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border-orange-500/30 text-orange-700 dark:text-orange-400">
+                      <FileText className="w-3 h-3 mr-1" />
+                      {article.media.filter(m => m.type === 'pdf').length} PDF
+                    </Badge>
+                  )}
+                  {article.media.filter(m => m.type === 'image').length > 0 && (
+                    <Badge variant="outline" className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400">
+                      <ImageIcon className="w-3 h-3 mr-1" />
+                      {article.media.filter(m => m.type === 'image').length} Image{article.media.filter(m => m.type === 'image').length > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                  {article.media.filter(m => m.type === 'youtube').length > 0 && (
+                    <Badge variant="outline" className="bg-gradient-to-r from-red-500/10 to-pink-500/10 border-red-500/30 text-red-700 dark:text-red-400">
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>
+                      {article.media.filter(m => m.type === 'youtube').length} Video{article.media.filter(m => m.type === 'youtube').length > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                  {article.media.filter(m => m.type === 'audio').length > 0 && (
+                    <Badge variant="outline" className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 text-purple-700 dark:text-purple-400">
+                      <Volume2 className="w-3 h-3 mr-1" />
+                      {article.media.filter(m => m.type === 'audio').length} Audio
+                    </Badge>
+                  )}
                 </div>
               )}
               

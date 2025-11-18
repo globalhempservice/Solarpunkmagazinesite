@@ -768,6 +768,9 @@ export default function App() {
             if (!response.ok) {
               const errorData = await response.json()
               
+              // Log the full error for debugging
+              console.error('Exchange failed:', errorData)
+              
               // Handle rate limiting with specific messages
               if (response.status === 429) {
                 if (errorData.retryAfter) {
@@ -779,13 +782,20 @@ export default function App() {
                 throw new Error(errorData.error)
               }
               
-              throw new Error(errorData.error || 'Failed to exchange points')
+              // Include detailed error message if available
+              const errorMsg = errorData.details ? 
+                `${errorData.error}: ${errorData.details}` : 
+                (errorData.error || 'Failed to exchange points')
+              throw new Error(errorMsg)
             }
             
             const data = await response.json()
             setUserProgress(data.progress)
             toast.success(`🎉 Exchanged successfully! You got ${data.nadaPointsGained} NADA points!`)
           } catch (error: any) {
+            // Log error for debugging
+            console.error('Exchange error:', error)
+            
             // Error is handled in WalletPanel UI, only show toast for non-limit errors
             if (!error.message.includes('⏳') && !error.message.includes('Rate limit') && !error.message.includes('Daily')) {
               toast.error(error.message || 'Failed to exchange points')

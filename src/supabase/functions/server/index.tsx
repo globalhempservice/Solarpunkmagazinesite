@@ -1281,6 +1281,7 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
     
     if (updateError) {
       console.log('ERROR: Failed to update points:', updateError)
+      console.log('ERROR Details:', JSON.stringify(updateError, null, 2))
       return c.json({ error: 'Failed to exchange points', details: updateError.message }, 500)
     }
     
@@ -1294,6 +1295,7 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
     
     if (walletUpdateError) {
       console.log('ERROR: Failed to update wallet:', walletUpdateError)
+      console.log('ERROR Details:', JSON.stringify(walletUpdateError, null, 2))
       return c.json({ error: 'Failed to update wallet', details: walletUpdateError.message }, 500)
     }
     
@@ -1314,6 +1316,7 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
     
     if (transactionError) {
       console.log('WARNING: Failed to create transaction record:', transactionError)
+      console.log('Transaction Error Details:', JSON.stringify(transactionError, null, 2))
       // Don't fail the request if transaction record fails
     }
     

@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Badge } from './ui/badge'
-import { Shield, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
+import { Shield, AlertTriangle, CheckCircle, XCircle, RefreshCw, Search, Users } from 'lucide-react'
 
 interface SecurityAuditProps {
   accessToken: string
@@ -36,12 +36,64 @@ interface AuditReport {
   riskLevel: string
 }
 
+interface User {
+  id: string
+  email: string
+  nickname: string | null
+  points: number
+  totalArticlesRead: number
+  currentStreak: number
+  banned: boolean
+}
+
 export function SecurityAudit({ accessToken, serverUrl }: SecurityAuditProps) {
   const [userId, setUserId] = useState('')
   const [audit, setAudit] = useState<AuditReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [message, setMessage] = useState('')
+  
+  // User list and search
+  const [users, setUsers] = useState<User[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [loadingUsers, setLoadingUsers] = useState(true)
+
+  // Fetch users on mount
+  useEffect(() => {
+    fetchUsers()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true)
+      const response = await fetch(`${serverUrl}/admin/users`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.users || [])
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  // Filter users based on search query
+  const filteredUsers = (users || []).filter(user => 
+    user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.nickname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.id?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const handleSelectUser = (user: User) => {
+    setUserId(user.id)
+    setSearchQuery('') // Clear search after selection
+  }
 
   const handleAudit = async () => {
     if (!userId.trim()) return
@@ -174,6 +226,105 @@ export function SecurityAudit({ accessToken, serverUrl }: SecurityAuditProps) {
         </div>
       </Card>
 
+      {/* User Search & List */}
+      <Card className="p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Users className="w-6 h-6 text-purple-500" />
+          <div>
+            <h3 className="text-xl font-black">Select User to Audit</h3>
+            <p className="text-sm text-muted-foreground">
+              {loadingUsers ? 'Loading users...' : `${users.length} users registered`}
+            </p>
+          </div>
+        </div>
+
+        {/* Search Input */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by email, nickname, or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* User List */}
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {loadingUsers ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />
+              Loading users...
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No users found</p>
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <Card
+                key={user.id}
+                className={`p-3 cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] ${
+                  userId === user.id ? 'border-2 border-blue-500 bg-blue-50' : 'hover:bg-muted/50'
+                } ${user.banned ? 'opacity-60 border-red-300' : ''}`}
+                onClick={() => handleSelectUser(user)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-bold text-sm truncate">
+                        {user.nickname || user.email}
+                      </p>
+                      {user.banned && (
+                        <Badge variant="destructive" className="text-xs">
+                          BANNED
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      <span className="font-bold text-orange-500">{user.points} pts</span>
+                      <span>{user.totalArticlesRead} read</span>
+                      <span>🔥 {user.currentStreak}</span>
+                    </div>
+                  </div>
+                  {userId === user.id && (
+                    <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                  )}
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Quick Stats */}
+        {!loadingUsers && users.length > 0 && (
+          <div className="mt-4 pt-4 border-t">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Users</p>
+                <p className="text-lg font-black">{users.length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Banned</p>
+                <p className="text-lg font-black text-red-500">
+                  {users.filter(u => u.banned).length}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Active</p>
+                <p className="text-lg font-black text-green-500">
+                  {users.filter(u => !u.banned).length}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
       {audit && (
         <Card className="p-6">
           <div className="space-y-6">
@@ -224,7 +375,7 @@ export function SecurityAudit({ accessToken, serverUrl }: SecurityAuditProps) {
             </div>
 
             {/* Suspicious Patterns */}
-            {audit.suspiciousPatterns.length > 0 && (
+            {audit.suspiciousPatterns && audit.suspiciousPatterns.length > 0 && (
               <div>
                 <h3 className="text-xl font-black mb-4 text-red-600">
                   ⚠️ Suspicious Activity Detected
@@ -268,17 +419,23 @@ export function SecurityAudit({ accessToken, serverUrl }: SecurityAuditProps) {
                   Total reads: {audit.readHistory.total}
                 </p>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {audit.readHistory.recent.map((read, idx) => (
-                    <div key={idx} className="flex justify-between items-start py-2 border-b border-border last:border-0">
-                      <div className="flex-1">
-                        <p className="text-sm font-bold truncate">{read.articleTitle}</p>
-                        <p className="text-xs text-muted-foreground">{read.articleId}</p>
+                  {audit.readHistory.recent && audit.readHistory.recent.length > 0 ? (
+                    audit.readHistory.recent.map((read, idx) => (
+                      <div key={idx} className="flex justify-between items-start py-2 border-b border-border last:border-0">
+                        <div className="flex-1">
+                          <p className="text-sm font-bold truncate">{read.articleTitle}</p>
+                          <p className="text-xs text-muted-foreground">{read.articleId}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-4">
+                          {new Date(read.timestamp).toLocaleString()}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground ml-4">
-                        {new Date(read.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No recent reading history
+                    </p>
+                  )}
                 </div>
               </Card>
             </div>

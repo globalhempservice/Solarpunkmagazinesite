@@ -455,7 +455,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
           { id: 'swipeStats', label: 'Swipe Stats' },
           { id: 'views', label: 'Views' },
           { id: 'nadaFeedback', label: 'Nada Feedback' },
-          { id: 'wallets', label: 'Wallets' }
+          { id: 'wallets', label: 'Wallets' },
+          { id: 'security', label: '🔒 Security' }
         ].map(tab => (
           <button
             key={tab.id}

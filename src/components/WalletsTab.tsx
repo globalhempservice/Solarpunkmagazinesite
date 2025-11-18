@@ -404,11 +404,12 @@ export function WalletsTab({ walletStats, onRefresh, isRefreshing = false }: Wal
                   </div>
                 </div>
                 <div className="text-right">
+                  <div className="text-sm text-muted-foreground mb-1">Exchange:</div>
                   <div className="font-bold text-lg">
-                    <span className="text-red-600 dark:text-red-400">-{(tx.pointsExchanged || 0).toLocaleString()}</span>
+                    <span className="text-red-600 dark:text-red-400">−{(tx.pointsExchanged || 0).toLocaleString()}</span>
                     <span className="text-muted-foreground text-sm"> pts</span>
                   </div>
-                  <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                  <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
                     +{(tx.nadaReceived || 0).toLocaleString()} NADA
                   </div>
                 </div>

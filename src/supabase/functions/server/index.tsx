@@ -1310,7 +1310,7 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
         points_exchanged: pointsToExchange,
         nada_received: nadaPointsGained,
         ip_address: ipAddress,
-        risk_score: riskScore,
+        risk_score: fraudCheck.riskScore,
         description: `Exchanged ${pointsToExchange} points for ${nadaPointsGained} NADA`
       }])
     

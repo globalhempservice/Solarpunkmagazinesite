@@ -775,11 +775,10 @@ export default function App() {
               if (response.status === 429) {
                 if (errorData.retryAfter) {
                   const minutes = Math.ceil(errorData.retryAfter / 60)
-                  toast.error(`⏳ ${errorData.error} Please wait ${minutes} minute${minutes > 1 ? 's' : ''}.`)
+                  throw new Error(`⏳ ${errorData.error} Please wait ${minutes} minute${minutes > 1 ? 's' : ''}.`)
                 } else {
-                  toast.error(`⏳ ${errorData.error}`)
+                  throw new Error(`⏳ ${errorData.error}`)
                 }
-                throw new Error(errorData.error)
               }
               
               // Include detailed error message if available
@@ -791,15 +790,11 @@ export default function App() {
             
             const data = await response.json()
             setUserProgress(data.progress)
-            toast.success(`🎉 Exchanged successfully! You got ${data.nadaPointsGained} NADA points!`)
+            // Success feedback is handled in WalletPanel
           } catch (error: any) {
             // Log error for debugging
             console.error('Exchange error:', error)
             
-            // Error is handled in WalletPanel UI, only show toast for non-limit errors
-            if (!error.message.includes('⏳') && !error.message.includes('Rate limit') && !error.message.includes('Daily')) {
-              toast.error(error.message || 'Failed to exchange points')
-            }
             // Re-throw so WalletPanel can handle the UI
             throw error
           }

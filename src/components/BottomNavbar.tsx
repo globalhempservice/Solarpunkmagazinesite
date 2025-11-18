@@ -16,13 +16,15 @@ interface BottomNavbarProps {
     onReset: () => void
     isAnimating: boolean
   }
+  closeWallet?: () => void
 }
 
-export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalArticlesRead = 0, onFeatureUnlock, exploreMode, swipeControls }: BottomNavbarProps) {
+export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalArticlesRead = 0, onFeatureUnlock, exploreMode, swipeControls, closeWallet }: BottomNavbarProps) {
   if (!isAuthenticated) return null
 
   const handleNavigate = (view: 'feed' | 'dashboard' | 'editor' | 'swipe') => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    closeWallet?.()
     onNavigate(view)
   }
 

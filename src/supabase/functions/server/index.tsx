@@ -4187,4 +4187,434 @@ app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) =
   }
 })
 
+// ========== NADA FEEDBACK ENDPOINTS ==========
+
+// Submit NADA suggestion
+app.post('/make-server-053bcd80/nada-suggestions', async (c) => {
+  const { userId, suggestion } = await c.req.json()
+  
+  if (!userId || !suggestion) {
+    return c.json({ error: 'Missing required fields' }, 400)
+  }
+  
+  try {
+    // Insert into suggestions table
+    const { data, error } = await supabase
+      .from('suggestions')
+      .insert([{
+        title: suggestion,
+        description: null,
+        created_by: userId,
+        status: 'pending',
+        is_preloaded: false
+      }])
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Error inserting suggestion:', error)
+      return c.json({ error: 'Failed to save suggestion', details: error.message }, 500)
+    }
+    
+    console.log(`💡 NADA Suggestion submitted by ${userId}:`, suggestion)
+    
+    return c.json({ success: true, suggestionId: data.id })
+  } catch (error) {
+    console.error('Error saving NADA suggestion:', error)
+    return c.json({ error: 'Failed to save suggestion' }, 500)
+  }
+})
+
+// Vote on NADA idea
+app.post('/make-server-053bcd80/nada-ideas/:ideaId/vote', async (c) => {
+  try {
+    const ideaId = c.req.param('ideaId')
+    const body = await c.req.json()
+    const { userId, vote, ideaTitle, ideaDescription } = body
+    
+    console.log('📥 NADA Vote request:', { ideaId, userId, vote, ideaTitle })
+    
+    if (!userId || !vote || !ideaId) {
+      console.error('❌ Missing required fields:', { userId: !!userId, vote: !!vote, ideaId: !!ideaId })
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+    
+    // Find or create the suggestion in the database by title (for pre-loaded ideas)
+    const { data: existingSuggestions } = await supabase
+      .from('suggestions')
+      .select('id')
+      .eq('title', ideaTitle)
+      .eq('is_preloaded', true)
+    
+    let suggestionId: string
+    
+    if (!existingSuggestions || existingSuggestions.length === 0) {
+      console.log('Creating new suggestion for idea:', ideaTitle)
+      // Create the suggestion if it doesn't exist (for pre-loaded ideas)
+      // Let the database auto-generate the UUID
+      const { data: newSuggestion, error: createError } = await supabase
+        .from('suggestions')
+        .insert([{
+          title: ideaTitle,
+          description: ideaDescription,
+          status: 'active',
+          is_preloaded: true
+        }])
+        .select()
+        .single()
+      
+      if (createError) {
+        console.error('Error creating suggestion:', createError)
+        return c.json({ error: 'Failed to create suggestion', details: createError.message }, 500)
+      }
+      
+      suggestionId = newSuggestion.id
+    } else {
+      suggestionId = existingSuggestions[0].id
+    }
+    
+    console.log('Using suggestion ID:', suggestionId)
+    
+    // Insert or update the vote (upsert allows changing votes)
+    const { error: voteError } = await supabase
+      .from('votes')
+      .upsert({
+        user_id: userId,
+        suggestion_id: suggestionId,
+        vote_type: vote
+      }, {
+        onConflict: 'user_id,suggestion_id'
+      })
+    
+    if (voteError) {
+      console.error('Error saving vote:', voteError)
+      return c.json({ error: 'Failed to save vote', details: voteError.message }, 500)
+    }
+    
+    // Update vote counts on the suggestion
+    const { data: voteCounts } = await supabase
+      .from('votes')
+      .select('vote_type')
+      .eq('suggestion_id', suggestionId)
+    
+    const yesCount = voteCounts?.filter(v => v.vote_type === 'yes').length || 0
+    const noCount = voteCounts?.filter(v => v.vote_type === 'no').length || 0
+    
+    const { error: updateError } = await supabase
+      .from('suggestions')
+      .update({
+        vote_count_yes: yesCount,
+        vote_count_no: noCount
+      })
+      .eq('id', suggestionId)
+    
+    if (updateError) {
+      console.error('Error updating vote counts:', updateError)
+    }
+    
+    console.log(`✅ NADA Vote saved: ${userId} voted "${vote}" on ${ideaId} (yes: ${yesCount}, no: ${noCount})`)
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error saving NADA vote:', error)
+    return c.json({ error: 'Failed to save vote', details: error?.message || 'Unknown error' }, 500)
+  }
+})
+
+// Get user's voted ideas
+app.get('/make-server-053bcd80/nada-ideas/user/:userId/votes', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    if (!userId) {
+      return c.json({ error: 'Missing userId' }, 400)
+    }
+    
+    console.log('📋 Fetching votes for user:', userId)
+    
+    // Get all votes for this user with suggestion titles
+    const { data: votes, error } = await supabase
+      .from('votes')
+      .select('suggestion_id, suggestions(title)')
+      .eq('user_id', userId)
+    
+    if (error) {
+      console.error('Error fetching votes:', error)
+      return c.json({ error: 'Failed to fetch votes', details: error.message }, 500)
+    }
+    
+    // Return both suggestion IDs (UUIDs) and titles
+    const votedIdeaTitles = votes?.map(v => v.suggestions?.title).filter(Boolean) || []
+    
+    console.log('✅ User voted ideas:', votedIdeaTitles)
+    
+    return c.json({ votedIdeaIds: votedIdeaTitles })
+  } catch (error) {
+    console.error('❌ Error fetching user votes:', error)
+    return c.json({ error: 'Failed to fetch votes', details: error.message }, 500)
+  }
+})
+
+// Get NADA feedback for admin (requires admin auth)
+app.get('/make-server-053bcd80/admin/nada-feedback', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  try {
+    // Verify admin
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      return c.json({ error: 'Admin access required' }, 403)
+    }
+    
+    // Get all user suggestions (not pre-loaded)
+    const { data: suggestions, error: suggestionsError } = await supabase
+      .from('suggestions')
+      .select('*')
+      .eq('is_preloaded', false)
+      .order('created_at', { ascending: false })
+    
+    if (suggestionsError) {
+      console.error('Error fetching suggestions:', suggestionsError)
+      return c.json({ error: 'Failed to fetch suggestions' }, 500)
+    }
+    
+    // Get all suggestions with votes, ranked by yes votes
+    const { data: mostYes, error: yesError } = await supabase
+      .from('suggestions')
+      .select('*')
+      .gt('vote_count_yes', 0)
+      .order('vote_count_yes', { ascending: false })
+      .limit(20)
+    
+    if (yesError) {
+      console.error('Error fetching top yes votes:', yesError)
+    }
+    
+    // Get all suggestions ranked by no votes
+    const { data: mostNo, error: noError } = await supabase
+      .from('suggestions')
+      .select('*')
+      .gt('vote_count_no', 0)
+      .order('vote_count_no', { ascending: false })
+      .limit(20)
+    
+    if (noError) {
+      console.error('Error fetching top no votes:', noError)
+    }
+    
+    return c.json({
+      suggestions: (suggestions || []).map(s => ({
+        id: s.id,
+        userId: s.created_by,
+        suggestion: s.title,
+        description: s.description,
+        timestamp: s.created_at,
+        status: s.status,
+        yesVotes: s.vote_count_yes || 0,
+        noVotes: s.vote_count_no || 0
+      })),
+      mostYes: (mostYes || []).map(v => ({
+        ideaId: v.id,
+        ideaTitle: v.title,
+        ideaDescription: v.description || '',
+        yesVotes: v.vote_count_yes || 0,
+        noVotes: v.vote_count_no || 0,
+        totalVotes: (v.vote_count_yes || 0) + (v.vote_count_no || 0),
+        status: v.status,
+        isPreloaded: v.is_preloaded
+      })),
+      mostNo: (mostNo || []).map(v => ({
+        ideaId: v.id,
+        ideaTitle: v.title,
+        ideaDescription: v.description || '',
+        yesVotes: v.vote_count_yes || 0,
+        noVotes: v.vote_count_no || 0,
+        totalVotes: (v.vote_count_yes || 0) + (v.vote_count_no || 0),
+        status: v.status,
+        isPreloaded: v.is_preloaded
+      }))
+    })
+  } catch (error) {
+    console.error('Error fetching NADA feedback:', error)
+    return c.json({ error: 'Failed to fetch feedback' }, 500)
+  }
+})
+
+// Get wallet statistics for admin (requires admin auth)
+app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  try {
+    // Verify admin
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403)
+    }
+    
+    console.log('📊 Fetching wallet statistics for admin...')
+    
+    // Get total wallets count
+    const { count: totalWallets } = await supabase
+      .from('wallets')
+      .select('*', { count: 'exact', head: true })
+    
+    // Get all transactions
+    const { data: allTransactions, error: txError } = await supabase
+      .from('wallet_transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (txError) {
+      console.error('Error fetching transactions:', txError)
+      throw txError
+    }
+    
+    // Calculate statistics
+    const totalTransactions = allTransactions?.length || 0
+    const totalPointsExchanged = allTransactions?.reduce((sum, tx) => sum + tx.points_exchanged, 0) || 0
+    const totalNadaGenerated = allTransactions?.reduce((sum, tx) => sum + tx.nada_received, 0) || 0
+    const averageExchangeAmount = totalTransactions > 0 ? totalPointsExchanged / totalTransactions : 0
+    
+    // Calculate 24h stats
+    const now = new Date()
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const last24hTransactions = allTransactions?.filter(tx => new Date(tx.created_at) >= yesterday) || []
+    const last24hVolume = last24hTransactions.reduce((sum, tx) => sum + tx.points_exchanged, 0)
+    
+    // Group transactions by day (last 30 days)
+    const transactionsPerDay: { date: string; count: number; volume: number }[] = []
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayTransactions = allTransactions?.filter(tx => {
+        const txDate = new Date(tx.created_at).toISOString().split('T')[0]
+        return txDate === dateStr
+      }) || []
+      
+      transactionsPerDay.push({
+        date: dateStr,
+        count: dayTransactions.length,
+        volume: dayTransactions.reduce((sum, tx) => sum + tx.points_exchanged, 0)
+      })
+    }
+    
+    // Get top exchangers
+    const userExchangeStats = new Map<string, {
+      userId: string
+      email: string
+      nickname: string | null
+      totalExchanges: number
+      totalPointsExchanged: number
+      totalNadaGenerated: number
+      lastExchange: string
+    }>()
+    
+    for (const tx of allTransactions || []) {
+      const existing = userExchangeStats.get(tx.user_id)
+      if (existing) {
+        existing.totalExchanges++
+        existing.totalPointsExchanged += tx.points_exchanged
+        existing.totalNadaGenerated += tx.nada_received
+        if (new Date(tx.created_at) > new Date(existing.lastExchange)) {
+          existing.lastExchange = tx.created_at
+        }
+      } else {
+        // Get user details
+        const { data: userData } = await supabase
+          .from('user_progress')
+          .select('nickname')
+          .eq('user_id', tx.user_id)
+          .single()
+        
+        const { data: authData } = await supabaseAuth.auth.admin.getUserById(tx.user_id)
+        
+        userExchangeStats.set(tx.user_id, {
+          userId: tx.user_id,
+          email: authData?.user?.email || 'Unknown',
+          nickname: userData?.nickname || null,
+          totalExchanges: 1,
+          totalPointsExchanged: tx.points_exchanged,
+          totalNadaGenerated: tx.nada_received,
+          lastExchange: tx.created_at
+        })
+      }
+    }
+    
+    const topExchangers = Array.from(userExchangeStats.values())
+      .sort((a, b) => b.totalNadaGenerated - a.totalNadaGenerated)
+      .slice(0, 10)
+    
+    // Get recent transactions with user details
+    const recentTransactions = await Promise.all(
+      (allTransactions?.slice(0, 10) || []).map(async (tx) => {
+        const { data: authData } = await supabaseAuth.auth.admin.getUserById(tx.user_id)
+        
+        return {
+          id: tx.id,
+          userId: tx.user_id,
+          email: authData?.user?.email || 'Unknown',
+          pointsExchanged: tx.points_exchanged,
+          nadaReceived: tx.nada_received,
+          timestamp: tx.created_at,
+          ipAddress: tx.ip_address || 'N/A',
+          riskScore: tx.risk_score || 0
+        }
+      })
+    )
+    
+    // Calculate security metrics
+    const dailyLimitHits = allTransactions?.filter(tx => {
+      // Check if user hit daily limit (this is an approximation)
+      const txDate = new Date(tx.created_at).toISOString().split('T')[0]
+      const userDayTxs = allTransactions.filter(t => 
+        t.user_id === tx.user_id && 
+        new Date(t.created_at).toISOString().split('T')[0] === txDate
+      )
+      return userDayTxs.length >= 5 // Assuming 5 is the daily limit
+    }).length || 0
+    
+    const fraudAlerts = allTransactions?.filter(tx => (tx.risk_score || 0) > 50).length || 0
+    
+    const walletStats = {
+      totalWallets: totalWallets || 0,
+      totalTransactions,
+      totalPointsExchanged,
+      totalNadaGenerated,
+      averageExchangeAmount,
+      exchangeRate: 50, // 50:1 ratio
+      last24hTransactions: last24hTransactions.length,
+      last24hVolume,
+      transactionsPerDay,
+      topExchangers,
+      recentTransactions,
+      dailyLimitHits,
+      fraudAlerts
+    }
+    
+    console.log('✅ Wallet statistics fetched successfully')
+    return c.json({ walletStats })
+  } catch (error) {
+    console.error('❌ Error fetching wallet statistics:', error)
+    return c.json({ error: 'Failed to fetch wallet statistics', details: error.message }, 500)
+  }
+})
+
 Deno.serve(app.fetch)

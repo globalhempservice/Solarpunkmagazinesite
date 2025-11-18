@@ -93,6 +93,7 @@ export default function App() {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
   const [resetToken, setResetToken] = useState<string | null>(null)
   const [featureUnlockModal, setFeatureUnlockModal] = useState<{ featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization'; isOpen: boolean } | null>(null)
+  const [isWalletOpen, setIsWalletOpen] = useState(false)
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
   const supabase = createClient()
@@ -743,8 +744,11 @@ export default function App() {
         onSwitchToGrid={() => setCurrentView('feed')}
         currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
         homeButtonTheme={userProgress?.homeButtonTheme}
+        userId={userId || undefined}
         accessToken={accessToken || undefined}
         serverUrl={serverUrl}
+        isWalletOpen={isWalletOpen}
+        onWalletOpenChange={setIsWalletOpen}
         onExchangePoints={async (pointsToExchange) => {
           if (!userId || !accessToken) return
           
@@ -779,10 +783,11 @@ export default function App() {
             setUserProgress(data.progress)
             toast.success(`🎉 Exchanged successfully! You got ${data.nadaPointsGained} NADA points!`)
           } catch (error: any) {
-            console.error('Exchange error:', error)
+            // Error is handled in WalletPanel UI, only show toast for non-limit errors
             if (!error.message.includes('⏳') && !error.message.includes('Rate limit') && !error.message.includes('Daily')) {
               toast.error(error.message || 'Failed to exchange points')
             }
+            // Re-throw so WalletPanel can handle the UI
             throw error
           }
         }}
@@ -1240,6 +1245,7 @@ export default function App() {
           onReset: () => swipeModeRef.current?.handleReset(),
           isAnimating: swipeModeRef.current?.isAnimating || false
         } : undefined}
+        closeWallet={() => setIsWalletOpen(false)}
       />
 
       {/* Feature Unlock Modal */}

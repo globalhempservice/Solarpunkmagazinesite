@@ -22,9 +22,17 @@ import {
   X,
   ThumbsUp,
   ThumbsDown,
-  Flame
+  Flame,
+  Wallet,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  CreditCard
 } from 'lucide-react'
 import { motion } from 'motion/react'
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { WalletsTab } from './WalletsTab'
 
 interface DashboardStats {
   totalUsers: number
@@ -94,13 +102,70 @@ interface ViewsAnalytics {
   previous7DaysViews: number
 }
 
+interface NadaFeedback {
+  suggestions: Array<{
+    userId: string
+    suggestion: string
+    timestamp: string
+  }>
+  mostYes: Array<{
+    ideaId: string
+    ideaTitle: string
+    ideaDescription: string
+    yesVotes: number
+    noVotes: number
+    totalVotes: number
+  }>
+  mostNo: Array<{
+    ideaId: string
+    ideaTitle: string
+    ideaDescription: string
+    yesVotes: number
+    noVotes: number
+    totalVotes: number
+  }>
+}
+
+interface WalletStats {
+  totalWallets: number
+  totalTransactions: number
+  totalPointsExchanged: number
+  totalNadaGenerated: number
+  averageExchangeAmount: number
+  exchangeRate: number
+  last24hTransactions: number
+  last24hVolume: number
+  transactionsPerDay: Array<{ date: string; count: number; volume: number }>
+  topExchangers: Array<{
+    userId: string
+    email: string
+    nickname: string | null
+    totalExchanges: number
+    totalPointsExchanged: number
+    totalNadaGenerated: number
+    lastExchange: string
+  }>
+  recentTransactions: Array<{
+    id: string
+    userId: string
+    email: string
+    pointsExchanged: number
+    nadaReceived: number
+    timestamp: string
+    ipAddress: string
+    riskScore: number
+  }>
+  dailyLimitHits: number
+  fraudAlerts: number
+}
+
 interface AdminDashboardProps {
   accessToken: string
   serverUrl: string
   onBack: () => void
 }
 
-type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views'
+type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets'
 
 export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -108,6 +173,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
   const [rankings, setRankings] = useState<Ranking[]>([])
   const [swipeStats, setSwipeStats] = useState<SwipeStat[]>([])
   const [viewsAnalytics, setViewsAnalytics] = useState<ViewsAnalytics | null>(null)
+  const [nadaFeedback, setNadaFeedback] = useState<NadaFeedback | null>(null)
+  const [walletStats, setWalletStats] = useState<WalletStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
@@ -120,7 +187,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
       setLoading(true)
       
       // Fetch all data in parallel for faster loading
-      const [statsRes, usersRes, rankingsRes, swipeStatsRes, viewsAnalyticsRes] = await Promise.all([
+      const [statsRes, usersRes, rankingsRes, swipeStatsRes, viewsAnalyticsRes, nadaFeedbackRes, walletStatsRes] = await Promise.all([
         fetch(`${serverUrl}/admin/stats`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }),
@@ -134,6 +201,12 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }),
         fetch(`${serverUrl}/admin/views-analytics`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        }),
+        fetch(`${serverUrl}/admin/nada-feedback`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        }),
+        fetch(`${serverUrl}/admin/wallet-stats`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
       ])
@@ -166,6 +239,18 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
       if (viewsAnalyticsRes.ok) {
         const data = await viewsAnalyticsRes.json()
         setViewsAnalytics(data.viewsAnalytics)
+      }
+
+      // Process nada feedback
+      if (nadaFeedbackRes.ok) {
+        const data = await nadaFeedbackRes.json()
+        setNadaFeedback(data)
+      }
+
+      // Process wallet stats
+      if (walletStatsRes.ok) {
+        const data = await walletStatsRes.json()
+        setWalletStats(data.walletStats)
       }
     } catch (error) {
       console.error('Error fetching admin data:', error)
@@ -290,7 +375,9 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
           { id: 'rankings', label: 'Rankings' },
           { id: 'gamification', label: 'Gamification' },
           { id: 'swipeStats', label: 'Swipe Stats' },
-          { id: 'views', label: 'Views' }
+          { id: 'views', label: 'Views' },
+          { id: 'nadaFeedback', label: 'Nada Feedback' },
+          { id: 'wallets', label: 'Wallets' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -997,6 +1084,110 @@ export function AdminDashboard({ accessToken, serverUrl, onBack }: AdminDashboar
             </div>
           </div>
         </div>
+      )}
+
+      {/* Nada Feedback Tab */}
+      {activeTab === 'nadaFeedback' && nadaFeedback && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Nada Feedback</h2>
+            <p className="text-sm text-muted-foreground">User suggestions and feedback</p>
+          </div>
+
+          {/* Suggestions */}
+          <div className="space-y-4">
+            <h3 className="font-bold">User Suggestions</h3>
+            <div className="space-y-3">
+              {nadaFeedback.suggestions.map((suggestion, index) => (
+                <Card key={index} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium truncate">User {suggestion.userId}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{suggestion.suggestion}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(suggestion.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Most Yes Votes */}
+          <div className="space-y-4">
+            <h3 className="font-bold">Most Popular Ideas (Yes Votes)</h3>
+            <div className="space-y-3">
+              {nadaFeedback.mostYes.map((idea, index) => (
+                <Card key={index} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium truncate">{idea.ideaTitle}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{idea.ideaDescription}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 font-bold text-green-500">
+                          <ThumbsUp className="w-3 h-3" />
+                          {idea.yesVotes} yes
+                        </span>
+                        <span className="flex items-center gap-1 font-bold text-red-500">
+                          <ThumbsDown className="w-3 h-3" />
+                          {idea.noVotes} no
+                        </span>
+                        <span className="flex items-center gap-1 font-bold text-orange-500">
+                          {idea.totalVotes} total
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Most No Votes */}
+          <div className="space-y-4">
+            <h3 className="font-bold">Least Popular Ideas (No Votes)</h3>
+            <div className="space-y-3">
+              {nadaFeedback.mostNo.map((idea, index) => (
+                <Card key={index} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium truncate">{idea.ideaTitle}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{idea.ideaDescription}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 font-bold text-green-500">
+                          <ThumbsUp className="w-3 h-3" />
+                          {idea.yesVotes} yes
+                        </span>
+                        <span className="flex items-center gap-1 font-bold text-red-500">
+                          <ThumbsDown className="w-3 h-3" />
+                          {idea.noVotes} no
+                        </span>
+                        <span className="flex items-center gap-1 font-bold text-orange-500">
+                          {idea.totalVotes} total
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wallets Tab - Financial Analytics */}
+      {activeTab === 'wallets' && walletStats && (
+        <WalletsTab walletStats={walletStats} />
       )}
     </motion.div>
   )

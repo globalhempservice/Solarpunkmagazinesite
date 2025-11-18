@@ -19,14 +19,17 @@ interface HeaderProps {
   onBack?: () => void
   onPointsAnimationComplete?: () => void
   homeButtonTheme?: string
+  userId?: string
   accessToken?: string
   serverUrl?: string
   onExchangePoints?: (pointsToExchange: number) => Promise<void>
+  isWalletOpen?: boolean
+  onWalletOpenChange?: (isOpen: boolean) => void
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, nadaPoints = 0, onPointsAnimationComplete, homeButtonTheme, accessToken, serverUrl, onExchangePoints }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, nadaPoints = 0, onPointsAnimationComplete, homeButtonTheme, userId, accessToken, serverUrl, onExchangePoints, isWalletOpen = false, onWalletOpenChange }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
   const [previousPoints, setPreviousPoints] = useState(userPoints)
@@ -34,7 +37,6 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   const [showPointsAnimation, setShowPointsAnimation] = useState(false)
   const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [isWalletOpen, setIsWalletOpen] = useState(false)
 
   // Check if user is admin
   useEffect(() => {
@@ -226,7 +228,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
         <div className="absolute right-4 flex items-center gap-2">
           {/* Points Counter - Right of Logo - CLICKABLE! */}
           <motion.button
-            onClick={() => setIsWalletOpen(true)}
+            onClick={() => onWalletOpenChange?.(true)}
             key={userPoints}
             initial={{ scale: 1 }}
             animate={{ 
@@ -406,10 +408,13 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
       {onExchangePoints && (
         <WalletPanel
           isOpen={isWalletOpen}
-          onClose={() => setIsWalletOpen(false)}
+          onClose={() => onWalletOpenChange?.(false)}
           currentPoints={userPoints}
           nadaPoints={nadaPoints}
           onExchange={onExchangePoints}
+          userId={userId}
+          accessToken={accessToken}
+          serverUrl={serverUrl}
         />
       )}
     </header>

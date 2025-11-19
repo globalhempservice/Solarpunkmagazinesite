@@ -693,8 +693,7 @@ app.post('/make-server-053bcd80/articles/:id/view', async (c) => {
         .insert({
           article_id: id,
           date: today,
-          views: 1,
-          unique_viewers: 0
+          views: 1
         })
       
       if (viewInsertError) {

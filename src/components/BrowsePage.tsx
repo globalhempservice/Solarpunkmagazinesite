@@ -1,10 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ArticleCard } from './ArticleCard'
-import { Input } from './ui/input'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
-import { Search, X, Filter } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sun, Lightbulb, Users, Sprout, Eye, Wind, Sparkles } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
 
 interface Article {
   id: string
@@ -30,152 +28,340 @@ interface BrowsePageProps {
   articles: Article[]
   onArticleClick: (article: Article) => void
   loading?: boolean
+  categoryMenuOpen?: boolean
 }
 
-const categories = ['all', 'Renewable Energy', 'Sustainable Tech', 'Green Cities', 'Eco Innovation', 'Climate Action', 'Community', 'Future Vision']
+// Category definitions with icons
+const categories = [
+  { 
+    name: 'Renewable Energy', 
+    icon: Sun, 
+    color: 'from-amber-500 to-orange-500',
+  },
+  { 
+    name: 'Sustainable Tech', 
+    icon: Lightbulb, 
+    color: 'from-blue-500 to-cyan-500',
+  },
+  { 
+    name: 'Green Cities', 
+    icon: Sprout, 
+    color: 'from-emerald-500 to-teal-500',
+  },
+  { 
+    name: 'Eco Innovation', 
+    icon: Sparkles, 
+    color: 'from-purple-500 to-pink-500',
+  },
+  { 
+    name: 'Climate Action', 
+    icon: Wind, 
+    color: 'from-sky-500 to-blue-500',
+  },
+  { 
+    name: 'Community', 
+    icon: Users, 
+    color: 'from-rose-500 to-red-500',
+  },
+  { 
+    name: 'Future Vision', 
+    icon: Eye, 
+    color: 'from-violet-500 to-purple-500',
+  },
+]
 
-export function BrowsePage({ articles, onArticleClick, loading = false }: BrowsePageProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState<string>('')
+export function BrowsePage({ articles, onArticleClick, loading = false, categoryMenuOpen = true }: BrowsePageProps) {
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0)
+  const [displayedArticles, setDisplayedArticles] = useState<Article[]>([])
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [showArticles, setShowArticles] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const pageTopRef = useRef<HTMLDivElement>(null)
 
-  const filteredArticles = articles.filter(article => {
-    // Filter by category
-    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory
+  const currentCategory = categories[currentCategoryIndex]
+  const totalCategories = categories.length
+
+  // Helper function to get category metadata by name
+  const getCategoryMetadata = (categoryName: string) => {
+    return categories.find(cat => cat.name === categoryName)
+  }
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640)
+    }
     
-    // Filter by search query
-    const matchesSearch = searchQuery === '' || 
-      article.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.excerpt?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    pageTopRef.current?.scrollIntoView({ behavior: 'instant' })
+  }, [])
+
+  // Shuffle articles when category changes
+  useEffect(() => {
+    setShowArticles(false)
+
+    if (articles.length === 0) {
+      setDisplayedArticles([])
+      setShowArticles(true)
+      return
+    }
+
+    // Get articles from selected category
+    const categoryArticles = articles.filter(a => a.category === currentCategory.name)
     
-    return matchesCategory && matchesSearch
-  })
+    // Shuffle the category articles
+    const shuffled = [...categoryArticles].sort(() => Math.random() - 0.5)
+    
+    // If we have less than 6, fill with random articles from other categories
+    if (shuffled.length < 6) {
+      const otherArticles = articles
+        .filter(a => a.category !== currentCategory.name)
+        .sort(() => Math.random() - 0.5)
+      
+      shuffled.push(...otherArticles.slice(0, 6 - shuffled.length))
+    }
+    
+    // Take only 6 articles
+    setDisplayedArticles(shuffled.slice(0, 6))
+
+    // Show articles after brief delay
+    const articlesTimer = setTimeout(() => {
+      setShowArticles(true)
+    }, 400)
+
+    return () => clearTimeout(articlesTimer)
+  }, [currentCategoryIndex, articles, currentCategory.name])
+
+  const spinToNext = () => {
+    if (isSpinning) return
+    
+    setIsSpinning(true)
+    setCurrentCategoryIndex((prev) => (prev + 1) % totalCategories)
+    
+    setTimeout(() => setIsSpinning(false), 400)
+  }
+
+  const spinToPrevious = () => {
+    if (isSpinning) return
+    
+    setIsSpinning(true)
+    setCurrentCategoryIndex((prev) => (prev - 1 + totalCategories) % totalCategories)
+    
+    setTimeout(() => setIsSpinning(false), 400)
+  }
+
+  const jumpToCategory = (index: number) => {
+    if (isSpinning || index === currentCategoryIndex) return
+    
+    setIsSpinning(true)
+    setCurrentCategoryIndex(index)
+    
+    setTimeout(() => setIsSpinning(false), 400)
+  }
+
+  // Get categories to display: 2 before, current, 2 after (desktop) or 1 before, current, 1 after (mobile)
+  const getVisibleCategories = () => {
+    const visible = []
+    // Show only 1 on each side for mobile (3 total), 2 on each side for desktop (5 total)
+    const sideCount = isMobile ? 1 : 2
+    
+    for (let i = -sideCount; i <= sideCount; i++) {
+      const index = (currentCategoryIndex + i + totalCategories) % totalCategories
+      visible.push({ ...categories[index], offset: i, index })
+    }
+    return visible
+  }
+
+  const visibleCategories = getVisibleCategories()
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold">Browse Articles</h1>
-        <p className="text-lg text-muted-foreground">
-          Explore {articles.length} articles across sustainability and innovation
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search articles by title, content, or topic..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-12 pr-12 h-14 text-base border-2 border-border/50 focus:border-primary/50 rounded-2xl bg-muted/30 backdrop-blur-sm"
-        />
-        {searchQuery && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSearchQuery('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-muted"
+    <div ref={pageTopRef} className="relative min-h-screen pb-24">
+      {/* Sub-Navbar - Fixed carousel extending from top navbar */}
+      <AnimatePresence>
+        {categoryMenuOpen && (
+          <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed top-20 left-0 right-0 z-40 w-full"
           >
-            <X className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Category Pills */}
-      <div className="flex items-center gap-2">
-        <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-1">
-          {categories.map(category => {
-            const isActive = selectedCategory === category
-            const categoryCount = category === 'all' 
-              ? articles.length
-              : articles.filter(a => a.category === category).length
+            {/* Blurred background with gradient - strongest in center, fading at top/bottom */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div 
+                className="absolute inset-0 bg-background/40"
+                style={{
+                  backdropFilter: 'blur(2px)',
+                }}
+              />
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'radial-gradient(ellipse 80% 100% at center, rgba(0,0,0,0.15) 0%, transparent 100%)',
+                  backdropFilter: 'blur(20px)',
+                }}
+              />
+            </div>
             
-            return (
-              <Badge
-                key={category}
-                variant={isActive ? "default" : "outline"}
-                className={`cursor-pointer whitespace-nowrap px-4 py-2 transition-all hover:scale-105 ${
-                  isActive 
-                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30' 
-                    : 'hover:bg-muted/70 hover:border-primary/30'
-                }`}
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category} {categoryCount > 0 && `(${categoryCount})`}
-              </Badge>
-            )
-          })}
-        </div>
-      </div>
+            {/* 5-column carousel - full width with mobile padding */}
+            <div className="relative h-20 flex items-center justify-center px-2 sm:px-6">
+              <div className="flex items-center gap-2 sm:gap-6">
+                {/* Left Arrow */}
+                <button
+                  onClick={spinToPrevious}
+                  disabled={isSpinning}
+                  className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-background/80 border border-border/50 hover:border-primary/50 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
 
-      {/* Results Count */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {filteredArticles.length === articles.length 
-            ? `Showing all ${filteredArticles.length} articles`
-            : `Showing ${filteredArticles.length} of ${articles.length} articles`}
-        </p>
-        {(searchQuery || selectedCategory !== 'all') && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearchQuery('')
-              setSelectedCategory('all')
-            }}
-            className="text-primary hover:text-primary/80"
-          >
-            Clear filters
-          </Button>
+                {/* Category Icons: 1-2 left + Center + 1-2 right (responsive) */}
+                <div className="flex items-center gap-2 sm:gap-4">
+                  {visibleCategories.map(({ icon: Icon, color, offset, index, name }) => {
+                    const isCenter = offset === 0
+                    
+                    return (
+                      <motion.button
+                        key={index}
+                        onClick={() => jumpToCategory(index)}
+                        disabled={isSpinning || isCenter}
+                        initial={false}
+                        animate={{
+                          scale: isCenter ? (isMobile ? 1 : 1.1) : (isMobile ? 0.65 : 0.75),
+                          opacity: isCenter ? 1 : 0.4,
+                        }}
+                        transition={{
+                          duration: 0.5,
+                          ease: [0.4, 0, 0.2, 1],
+                        }}
+                        className={`flex-shrink-0 p-2.5 sm:p-4 rounded-full transition-all duration-500 ease-out ${
+                          isCenter
+                            ? `bg-gradient-to-br ${color} shadow-xl cursor-default`
+                            : 'bg-muted/40 hover:bg-muted/60 hover:scale-90 cursor-pointer'
+                        } ${isSpinning ? 'pointer-events-none' : ''}`}
+                        title={name}
+                      >
+                        <Icon 
+                          className={`w-5 h-5 sm:w-7 sm:h-7 transition-colors duration-500 ${
+                            isCenter 
+                              ? 'text-white' 
+                              : 'text-muted-foreground'
+                          }`} 
+                        />
+                      </motion.button>
+                    )
+                  })}
+                </div>
+
+                {/* Right Arrow */}
+                <button
+                  onClick={spinToNext}
+                  disabled={isSpinning}
+                  className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-background/80 border border-border/50 hover:border-primary/50 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
       {/* Articles Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="space-y-3">
-              <Skeleton className="h-48 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-            </div>
-          ))}
-        </div>
-      ) : filteredArticles.length === 0 ? (
-        <div className="text-center py-12 space-y-4">
-          <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
-            <Search className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-1">No articles found</h3>
-            <p className="text-muted-foreground">
-              Try adjusting your search or filters
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSearchQuery('')
-              setSelectedCategory('all')
-            }}
-          >
-            Clear all filters
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredArticles.map(article => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              onClick={() => onArticleClick(article)}
-            />
-          ))}
-        </div>
-      )}
+      <div className={`container mx-auto px-4 transition-all duration-300 ${categoryMenuOpen ? 'pt-28' : 'pt-8'}`}>
+        <AnimatePresence mode="wait">
+          {showArticles && (
+            <>
+              {loading ? (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="space-y-3">
+                      <Skeleton className="h-48 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  ))}
+                </motion.div>
+              ) : displayedArticles.length === 0 ? (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-center py-12 space-y-4"
+                >
+                  <div className={`w-24 h-24 mx-auto bg-gradient-to-br ${currentCategory.color} rounded-full flex items-center justify-center opacity-20`}>
+                    <currentCategory.icon className="w-12 h-12 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">No articles yet</h3>
+                    <p className="text-muted-foreground">
+                      Check back soon for {currentCategory.name} content
+                    </p>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={`articles-${currentCategoryIndex}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {displayedArticles.map((article, index) => {
+                    const categoryMeta = getCategoryMetadata(article.category)
+                    return (
+                      <motion.div
+                        key={article.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <ArticleCard
+                          article={article}
+                          onClick={() => onArticleClick(article)}
+                          categoryIcon={categoryMeta?.icon}
+                          categoryColor={categoryMeta?.color}
+                        />
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+              )}
+
+              {/* Shuffle hint */}
+              {!loading && displayedArticles.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8 }}
+                  className="text-center mt-12 space-y-2"
+                >
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Fresh picks every spin</span>
+                  </div>
+                </motion.div>
+              )}
+            </>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }

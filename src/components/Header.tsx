@@ -25,11 +25,12 @@ interface HeaderProps {
   onExchangePoints?: (pointsToExchange: number) => Promise<void>
   isWalletOpen?: boolean
   onWalletOpenChange?: (isOpen: boolean) => void
+  onToggleCategoryMenu?: () => void
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, nadaPoints = 0, onPointsAnimationComplete, homeButtonTheme, userId, accessToken, serverUrl, onExchangePoints, isWalletOpen = false, onWalletOpenChange }: HeaderProps) {
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, nadaPoints = 0, onPointsAnimationComplete, homeButtonTheme, userId, accessToken, serverUrl, onExchangePoints, isWalletOpen = false, onWalletOpenChange, onToggleCategoryMenu }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
   const [previousPoints, setPreviousPoints] = useState(userPoints)
@@ -120,6 +121,11 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
     cycleTheme()
     setShowDewiiAnimation(true)
     setTimeout(() => setShowDewiiAnimation(false), 2000)
+    
+    // Toggle category menu if on browse page
+    if (currentView === 'browse' && onToggleCategoryMenu) {
+      onToggleCategoryMenu()
+    }
   }
 
   // Get theme colors for the glow effect
@@ -143,7 +149,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
         }}
       />
       
-      <div className="container mx-auto px-4 h-20 flex items-center justify-center relative">
+      <div className="h-20 flex items-center justify-center relative px-4">
         {/* LEFT SIDE: Back Button or Streak Badge */}
         <div className="absolute left-4 flex items-center gap-2">
           {/* ADMIN Button - Leftmost position, only shows for admin users */}

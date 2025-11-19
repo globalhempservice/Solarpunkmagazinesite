@@ -99,6 +99,7 @@ export default function App() {
   const [resetToken, setResetToken] = useState<string | null>(null)
   const [featureUnlockModal, setFeatureUnlockModal] = useState<{ featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization'; isOpen: boolean } | null>(null)
   const [isWalletOpen, setIsWalletOpen] = useState(false)
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(true)
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
   const supabase = createClient()
@@ -147,7 +148,12 @@ export default function App() {
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('❌ Session check error:', error)
+          console.error('❌ Session check error:', error.message)
+          // If it's a refresh token error, clear the session
+          if (error.message.includes('Refresh Token')) {
+            console.log('🧹 Clearing invalid session data')
+            await supabase.auth.signOut()
+          }
           setInitializing(false)
           return
         }
@@ -166,8 +172,10 @@ export default function App() {
         } else {
           console.log('ℹ️ No active session found')
         }
-      } catch (error) {
-        console.error('❌ Error checking session:', error)
+      } catch (error: any) {
+        console.error('❌ Error checking session:', error.message)
+        // Clear any corrupted session data
+        await supabase.auth.signOut()
       } finally {
         setInitializing(false)
       }
@@ -215,12 +223,13 @@ export default function App() {
           setUserEmail(session.user.email)
           setIsAuthenticated(true)
         }
-      } else if (event === 'SIGNED_OUT') {
-        console.log('👋 Auth state: User signed out')
+      } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
+        console.log('👋 Auth state:', event === 'SIGNED_OUT' ? 'User signed out' : 'Token refresh failed')
         setAccessToken(null)
         setUserId(null)
         setUserEmail(null)
         setIsAuthenticated(false)
+        setUserProgress(null)
       } else if (event === 'USER_UPDATED') {
         console.log('🔄 Auth state: User updated')
         if (session?.access_token) {
@@ -328,36 +337,20 @@ export default function App() {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('❌ Failed to fetch user articles. Status:', response.status, 'Error:', errorData)
         
-        // If authentication failed, try to refresh the session
+        // If authentication failed, handle gracefully
         if (response.status === 401) {
-          console.log('🔄 Authentication failed, checking session validity...')
+          console.log('⚠️ Session expired or invalid (401) - logging out silently')
           
-          // First, try to get the current session
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+          // Clear the session
+          await supabase.auth.signOut()
+          setIsAuthenticated(false)
+          setAccessToken(null)
+          setUserId(null)
+          setUserProgress(null)
+          setUserArticles([])
           
-          if (sessionError || !session) {
-            console.error('❌ No valid session found, logging out user')
-            alert('Your session has expired. Please log in again.')
-            handleLogout()
-            return
-          }
-          
-          // If we have a session, try to refresh it
-          console.log('🔄 Attempting to refresh session...')
-          const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
-          
-          if (newSession?.access_token && !refreshError) {
-            console.log('✅ Session refreshed successfully')
-            console.log('🔑 New token:', newSession.access_token.substring(0, 20) + '...')
-            setAccessToken(newSession.access_token)
-            // The fetch will retry automatically when accessToken updates
-            return
-          } else {
-            console.error('❌ Failed to refresh session:', refreshError)
-            alert('Your session has expired. Please log in again.')
-            handleLogout()
-            return
-          }
+          console.log('👋 Logged out - user will see login screen')
+          return
         }
         
         setUserArticles([])
@@ -801,6 +794,7 @@ export default function App() {
         serverUrl={serverUrl}
         isWalletOpen={isWalletOpen}
         onWalletOpenChange={setIsWalletOpen}
+        onToggleCategoryMenu={() => setCategoryMenuOpen(prev => !prev)}
         onExchangePoints={async (pointsToExchange) => {
           if (!userId || !accessToken) return
           
@@ -862,438 +856,442 @@ export default function App() {
         }}
       />
 
-      <main className={`container mx-auto px-4 ${currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : 'py-8 pb-32'}`}>
-        {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
-        {currentView === 'feed' && (
-          <div className="space-y-6">
-            {/* Streak Banner - Only show in grid mode */}
-            {userProgress && userProgress.currentStreak > 0 && (
-              <StreakBanner
-                currentStreak={userProgress.currentStreak}
-                longestStreak={userProgress.longestStreak}
-                points={userProgress.points}
-                onNavigateToDashboard={() => setCurrentView('dashboard')}
-              />
-            )}
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : 'py-8 pb-32'}>
+        {/* Content with its own container for padding */}
+        <div className={currentView === 'browse' ? '' : 'container mx-auto px-4'}>
+          {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
+          {currentView === 'feed' && (
+            <div className="space-y-6">
+              {/* Streak Banner - Only show in grid mode */}
+              {userProgress && userProgress.currentStreak > 0 && (
+                <StreakBanner
+                  currentStreak={userProgress.currentStreak}
+                  longestStreak={userProgress.longestStreak}
+                  points={userProgress.points}
+                  onNavigateToDashboard={() => setCurrentView('dashboard')}
+                />
+              )}
 
-            {/* Action Cards - Horizontal on desktop, vertical on mobile */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-              {/* Swipe Mode Card */}
-              <div 
-                onClick={() => {
-                  const totalRead = userProgress?.totalArticlesRead || 0
-                  const swipeUnlocked = isFeatureUnlocked('swipe-mode', totalRead)
+              {/* Action Cards - Horizontal on desktop, vertical on mobile */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+                {/* Swipe Mode Card */}
+                <div 
+                  onClick={() => {
+                    const totalRead = userProgress?.totalArticlesRead || 0
+                    const swipeUnlocked = isFeatureUnlocked('swipe-mode', totalRead)
+                    
+                    if (!swipeUnlocked) {
+                      setFeatureUnlockModal({ featureId: 'swipe-mode', isOpen: true })
+                      return
+                    }
+                    
+                    setPreviousView('feed')
+                    setCurrentView('swipe')
+                  }}
+                  className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
+                >
+                  {/* Comic Lock Overlay - Show when locked */}
+                  {!isFeatureUnlocked('swipe-mode', userProgress?.totalArticlesRead || 0) && (
+                    <ComicLockOverlay 
+                      articlesNeeded={FEATURE_UNLOCKS['swipe-mode'].requiredArticles - (userProgress?.totalArticlesRead || 0)} 
+                    />
+                  )}
                   
-                  if (!swipeUnlocked) {
-                    setFeatureUnlockModal({ featureId: 'swipe-mode', isOpen: true })
-                    return
-                  }
+                  {/* Animated background shimmer */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                   
-                  setPreviousView('feed')
-                  setCurrentView('swipe')
-                }}
-                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 p-[2px] shadow-lg shadow-pink-500/50 cursor-pointer group hover:shadow-xl hover:shadow-pink-500/60 transition-all"
-              >
-                {/* Comic Lock Overlay - Show when locked */}
-                {!isFeatureUnlocked('swipe-mode', userProgress?.totalArticlesRead || 0) && (
-                  <ComicLockOverlay 
-                    articlesNeeded={FEATURE_UNLOCKS['swipe-mode'].requiredArticles - (userProgress?.totalArticlesRead || 0)} 
-                  />
-                )}
-                
-                {/* Animated background shimmer */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                
-                <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4 h-full flex flex-col">
-                  {/* Icon */}
-                  <div className="relative flex-shrink-0 mx-auto mb-4">
-                    <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-600 blur-md opacity-50 animate-pulse" />
-                    <div className="relative bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
-                      <Heart className="w-6 h-6 fill-white" />
-                    </div>
-                  </div>
-                  
-                  {/* Text */}
-                  <div className="flex-1 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <h3 className="text-lg font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 bg-clip-text text-transparent">
-                        💖 SWIPE MODE
-                      </h3>
-                      <Sparkles className="w-5 h-5 text-pink-500 animate-pulse" />
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Swipe through articles and create your reading list
-                    </p>
-                  </div>
-
-                  {/* Feature Pills Row */}
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    {/* Match List Pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-pink-500/10 rounded-full text-xs font-medium text-pink-600 dark:text-pink-400">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M9 12L11 14L15 10" 
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
-                      </svg>
-                      <span className="hidden sm:inline">Match List</span>
+                  <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4 h-full flex flex-col">
+                    {/* Icon */}
+                    <div className="relative flex-shrink-0 mx-auto mb-4">
+                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-600 blur-md opacity-50 animate-pulse" />
+                      <div className="relative bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
+                        <Heart className="w-6 h-6 fill-white" />
+                      </div>
                     </div>
                     
-                    {/* Unlimited Rewind Pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 rounded-full text-xs font-medium text-purple-600 dark:text-purple-400">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 12C4 7.58172 7.58172 4 12 4C14.5264 4 16.7792 5.17107 18.2454 7M20 12C20 16.4183 16.4183 20 12 20C9.47362 20 7.22075 18.8289 5.75463 17M12 2V6M12 18V22" 
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M15 7L18 4L21 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span className="hidden sm:inline">Rewind</span>
+                    {/* Text */}
+                    <div className="flex-1 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <h3 className="text-lg font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 bg-clip-text text-transparent">
+                          💖 SWIPE MODE
+                        </h3>
+                        <Sparkles className="w-5 h-5 text-pink-500 animate-pulse" />
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Swipe through articles and create your reading list
+                      </p>
+                    </div>
+
+                    {/* Feature Pills Row */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      {/* Match List Pill */}
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-pink-500/10 rounded-full text-xs font-medium text-pink-600 dark:text-pink-400">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M9 12L11 14L15 10" 
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
+                        </svg>
+                        <span className="hidden sm:inline">Match List</span>
+                      </div>
+                      
+                      {/* Unlimited Rewind Pill */}
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 rounded-full text-xs font-medium text-purple-600 dark:text-purple-400">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 12C4 7.58172 7.58172 4 12 4C14.5264 4 16.7792 5.17107 18.2454 7M20 12C20 16.4183 16.4183 20 12 20C9.47362 20 7.22075 18.8289 5.75463 17M12 2V6M12 18V22" 
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M15 7L18 4L21 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <span className="hidden sm:inline">Rewind</span>
+                      </div>
+                    </div>
+
+                    {/* Action Button - Centered */}
+                    <div className="pt-4 border-t border-border/50 flex justify-center">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-pink-500/10 rounded-xl border-2 border-pink-500/30 group-hover:border-pink-500/50 transition-all shadow-lg shadow-pink-500/20 group-hover:shadow-xl group-hover:shadow-pink-500/30">
+                        <Heart className="w-4 h-4 text-pink-500 fill-current" />
+                        <span className="text-sm font-bold text-pink-600 dark:text-pink-400">START</span>
+                        <svg className="w-4 h-4 text-pink-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Action Button - Centered */}
-                  <div className="pt-4 border-t border-border/50 flex justify-center">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-pink-500/10 rounded-xl border-2 border-pink-500/30 group-hover:border-pink-500/50 transition-all shadow-lg shadow-pink-500/20 group-hover:shadow-xl group-hover:shadow-pink-500/30">
-                      <Heart className="w-4 h-4 text-pink-500 fill-current" />
-                      <span className="text-sm font-bold text-pink-600 dark:text-pink-400">START</span>
-                      <svg className="w-4 h-4 text-pink-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
+                  <style>{`
+                    @keyframes shimmer {
+                      0% { background-position: -200% 0; }
+                      100% { background-position: 200% 0; }
+                    }
+                  `}</style>
+                </div>
+
+                {/* Create Article Card */}
+                <div 
+                  onClick={() => {
+                    const totalRead = userProgress?.totalArticlesRead || 0
+                    const createUnlocked = isFeatureUnlocked('article-creation', totalRead)
+                    
+                    if (!createUnlocked) {
+                      setFeatureUnlockModal({ featureId: 'article-creation', isOpen: true })
+                      return
+                    }
+                    
+                    setCurrentView('editor')
+                  }}
+                  className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-[2px] shadow-lg shadow-emerald-500/50 cursor-pointer group hover:shadow-xl hover:shadow-emerald-500/60 transition-all"
+                >
+                  {/* Comic Lock Overlay - Show when locked */}
+                  {!isFeatureUnlocked('article-creation', userProgress?.totalArticlesRead || 0) && (
+                    <ComicLockOverlay 
+                      articlesNeeded={FEATURE_UNLOCKS['article-creation'].requiredArticles - (userProgress?.totalArticlesRead || 0)} 
+                    />
+                  )}
+                  
+                  {/* Animated background shimmer */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                  
+                  <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4 h-full flex flex-col">
+                    {/* Icon */}
+                    <div className="relative flex-shrink-0 mx-auto mb-4">
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-cyan-600 blur-md opacity-50 animate-pulse" />
+                      <div className="relative bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
+                        <Zap className="w-6 h-6 fill-white" />
+                      </div>
+                    </div>
+                    
+                    {/* Text */}
+                    <div className="flex-1 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <h3 className="text-lg font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 bg-clip-text text-transparent">
+                          ✨ CREATE ARTICLE
+                        </h3>
+                        <Sparkles className="w-5 h-5 text-emerald-500 animate-pulse" />
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Share your knowledge and earn massive points
+                      </p>
+                    </div>
+
+                    {/* Feature Pills Row */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      {/* Points Pill */}
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-full text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
+                        </svg>
+                        <span className="hidden sm:inline">+50 Points</span>
+                      </div>
+                      
+                      {/* Rich Editor Pill */}
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-teal-500/10 rounded-full text-xs font-medium text-teal-600 dark:text-teal-400">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13M18.5 2.5C18.8978 2.1022 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.1022 21.5 2.5C21.8978 2.8978 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.1022 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" 
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <span className="hidden sm:inline">Rich Editor</span>
+                      </div>
+                    </div>
+
+                    {/* Action Button - Centered */}
+                    <div className="pt-4 border-t border-border/50 flex justify-center">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-xl border-2 border-emerald-500/30 group-hover:border-emerald-500/50 transition-all shadow-lg shadow-emerald-500/20 group-hover:shadow-xl group-hover:shadow-emerald-500/30">
+                        <Zap className="w-4 h-4 text-emerald-500 fill-current" />
+                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">START</span>
+                        <svg className="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <style>{`
-                  @keyframes shimmer {
-                    0% { background-position: -200% 0; }
-                    100% { background-position: 200% 0; }
-                  }
-                `}</style>
-              </div>
-
-              {/* Create Article Card */}
-              <div 
-                onClick={() => {
-                  const totalRead = userProgress?.totalArticlesRead || 0
-                  const createUnlocked = isFeatureUnlocked('article-creation', totalRead)
+                {/* Browse Articles Card */}
+                <div 
+                  onClick={() => setCurrentView('browse')}
+                  className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 p-[2px] shadow-lg shadow-blue-500/50 cursor-pointer group hover:shadow-xl hover:shadow-blue-500/60 transition-all"
+                >
+                  {/* Animated background shimmer */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                   
-                  if (!createUnlocked) {
-                    setFeatureUnlockModal({ featureId: 'article-creation', isOpen: true })
-                    return
-                  }
-                  
-                  setCurrentView('editor')
-                }}
-                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-[2px] shadow-lg shadow-emerald-500/50 cursor-pointer group hover:shadow-xl hover:shadow-emerald-500/60 transition-all"
-              >
-                {/* Comic Lock Overlay - Show when locked */}
-                {!isFeatureUnlocked('article-creation', userProgress?.totalArticlesRead || 0) && (
-                  <ComicLockOverlay 
-                    articlesNeeded={FEATURE_UNLOCKS['article-creation'].requiredArticles - (userProgress?.totalArticlesRead || 0)} 
-                  />
-                )}
-                
-                {/* Animated background shimmer */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                
-                <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4 h-full flex flex-col">
-                  {/* Icon */}
-                  <div className="relative flex-shrink-0 mx-auto mb-4">
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-cyan-600 blur-md opacity-50 animate-pulse" />
-                    <div className="relative bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
-                      <Zap className="w-6 h-6 fill-white" />
-                    </div>
-                  </div>
-                  
-                  {/* Text */}
-                  <div className="flex-1 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <h3 className="text-lg font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 bg-clip-text text-transparent">
-                        ✨ CREATE ARTICLE
-                      </h3>
-                      <Sparkles className="w-5 h-5 text-emerald-500 animate-pulse" />
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Share your knowledge and earn massive points
-                    </p>
-                  </div>
-
-                  {/* Feature Pills Row */}
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    {/* Points Pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-full text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
-                      </svg>
-                      <span className="hidden sm:inline">+50 Points</span>
+                  <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4 h-full flex flex-col">
+                    {/* Icon */}
+                    <div className="relative flex-shrink-0 mx-auto mb-4">
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-violet-600 blur-md opacity-50 animate-pulse" />
+                      <div className="relative bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
+                        <BookOpen className="w-6 h-6" />
+                      </div>
                     </div>
                     
-                    {/* Rich Editor Pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-teal-500/10 rounded-full text-xs font-medium text-teal-600 dark:text-teal-400">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13M18.5 2.5C18.8978 2.1022 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.1022 21.5 2.5C21.8978 2.8978 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.1022 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" 
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span className="hidden sm:inline">Rich Editor</span>
+                    {/* Text */}
+                    <div className="flex-1 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <h3 className="text-lg font-bold bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 bg-clip-text text-transparent">
+                          📚 BROWSE
+                        </h3>
+                        <Sparkles className="w-5 h-5 text-blue-500 animate-pulse" />
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Explore all articles with categories and search
+                      </p>
                     </div>
-                  </div>
 
-                  {/* Action Button - Centered */}
-                  <div className="pt-4 border-t border-border/50 flex justify-center">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-xl border-2 border-emerald-500/30 group-hover:border-emerald-500/50 transition-all shadow-lg shadow-emerald-500/20 group-hover:shadow-xl group-hover:shadow-emerald-500/30">
-                      <Zap className="w-4 h-4 text-emerald-500 fill-current" />
-                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">START</span>
-                      <svg className="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
+                    {/* Feature Pills Row */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      {/* Categories Pill */}
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 rounded-full text-xs font-medium text-blue-600 dark:text-blue-400">
+                        <Filter className="w-3 h-3" />
+                        <span className="hidden sm:inline">Categories</span>
+                      </div>
+                      
+                      {/* Search Pill */}
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-violet-500/10 rounded-full text-xs font-medium text-violet-600 dark:text-violet-400">
+                        <Search className="w-3 h-3" />
+                        <span className="hidden sm:inline">Search</span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Browse Articles Card */}
-              <div 
-                onClick={() => setCurrentView('browse')}
-                className="relative overflow-hidden rounded-xl border-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 p-[2px] shadow-lg shadow-blue-500/50 cursor-pointer group hover:shadow-xl hover:shadow-blue-500/60 transition-all"
-              >
-                {/* Animated background shimmer */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                
-                <div className="relative bg-card/95 backdrop-blur-sm rounded-lg p-4 h-full flex flex-col">
-                  {/* Icon */}
-                  <div className="relative flex-shrink-0 mx-auto mb-4">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-violet-600 blur-md opacity-50 animate-pulse" />
-                    <div className="relative bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 rounded-full p-3 text-white group-hover:scale-110 transition-transform">
-                      <BookOpen className="w-6 h-6" />
-                    </div>
-                  </div>
-                  
-                  {/* Text */}
-                  <div className="flex-1 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <h3 className="text-lg font-bold bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 bg-clip-text text-transparent">
-                        📚 BROWSE
-                      </h3>
-                      <Sparkles className="w-5 h-5 text-blue-500 animate-pulse" />
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Explore all articles with categories and search
-                    </p>
-                  </div>
-
-                  {/* Feature Pills Row */}
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    {/* Categories Pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 rounded-full text-xs font-medium text-blue-600 dark:text-blue-400">
-                      <Filter className="w-3 h-3" />
-                      <span className="hidden sm:inline">Categories</span>
-                    </div>
-                    
-                    {/* Search Pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-violet-500/10 rounded-full text-xs font-medium text-violet-600 dark:text-violet-400">
-                      <Search className="w-3 h-3" />
-                      <span className="hidden sm:inline">Search</span>
-                    </div>
-                  </div>
-
-                  {/* Action Button - Centered */}
-                  <div className="pt-4 border-t border-border/50 flex justify-center">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-xl border-2 border-blue-500/30 group-hover:border-blue-500/50 transition-all shadow-lg shadow-blue-500/20 group-hover:shadow-xl group-hover:shadow-blue-500/30">
-                      <BookOpen className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">START</span>
-                      <svg className="w-4 h-4 text-blue-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
+                    {/* Action Button - Centered */}
+                    <div className="pt-4 border-t border-border/50 flex justify-center">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-xl border-2 border-blue-500/30 group-hover:border-blue-500/50 transition-all shadow-lg shadow-blue-500/20 group-hover:shadow-xl group-hover:shadow-blue-500/30">
+                        <BookOpen className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">START</span>
+                        <svg className="w-4 h-4 text-blue-500 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Swipe Mode - Standalone View */}
-        {currentView === 'swipe' && (
-          <SwipeMode 
-            articles={filteredArticles}
-            accessToken={accessToken}
-            onMatch={(article) => {
-              // Add to matched articles and save to localStorage (prevent duplicates) - user-specific
-              const isDuplicate = matchedArticles.some(a => a.id === article.id)
-              if (!isDuplicate && userId) {
-                const updatedMatches = [...matchedArticles, article]
-                setMatchedArticles(updatedMatches)
-                localStorage.setItem(`matchedArticles_${userId}`, JSON.stringify(updatedMatches))
-              }
-            }}
-            onReadArticle={handleArticleClick}
-            onSwitchToGrid={() => setCurrentView('feed')}
-            ref={swipeModeRef}
-            onRefReady={() => setSwipeRefReady(true)}
-          />
-        )}
-
-        {currentView === 'dashboard' && userProgress && (
-          <UserDashboard 
-            progress={userProgress}
-            userArticles={userArticles}
-            onEditArticle={handleEditArticle}
-            onDeleteArticle={handleDeleteArticle}
-            onLogout={handleLogout}
-            onViewReadingHistory={() => setCurrentView('reading-history')}
-            onViewMatches={() => setCurrentView('matched-articles')}
-            matchesCount={matchedArticles.length}
-            onViewAchievements={() => setCurrentView('achievements')}
-            onViewPointsSystem={() => setCurrentView('points-system')}
-            onViewReadingAnalytics={() => setCurrentView('reading-analytics')}
-            onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-            accessToken={accessToken || undefined}
-          />
-        )}
-
-        {currentView === 'editor' && (
-          <ArticleEditor
-            onSave={handleSaveArticle}
-            onCancel={() => setCurrentView('feed')}
-            article={editingArticle}
-            onUpdate={handleUpdateArticle}
-            accessToken={accessToken || undefined}
-          />
-        )}
-
-        {currentView === 'article' && selectedArticle && (
-          <ArticleReader
-            article={selectedArticle}
-            userProgress={userProgress}
-            allArticles={articles}
-            accessToken={accessToken}
-            suggestedArticles={articles.filter(a => a.id !== selectedArticle.id && a.category === selectedArticle.category).slice(0, 2)}
-            onArticleSelect={(article) => {
-              setSelectedArticle(article)
-              window.scrollTo({ top: 0, behavior: 'smooth' })
-            }}
-            onBack={() => {
-              setCurrentView('feed')
-              setSelectedArticle(null)
-              // Restore the previous explore mode (grid or swipe)
-              setPreviousView('feed')
-            }}
-          />
-        )}
-
-        {currentView === 'admin' && accessToken && (
-          <AdminDashboard
-            accessToken={accessToken}
-            serverUrl={serverUrl}
-            onBack={() => setCurrentView('dashboard')}
-            onEditArticle={(articleId) => {
-              const article = articles.find(a => a.id === articleId)
-              if (article) {
-                handleEditArticle(article)
-              }
-            }}
-          />
-        )}
-
-        {currentView === 'reading-history' && userProgress && (
-          <ReadingHistory
-            readArticleIds={userProgress.readArticles}
-            allArticles={articles}
-            totalArticlesRead={userProgress.totalArticlesRead}
-            points={userProgress.points}
-            onBack={() => setCurrentView('dashboard')}
-            onArticleClick={(articleId) => {
-              const article = articles.find(a => a.id === articleId)
-              if (article) {
-                handleArticleClick(article)
-              }
-            }}
-          />
-        )}
-
-        {currentView === 'linkedin-importer' && accessToken && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-3xl">LinkedIn Post Importer</h2>
-              <p className="text-muted-foreground">Convert LinkedIn posts into DEWII articles</p>
-            </div>
-            <LinkedInImporter
+          {/* Swipe Mode - Standalone View */}
+          {currentView === 'swipe' && (
+            <SwipeMode 
+              articles={filteredArticles}
               accessToken={accessToken}
-              onArticleCreated={() => {
-                fetchArticles()
-                fetchUserArticles()
+              onMatch={(article) => {
+                // Add to matched articles and save to localStorage (prevent duplicates) - user-specific
+                const isDuplicate = matchedArticles.some(a => a.id === article.id)
+                if (!isDuplicate && userId) {
+                  const updatedMatches = [...matchedArticles, article]
+                  setMatchedArticles(updatedMatches)
+                  localStorage.setItem(`matchedArticles_${userId}`, JSON.stringify(updatedMatches))
+                }
+              }}
+              onReadArticle={handleArticleClick}
+              onSwitchToGrid={() => setCurrentView('feed')}
+              ref={swipeModeRef}
+              onRefReady={() => setSwipeRefReady(true)}
+            />
+          )}
+
+          {currentView === 'dashboard' && userProgress && (
+            <UserDashboard 
+              progress={userProgress}
+              userArticles={userArticles}
+              onEditArticle={handleEditArticle}
+              onDeleteArticle={handleDeleteArticle}
+              onLogout={handleLogout}
+              onViewReadingHistory={() => setCurrentView('reading-history')}
+              onViewMatches={() => setCurrentView('matched-articles')}
+              matchesCount={matchedArticles.length}
+              onViewAchievements={() => setCurrentView('achievements')}
+              onViewPointsSystem={() => setCurrentView('points-system')}
+              onViewReadingAnalytics={() => setCurrentView('reading-analytics')}
+              onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+              accessToken={accessToken || undefined}
+            />
+          )}
+
+          {currentView === 'editor' && (
+            <ArticleEditor
+              onSave={handleSaveArticle}
+              onCancel={() => setCurrentView('feed')}
+              article={editingArticle}
+              onUpdate={handleUpdateArticle}
+              accessToken={accessToken || undefined}
+            />
+          )}
+
+          {currentView === 'article' && selectedArticle && (
+            <ArticleReader
+              article={selectedArticle}
+              userProgress={userProgress}
+              allArticles={articles}
+              accessToken={accessToken}
+              suggestedArticles={articles.filter(a => a.id !== selectedArticle.id && a.category === selectedArticle.category).slice(0, 2)}
+              onArticleSelect={(article) => {
+                setSelectedArticle(article)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              onBack={() => {
                 setCurrentView('feed')
+                setSelectedArticle(null)
+                // Restore the previous explore mode (grid or swipe)
+                setPreviousView('feed')
               }}
             />
-          </div>
-        )}
+          )}
 
-        {currentView === 'matched-articles' && (
-          <MatchedArticles
-            articles={matchedArticles}
-            onArticleClick={handleArticleClick}
-            onBack={() => setCurrentView('feed')}
-          />
-        )}
+          {currentView === 'admin' && accessToken && (
+            <AdminDashboard
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              onBack={() => setCurrentView('dashboard')}
+              onEditArticle={(articleId) => {
+                const article = articles.find(a => a.id === articleId)
+                if (article) {
+                  handleEditArticle(article)
+                }
+              }}
+            />
+          )}
 
-        {currentView === 'achievements' && userProgress && accessToken && (
-          <AchievementsPage
-            progress={userProgress}
-            onBack={() => setCurrentView('dashboard')}
-            onProgressUpdate={(updatedProgress) => setUserProgress(updatedProgress)}
-            accessToken={accessToken}
-          />
-        )}
+          {currentView === 'reading-history' && userProgress && (
+            <ReadingHistory
+              readArticleIds={userProgress.readArticles}
+              allArticles={articles}
+              totalArticlesRead={userProgress.totalArticlesRead}
+              points={userProgress.points}
+              onBack={() => setCurrentView('dashboard')}
+              onArticleClick={(articleId) => {
+                const article = articles.find(a => a.id === articleId)
+                if (article) {
+                  handleArticleClick(article)
+                }
+              }}
+            />
+          )}
 
-        {currentView === 'points-system' && (
-          <PointsSystemPage
-            onBack={() => setCurrentView('dashboard')}
-          />
-        )}
+          {currentView === 'linkedin-importer' && accessToken && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-3xl">LinkedIn Post Importer</h2>
+                <p className="text-muted-foreground">Convert LinkedIn posts into DEWII articles</p>
+              </div>
+              <LinkedInImporter
+                accessToken={accessToken}
+                onArticleCreated={() => {
+                  fetchArticles()
+                  fetchUserArticles()
+                  setCurrentView('feed')
+                }}
+              />
+            </div>
+          )}
 
-        {currentView === 'browse' && (
-          <BrowsePage
-            articles={articles}
-            onArticleClick={handleArticleClick}
-            loading={loading}
-          />
-        )}
+          {currentView === 'matched-articles' && (
+            <MatchedArticles
+              articles={matchedArticles}
+              onArticleClick={handleArticleClick}
+              onBack={() => setCurrentView('feed')}
+            />
+          )}
 
-        {currentView === 'settings' && (
-          <AccountSettings
-            userId={userId}
-            userEmail={userEmail}
-            userPoints={userProgress?.points}
-            userNickname={userProgress?.nickname}
-            homeButtonTheme={userProgress?.homeButtonTheme}
-            marketingOptIn={userProgress?.marketingOptIn}
-            totalArticlesRead={userProgress?.totalArticlesRead || 0}
-            accessToken={accessToken || undefined}
-            onLogout={handleLogout}
-            onUpdateProfile={handleUpdateProfile}
-            onUpdateMarketingPreference={handleUpdateMarketingPreference}
-            onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-          />
-        )}
+          {currentView === 'achievements' && userProgress && accessToken && (
+            <AchievementsPage
+              progress={userProgress}
+              onBack={() => setCurrentView('dashboard')}
+              onProgressUpdate={(updatedProgress) => setUserProgress(updatedProgress)}
+              accessToken={accessToken}
+            />
+          )}
 
-        {currentView === 'reset-password' && (
-          <ResetPasswordPage 
-            onBack={() => {
-              setCurrentView('feed')
-              setIsAuthenticated(false)
-              // Clear URL hash if present
-              if (window.location.hash) {
-                window.history.replaceState(null, '', window.location.pathname)
-              }
-            }}
-          />
-        )}
+          {currentView === 'points-system' && (
+            <PointsSystemPage
+              onBack={() => setCurrentView('dashboard')}
+            />
+          )}
 
-        {currentView === 'reading-analytics' && userProgress && (
-          <ReadingAnalytics
-            progress={userProgress}
-            allArticles={articles}
-            onBack={() => setCurrentView('dashboard')}
-          />
-        )}
+          {currentView === 'browse' && (
+            <BrowsePage
+              articles={articles}
+              onArticleClick={handleArticleClick}
+              loading={loading}
+              categoryMenuOpen={categoryMenuOpen}
+            />
+          )}
+
+          {currentView === 'settings' && (
+            <AccountSettings
+              userId={userId}
+              userEmail={userEmail}
+              userPoints={userProgress?.points}
+              userNickname={userProgress?.nickname}
+              homeButtonTheme={userProgress?.homeButtonTheme}
+              marketingOptIn={userProgress?.marketingOptIn}
+              totalArticlesRead={userProgress?.totalArticlesRead || 0}
+              accessToken={accessToken || undefined}
+              onLogout={handleLogout}
+              onUpdateProfile={handleUpdateProfile}
+              onUpdateMarketingPreference={handleUpdateMarketingPreference}
+              onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+            />
+          )}
+
+          {currentView === 'reset-password' && (
+            <ResetPasswordPage 
+              onBack={() => {
+                setCurrentView('feed')
+                setIsAuthenticated(false)
+                // Clear URL hash if present
+                if (window.location.hash) {
+                  window.history.replaceState(null, '', window.location.pathname)
+                }
+              }}
+            />
+          )}
+
+          {currentView === 'reading-analytics' && userProgress && (
+            <ReadingAnalytics
+              progress={userProgress}
+              allArticles={articles}
+              onBack={() => setCurrentView('dashboard')}
+            />
+          )}
+        </div>
       </main>
 
       <BottomNavbar

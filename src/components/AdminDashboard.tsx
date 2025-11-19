@@ -27,7 +27,15 @@ import {
   ArrowDownRight,
   Activity,
   CreditCard,
-  Edit
+  Edit,
+  Coins,
+  Sparkles,
+  Bot,
+  Lock,
+  AlertTriangle,
+  CheckCircle2,
+  Leaf,
+  Sprout
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -509,100 +517,459 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
             />
           </div>
 
-          {/* Activity Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card 
-              className="p-6 border-2 border-emerald-500/20 bg-emerald-500/5 cursor-pointer hover:scale-105 transition-all"
-              onClick={() => setActiveTab('articles')}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <TrendingUp className="w-5 h-5 text-emerald-500" />
-                <h3 className="font-bold">New Articles</h3>
-              </div>
-              <p className="text-2xl font-bold text-emerald-500">{stats.articlesLast24h}</p>
-              <p className="text-sm text-muted-foreground">Last 24 hours</p>
-            </Card>
-
-            <Card 
-              className="p-6 border-2 border-blue-500/20 bg-blue-500/5 cursor-pointer hover:scale-105 transition-all"
-              onClick={() => setActiveTab('articles')}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <Calendar className="w-5 h-5 text-blue-500" />
-                <h3 className="font-bold">Weekly Articles</h3>
-              </div>
-              <p className="text-2xl font-bold text-blue-500">{stats.articlesLast7d}</p>
-              <p className="text-sm text-muted-foreground">Last 7 days</p>
-            </Card>
-
-            <Card 
-              className="p-6 border-2 border-purple-500/20 bg-purple-500/5 cursor-pointer hover:scale-105 transition-all"
-              onClick={() => setActiveTab('gamification')}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <BookOpen className="w-5 h-5 text-purple-500" />
-                <h3 className="font-bold">Reading Activity</h3>
-              </div>
-              <p className="text-2xl font-bold text-purple-500">{stats.totalArticlesRead}</p>
-              <p className="text-sm text-muted-foreground">Articles read total</p>
-            </Card>
-          </div>
-
-          {/* Top Swipe Stats Section */}
-          {swipeStats.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold">Top Swipe Engagement</h3>
-                <Button variant="outline" size="sm" onClick={() => setActiveTab('swipeStats')}>
-                  View All
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {swipeStats.slice(0, 3).map((stat, index) => (
-                  <Card 
-                    key={stat.articleId} 
-                    className={`p-4 cursor-pointer hover:scale-105 transition-all ${
-                      stat.likeRate >= 80 ? 'bg-green-500/10 border-green-500/20' :
-                      stat.likeRate >= 50 ? 'bg-yellow-500/10 border-yellow-500/20' :
-                      'bg-red-500/10 border-red-500/20'
-                    }`}
-                    onClick={() => setActiveTab('swipeStats')}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                        stat.likeRate >= 80 ? 'bg-green-500 text-white' :
-                        stat.likeRate >= 50 ? 'bg-yellow-500 text-white' :
-                        'bg-red-500 text-white'
-                      }`}>
-                        #{index + 1}
+          {/* Advanced Analytics Dashboard - Solarpunk Futures Vibes */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-teal-500" />
+              <h3 className="font-bold">Advanced Analytics</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Rankings Card - Solarpunk Gold */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-yellow-500/10 to-orange-500/10 hover:shadow-xl hover:shadow-amber-500/20 transition-all group"
+                  onClick={() => setActiveTab('rankings')}
+                >
+                  {/* Decorative organic pattern */}
+                  <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
+                    <Leaf className="w-full h-full rotate-12" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg">
+                        <Trophy className="w-6 h-6 text-white" />
                       </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-amber-700 dark:text-amber-400">Rankings</h4>
+                        <p className="text-xs text-muted-foreground">Leaderboard</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-amber-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    {rankings.length > 0 && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-lg">🥇</span>
+                          <span className="flex-1 truncate font-medium text-amber-700 dark:text-amber-400">
+                            {rankings[0]?.nickname}
+                          </span>
+                          <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30">
+                            {rankings[0]?.points} pts
+                          </Badge>
+                        </div>
+                        {rankings[1] && (
+                          <div className="flex items-center gap-2 text-xs opacity-70">
+                            <span>🥈</span>
+                            <span className="flex-1 truncate">{rankings[1].nickname}</span>
+                            <span className="text-muted-foreground">{rankings[1].points} pts</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate mb-1">{stat.title}</p>
-                        <Badge variant="secondary" className="text-xs mb-2">
-                          {stat.category}
-                        </Badge>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Heart className="w-3 h-3 text-green-500" />
-                            {stat.likes}
+              {/* Swipe Stats Card - Solarpunk Pink/Heart */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-pink-500/30 bg-gradient-to-br from-pink-500/10 via-rose-500/10 to-red-500/10 hover:shadow-xl hover:shadow-pink-500/20 transition-all group"
+                  onClick={() => setActiveTab('swipeStats')}
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
+                    <Sprout className="w-full h-full -rotate-12" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-pink-500 to-red-500 shadow-lg">
+                        <Heart className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-pink-700 dark:text-pink-400">Swipe Stats</h4>
+                        <p className="text-xs text-muted-foreground">Engagement</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-pink-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    {swipeStats.length > 0 && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex items-center gap-3 text-xs">
+                          <div className="flex-1">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-muted-foreground">Avg Match Rate</span>
+                              <span className="font-bold text-pink-600 dark:text-pink-400">
+                                {(swipeStats.reduce((sum, s) => sum + s.likeRate, 0) / swipeStats.length).toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="bg-muted rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-gradient-to-r from-pink-500 to-rose-500 h-full rounded-full"
+                                style={{ width: `${(swipeStats.reduce((sum, s) => sum + s.likeRate, 0) / swipeStats.length)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 text-xs mt-3">
+                          <span className="flex items-center gap-1 text-green-500">
+                            <Heart className="w-3 h-3" />
+                            {swipeStats.reduce((sum, s) => sum + s.likes, 0)}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <X className="w-3 h-3 text-red-500" />
-                            {stat.skips}
-                          </span>
-                          <span className="font-bold text-orange-500">
-                            {stat.likeRate}%
+                          <span className="flex items-center gap-1 text-red-500">
+                            <X className="w-3 h-3" />
+                            {swipeStats.reduce((sum, s) => sum + s.skips, 0)}
                           </span>
                         </div>
                       </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Views Analytics Card - Solarpunk Purple/Violet */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-violet-500/30 bg-gradient-to-br from-violet-500/10 via-purple-500/10 to-indigo-500/10 hover:shadow-xl hover:shadow-violet-500/20 transition-all group"
+                  onClick={() => setActiveTab('views')}
+                >
+                  <div className="absolute bottom-0 left-0 w-32 h-32 opacity-5">
+                    <Leaf className="w-full h-full" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 shadow-lg">
+                        <Eye className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-violet-700 dark:text-violet-400">Views Analytics</h4>
+                        <p className="text-xs text-muted-foreground">Growth tracking</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-violet-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
-                  </Card>
-                ))}
-              </div>
+                    
+                    {viewsAnalytics && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Growth Rate</span>
+                          <span className={`font-bold flex items-center gap-1 ${
+                            viewsAnalytics.growthRate >= 0 ? 'text-green-500' : 'text-red-500'
+                          }`}>
+                            {viewsAnalytics.growthRate >= 0 ? (
+                              <TrendingUp className="w-3 h-3" />
+                            ) : (
+                              <ArrowDownRight className="w-3 h-3" />
+                            )}
+                            {viewsAnalytics.growthRate >= 0 ? '+' : ''}{viewsAnalytics.growthRate.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                          <div className="bg-violet-500/10 rounded-lg p-2">
+                            <p className="text-muted-foreground">Last 7d</p>
+                            <p className="font-bold text-violet-600 dark:text-violet-400">
+                              {viewsAnalytics.last7DaysViews.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="bg-violet-500/10 rounded-lg p-2">
+                            <p className="text-muted-foreground">Avg/Article</p>
+                            <p className="font-bold text-violet-600 dark:text-violet-400">
+                              {viewsAnalytics.avgViewsPerArticle.toFixed(0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Wallets/NADA Card - Solarpunk Teal/Emerald */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-teal-500/30 bg-gradient-to-br from-teal-500/10 via-emerald-500/10 to-green-500/10 hover:shadow-xl hover:shadow-teal-500/20 transition-all group"
+                  onClick={() => setActiveTab('wallets')}
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
+                    <Coins className="w-full h-full rotate-12" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-500 shadow-lg">
+                        <Coins className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-teal-700 dark:text-teal-400">NADA Wallets</h4>
+                        <p className="text-xs text-muted-foreground">Points economy</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-teal-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    {walletStats && (
+                      <div className="space-y-2 mt-4">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-muted-foreground">Transactions</p>
+                            <p className="font-bold text-teal-600 dark:text-teal-400">
+                              {walletStats.totalTransactions}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">NADA Generated</p>
+                            <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                              {walletStats.totalNadaGenerated}
+                            </p>
+                          </div>
+                        </div>
+                        {walletStats.fraudAlerts > 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            {walletStats.fraudAlerts} alerts
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* NADA Feedback Card - Solarpunk Yellow/Amber */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-yellow-500/30 bg-gradient-to-br from-yellow-500/10 via-amber-500/10 to-orange-400/10 hover:shadow-xl hover:shadow-yellow-500/20 transition-all group"
+                  onClick={() => setActiveTab('nadaFeedback')}
+                >
+                  <div className="absolute bottom-0 right-0 w-32 h-32 opacity-5">
+                    <Sparkles className="w-full h-full" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-yellow-500 to-amber-500 shadow-lg">
+                        <Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-yellow-700 dark:text-yellow-400">NADA Feedback</h4>
+                        <p className="text-xs text-muted-foreground">User voice</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-yellow-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    {nadaFeedback && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Suggestions</span>
+                          <Badge className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30">
+                            {nadaFeedback.suggestions.length}
+                          </Badge>
+                        </div>
+                        {nadaFeedback.mostYes.length > 0 && (
+                          <div className="bg-yellow-500/10 rounded-lg p-2 text-xs">
+                            <p className="text-muted-foreground mb-1">Top Idea</p>
+                            <p className="font-medium text-yellow-700 dark:text-yellow-400 truncate">
+                              {nadaFeedback.mostYes[0].ideaTitle}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="flex items-center gap-1 text-green-500">
+                                <ThumbsUp className="w-3 h-3" />
+                                {nadaFeedback.mostYes[0].yesVotes}
+                              </span>
+                              <span className="flex items-center gap-1 text-red-500">
+                                <ThumbsDown className="w-3 h-3" />
+                                {nadaFeedback.mostYes[0].noVotes}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Security Audit Card - Solarpunk Red/Security */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-red-500/30 bg-gradient-to-br from-red-500/10 via-orange-500/10 to-rose-500/10 hover:shadow-xl hover:shadow-red-500/20 transition-all group"
+                  onClick={() => setActiveTab('security')}
+                >
+                  <div className="absolute top-0 left-0 w-32 h-32 opacity-5">
+                    <Shield className="w-full h-full -rotate-12" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 shadow-lg">
+                        <Shield className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-red-700 dark:text-red-400">Security Audit</h4>
+                        <p className="text-xs text-muted-foreground">Protection</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-red-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    <div className="space-y-2 mt-4">
+                      <div className="flex items-center gap-2 text-xs">
+                        <Lock className="w-4 h-4 text-red-500" />
+                        <span className="text-muted-foreground">12-Layer Protection</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Read Sessions</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Rate Limiting</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>HMAC Signing</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Forensics</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Bot Monitoring Card - Solarpunk Blue/Tech */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-blue-500/30 bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-sky-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all group"
+                  onClick={() => setActiveTab('bot')}
+                >
+                  <div className="absolute bottom-0 right-0 w-32 h-32 opacity-5">
+                    <Activity className="w-full h-full rotate-12" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg">
+                        <Bot className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-blue-700 dark:text-blue-400">System Monitor</h4>
+                        <p className="text-xs text-muted-foreground">Health checks</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-blue-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    <div className="space-y-2 mt-4">
+                      <div className="flex items-center gap-2 text-xs">
+                        <Activity className="w-4 h-4 text-blue-500" />
+                        <span className="text-muted-foreground">8 Critical Systems</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Database</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>API</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Auth</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-green-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Performance</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Gamification Card - Solarpunk Multi */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-red-500/10 to-pink-500/10 hover:shadow-xl hover:shadow-orange-500/20 transition-all group"
+                  onClick={() => setActiveTab('gamification')}
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
+                    <Award className="w-full h-full -rotate-12" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-500 shadow-lg">
+                        <Award className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-orange-700 dark:text-orange-400">Gamification</h4>
+                        <p className="text-xs text-muted-foreground">Achievements</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-orange-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    <div className="space-y-2 mt-4">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">Total Points</p>
+                          <p className="font-bold text-orange-600 dark:text-orange-400">
+                            {stats.totalPoints.toLocaleString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Achievements</p>
+                          <p className="font-bold text-pink-600 dark:text-pink-400">
+                            {users.reduce((sum, u) => sum + u.achievements.length, 0)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 text-xs">
+                        <Flame className="w-4 h-4 text-orange-500" />
+                        <span className="text-muted-foreground">
+                          Longest streak: {Math.max(...users.map(u => u.longestStreak), 0)} days
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
             </div>
-          )}
+          </div>
         </div>
       )}
 

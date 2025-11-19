@@ -1,29 +1,27 @@
 import { useState, useEffect } from 'react'
 import { Card } from './ui/card'
-import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import { Skeleton } from './ui/skeleton'
-import { 
-  Users, 
-  FileText, 
-  Eye, 
-  TrendingUp, 
-  Award,
-  Ban,
-  Trash2,
-  Shield,
-  Calendar,
+import {
+  Users,
+  FileText,
+  Eye,
   Zap,
-  Target,
+  TrendingUp,
+  Calendar,
   BookOpen,
+  Award,
   Trophy,
-  AlertCircle,
+  Target,
+  Flame,
   Heart,
   X,
   ThumbsUp,
   ThumbsDown,
-  Flame,
-  Wallet,
+  Shield,
+  Ban,
+  Trash2,
   DollarSign,
   ArrowUpRight,
   ArrowDownRight,
@@ -35,6 +33,7 @@ import { motion } from 'motion/react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { WalletsTab } from './WalletsTab'
 import { SecurityAudit } from './SecurityAudit'
+import { MonitoringBot } from './MonitoringBot'
 
 interface DashboardStats {
   totalUsers: number
@@ -192,7 +191,7 @@ interface AdminDashboardProps {
   onEditArticle?: (articleId: string) => void
 }
 
-type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security'
+type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot'
 
 export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -456,7 +455,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
           { id: 'views', label: 'Views' },
           { id: 'nadaFeedback', label: 'Nada Feedback' },
           { id: 'wallets', label: 'Wallets' },
-          { id: 'security', label: '🔒 Security' }
+          { id: 'security', label: '🔒 Security' },
+          { id: 'bot', label: '🤖 Bot' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1331,6 +1331,14 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
       {/* Security Tab - Fraud Detection & User Auditing */}
       {activeTab === 'security' && (
         <SecurityAudit
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+        />
+      )}
+
+      {/* Bot Tab - Monitoring & Automation */}
+      {activeTab === 'bot' && (
+        <MonitoringBot
           accessToken={accessToken}
           serverUrl={serverUrl}
         />

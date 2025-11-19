@@ -1637,6 +1637,10 @@
     list-style-position: inside;
   }
 
+  .list-decimal {
+    list-style-type: decimal;
+  }
+
   .list-disc {
     list-style-type: disc;
   }
@@ -2250,6 +2254,16 @@
   @supports (color: color-mix(in lab, red, red)) {
     .border-gray-400\/20 {
       border-color: color-mix(in oklab, var(--color-gray-400) 20%, transparent);
+    }
+  }
+
+  .border-gray-500\/20 {
+    border-color: color-mix(in srgb, oklch(.551 .027 264.364) 20%, transparent);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .border-gray-500\/20 {
+      border-color: color-mix(in oklab, var(--color-gray-500) 20%, transparent);
     }
   }
 
@@ -3061,6 +3075,16 @@
 
   .bg-gray-500 {
     background-color: var(--color-gray-500);
+  }
+
+  .bg-gray-500\/10 {
+    background-color: color-mix(in srgb, oklch(.551 .027 264.364) 10%, transparent);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-gray-500\/10 {
+      background-color: color-mix(in oklab, var(--color-gray-500) 10%, transparent);
+    }
   }
 
   .bg-green-50 {
@@ -6468,6 +6492,10 @@
     padding-inline: calc(var(--spacing) * 0);
   }
 
+  .px-1 {
+    padding-inline: calc(var(--spacing) * 1);
+  }
+
   .px-1\.5 {
     padding-inline: calc(var(--spacing) * 1.5);
   }
@@ -6542,6 +6570,10 @@
 
   .pt-0 {
     padding-top: calc(var(--spacing) * 0);
+  }
+
+  .pt-1 {
+    padding-top: calc(var(--spacing) * 1);
   }
 
   .pt-2 {
@@ -6765,6 +6797,10 @@
     letter-spacing: var(--tracking-widest);
   }
 
+  .break-words {
+    overflow-wrap: break-word;
+  }
+
   .whitespace-nowrap {
     white-space: nowrap;
   }
@@ -6883,6 +6919,10 @@
 
   .text-gray-400 {
     color: var(--color-gray-400);
+  }
+
+  .text-gray-500 {
+    color: var(--color-gray-500);
   }
 
   .text-gray-600 {
@@ -7821,6 +7861,10 @@
 
   .fade-in {
     --tw-enter-opacity: 0;
+  }
+
+  .running {
+    animation-play-state: running;
   }
 
   .slide-in-from-top-2 {
@@ -10150,6 +10194,12 @@
   @media (width >= 48rem) {
     .md\:grid-cols-3 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (width >= 48rem) {
+    .md\:grid-cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
 

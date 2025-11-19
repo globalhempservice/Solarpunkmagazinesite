@@ -455,12 +455,23 @@ export default function App() {
 
     // Increment view count
     try {
-      await fetch(`${serverUrl}/articles/${article.id}/view`, {
+      const viewUrl = userId 
+        ? `${serverUrl}/articles/${article.id}/view?userId=${userId}`
+        : `${serverUrl}/articles/${article.id}/view`
+      
+      const response = await fetch(viewUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${publicAnonKey}`
         }
       })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ View tracked:', data)
+      } else {
+        console.error('❌ View tracking failed:', await response.text())
+      }
     } catch (error) {
       console.error('Error incrementing view count:', error)
     }

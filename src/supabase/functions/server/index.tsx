@@ -627,77 +627,121 @@ app.delete('/make-server-053bcd80/articles/:id', requireAuth, async (c) => {
 app.post('/make-server-053bcd80/articles/:id/view', async (c) => {
   try {
     const id = c.req.param('id')
+    const userId = c.req.query('userId') || null
+    const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
+    const userAgent = c.req.header('user-agent') || 'unknown'
     
-    console.log('Tracking view for article:', id)
+    console.log('=== TRACKING VIEW ===')
+    console.log('Article ID:', id)
+    console.log('User ID:', userId || 'anonymous')
     
-    // Use RPC to increment atomically
-    const { data, error } = await supabase.rpc('increment', {
-      table_name: 'articles',
-      row_id: id,
-      column_name: 'views'
-    }).catch(async () => {
-      // Fallback: manual increment if RPC doesn't exist
-      const { data: article } = await supabase
-        .from('articles')
-        .select('views')
-        .eq('id', id)
-        .single()
-      
-      if (article) {
-        const { data: updated, error: updateError } = await supabase
-          .from('articles')
-          .update({ views: (article.views || 0) + 1 })
-          .eq('id', id)
-          .select('views')
-          .single()
-        
-        return { data: updated, error: updateError }
-      }
-      
-      return { data: null, error: new Error('Article not found') }
-    })
+    // Step 1: Increment article.views counter
+    console.log('Step 1: Incrementing article.views...')
+    const { data: article, error: fetchError } = await supabase
+      .from('articles')
+      .select('views, title')
+      .eq('id', id)
+      .single()
     
-    if (error) {
-      console.log('Error incrementing views:', error)
-      return c.json({ error: 'Failed to increment views', details: error.message }, 500)
+    if (fetchError || !article) {
+      console.error('❌ Article not found:', fetchError?.message)
+      return c.json({ error: 'Article not found' }, 404)
     }
     
-    // Track daily views in article_views table for analytics
+    console.log('Article:', article.title, '- Views:', article.views || 0)
+    
+    const newViewCount = (article.views || 0) + 1
+    const { error: updateError } = await supabase
+      .from('articles')
+      .update({ views: newViewCount })
+      .eq('id', id)
+    
+    if (updateError) {
+      console.error('❌ Failed to update views:', updateError.message)
+      return c.json({ error: 'Failed to increment views' }, 500)
+    }
+    
+    console.log('✅ Views updated to:', newViewCount)
+    
+    // Step 2: Track daily views
+    console.log('Step 2: Tracking daily views...')
     const today = new Date().toISOString().split('T')[0]
     
-    console.log('Tracking daily view for article:', id, 'on date:', today)
-    
-    // Check if record exists for today
-    const { data: existingView } = await supabase
+    const { data: existingView, error: viewFetchError } = await supabase
       .from('article_views')
       .select('id, views')
       .eq('article_id', id)
       .eq('date', today)
-      .single()
+      .maybeSingle()
     
-    if (existingView) {
-      // Update existing record
-      await supabase
+    if (viewFetchError) {
+      console.error('❌ Error checking article_views:', viewFetchError.message)
+    } else if (existingView) {
+      const { error: viewUpdateError } = await supabase
         .from('article_views')
         .update({ views: existingView.views + 1 })
         .eq('id', existingView.id)
-      console.log('Daily view incremented to:', existingView.views + 1)
+      
+      if (viewUpdateError) {
+        console.error('❌ Failed to update daily views:', viewUpdateError.message)
+      } else {
+        console.log('✅ Daily views updated to:', existingView.views + 1)
+      }
     } else {
-      // Insert new record
-      await supabase
+      const { error: viewInsertError } = await supabase
         .from('article_views')
         .insert({
           article_id: id,
           date: today,
-          views: 1
+          views: 1,
+          unique_viewers: 0
         })
-      console.log('Daily view created with count: 1')
+      
+      if (viewInsertError) {
+        console.error('❌ Failed to insert daily views:', viewInsertError.message)
+      } else {
+        console.log('✅ Daily views created with count: 1')
+      }
     }
     
-    return c.json({ views: data?.views || 0 })
-  } catch (error) {
-    console.log('Error incrementing views:', error)
-    return c.json({ error: 'Failed to increment views', details: error.message }, 500)
+    // Step 3: Track unique user view
+    if (userId) {
+      console.log('Step 3: Tracking unique user view...')
+      const { data: existingUserView } = await supabase
+        .from('user_article_views')
+        .select('id')
+        .eq('article_id', id)
+        .eq('user_id', userId)
+        .maybeSingle()
+      
+      if (!existingUserView) {
+        const { error: userViewError } = await supabase
+          .from('user_article_views')
+          .insert({
+            user_id: userId,
+            article_id: id,
+            viewed_at: new Date().toISOString(),
+            ip_address: ipAddress,
+            user_agent: userAgent
+          })
+        
+        if (userViewError) {
+          console.error('❌ Failed to insert user view:', userViewError.message)
+        } else {
+          console.log('✅ Unique user view recorded')
+        }
+      }
+    }
+    
+    console.log('=== VIEW TRACKING COMPLETE ===')
+    return c.json({ 
+      success: true,
+      views: newViewCount,
+      message: 'View tracked'
+    })
+  } catch (error: any) {
+    console.error('❌ CRITICAL ERROR:', error)
+    return c.json({ error: 'Failed to track view', details: error.message }, 500)
   }
 })
 
@@ -5016,25 +5060,31 @@ app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) =
       .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
     
     if (viewsError) {
-      console.error('Error fetching views data:', viewsError)
+      if (viewsError.message?.includes('does not exist')) {
+        console.warn('⚠️ article_views table does not exist yet')
+        console.warn('📋 Please run /VIEWS_SYSTEM_SETUP.sql to create the views tracking tables')
+        console.warn('📊 Returning basic analytics based on article view counts only')
+      } else {
+        console.error('Error fetching views data:', viewsError)
+      }
+    } else {
+      console.log('Raw views data from DB:', viewsData?.length || 0, 'entries')
+      if (viewsData && viewsData.length > 0) {
+        console.log('Sample view entry:', viewsData[0])
+      }
+      
+      // Aggregate views by day
+      if (viewsData) {
+        viewsData.forEach(entry => {
+          const date = entry.date
+          if (date && viewsByDay[date] !== undefined) {
+            viewsByDay[date] = (viewsByDay[date] || 0) + (entry.views || 0)
+          }
+        })
+        
+        console.log('Views aggregated by day:', Object.keys(viewsByDay).filter(k => viewsByDay[k] > 0).length, 'days with views')
+      }
     }
-    
-    console.log('Raw views data from DB:', viewsData?.length || 0, 'entries')
-    if (viewsData && viewsData.length > 0) {
-      console.log('Sample view entry:', viewsData[0])
-    }
-    
-    // Aggregate views by day
-    if (viewsData) {
-      viewsData.forEach(entry => {
-        const date = entry.date
-        if (date && viewsByDay[date] !== undefined) {
-          viewsByDay[date] = (viewsByDay[date] || 0) + (entry.views || 0)
-        }
-      })
-    }
-    
-    console.log('Views aggregated by day:', Object.keys(viewsByDay).filter(k => viewsByDay[k] > 0).length, 'days with views')
     
     // Convert to array format for charts
     const viewsPerDay = Object.entries(viewsByDay)
@@ -5066,12 +5116,13 @@ app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) =
     const previous7Days = viewsPerDay.slice(-14, -7).reduce((sum, day) => sum + day.views, 0)
     const growthRate = previous7Days > 0 ? ((last7Days - previous7Days) / previous7Days) * 100 : 0
     
-    console.log('Views analytics generated:', {
+    console.log('✅ Views analytics generated:', {
       totalViews,
       avgViewsPerArticle,
       topArticlesCount: topArticles.length,
       viewsPerDayCount: viewsPerDay.length,
-      growthRate: growthRate.toFixed(1) + '%'
+      growthRate: growthRate.toFixed(1) + '%',
+      hasArticleViewsTable: !viewsError || !viewsError.message?.includes('does not exist')
     })
     
     return c.json({
@@ -5082,7 +5133,10 @@ app.get('/make-server-053bcd80/admin/views-analytics', requireAdmin, async (c) =
         topArticles,
         growthRate: Math.round(growthRate * 10) / 10, // Round to 1 decimal
         last7DaysViews: last7Days,
-        previous7DaysViews: previous7Days
+        previous7DaysViews: previous7Days,
+        _tableStatus: viewsError?.message?.includes('does not exist') 
+          ? 'article_views table missing - run /VIEWS_SYSTEM_SETUP.sql' 
+          : 'all tables present'
       }
     })
   } catch (error: any) {

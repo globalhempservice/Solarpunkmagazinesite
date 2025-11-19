@@ -14,6 +14,7 @@ interface WalletPanelProps {
   userId?: string
   accessToken?: string
   serverUrl?: string
+  onShowPointsRules?: () => void
 }
 
 const EXCHANGE_RATE = 50 // 50 app points = 1 NADA point
@@ -108,7 +109,7 @@ type AlchemyElement = {
   y?: number
 }
 
-export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExchange, userId, accessToken, serverUrl }: WalletPanelProps) {
+export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExchange, userId, accessToken, serverUrl, onShowPointsRules }: WalletPanelProps) {
   const [exchangeAmount, setExchangeAmount] = useState(1) // Number of NADA points to get
   const [isExchanging, setIsExchanging] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -397,6 +398,23 @@ export function WalletPanel({ isOpen, onClose, currentPoints, nadaPoints, onExch
                     <div className="absolute top-2 right-2 w-8 h-8 bg-white/40 rounded-full blur-sm" />
                   </motion.div>
                 </div>
+
+                {/* How to Win Points Button */}
+                {onShowPointsRules && (
+                  <div className="relative max-w-lg mx-auto mt-4">
+                    <button
+                      onClick={onShowPointsRules}
+                      className="w-full p-4 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 hempin:from-amber-950/40 hempin:to-yellow-950/40 hover:from-amber-100 hover:to-yellow-100 dark:hover:from-amber-950/50 dark:hover:to-yellow-950/50 rounded-2xl border-3 border-amber-300/50 dark:border-amber-700/50 shadow-[0_4px_0_rgba(245,158,11,0.2)] hover:shadow-[0_6px_0_rgba(245,158,11,0.3)] active:shadow-[0_2px_0_rgba(245,158,11,0.2)] active:translate-y-0.5 transition-all group"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="font-black text-amber-900 dark:text-amber-100">
+                          How to Win 10
+                        </span>
+                        <Zap className="w-5 h-5 text-amber-500 fill-amber-500 group-hover:scale-125 transition-transform" />
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Exchange Section with Solarpunk Card Design */}

@@ -5,6 +5,7 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
 import { WalletPanel } from './WalletPanel'
+import { PointsRulesModal } from './PointsRulesModal'
 
 interface HeaderProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'settings'
@@ -38,6 +39,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   const [showPointsAnimation, setShowPointsAnimation] = useState(false)
   const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [showPointsRulesModal, setShowPointsRulesModal] = useState(false)
 
   // Check if user is admin
   useEffect(() => {
@@ -171,7 +173,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
           )}
           
           {/* Back Button - Left of Logo */}
-          {(currentView === 'reading-history' || currentView === 'matched-articles' || currentView === 'achievements' || currentView === 'article' || currentView === 'admin') && onBack && (
+          {(currentView === 'reading-history' || currentView === 'matched-articles' || currentView === 'achievements' || currentView === 'article') && onBack && (
             <Button
               onClick={onBack}
               size="sm"
@@ -265,20 +267,8 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
             )}
           </motion.button>
           
-          {/* Browse button - Right of Points */}
-          {currentView === 'feed' && (
-            <Button
-              onClick={() => onNavigate('browse')}
-              size="sm"
-              variant="ghost"
-              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all rounded-full w-10 h-10 sm:w-12 sm:h-12 p-0"
-            >
-              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-            </Button>
-          )}
-          
           {/* Settings button - Right of Points */}
-          {currentView !== 'feed' && (
+          {currentView !== 'feed' && currentView !== 'admin' && (
             <Button
               onClick={() => onNavigate('settings')}
               size="sm"
@@ -421,8 +411,15 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
           userId={userId}
           accessToken={accessToken}
           serverUrl={serverUrl}
+          onShowPointsRules={() => setShowPointsRulesModal(true)}
         />
       )}
+      
+      {/* Points Rules Modal */}
+      <PointsRulesModal
+        isOpen={showPointsRulesModal}
+        onClose={() => setShowPointsRulesModal(false)}
+      />
     </header>
   )
 }

@@ -307,9 +307,9 @@ export function HomeCards({
           }
           // TODO: Navigate to market when unlocked
         }}
-        className={`group relative overflow-hidden bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 rounded-3xl p-12 border-4 border-emerald-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(16,185,129,${marketUnlocked ? '0.5' : '0.4'})] lg:col-span-2 lg:row-span-2 transition-all ${
+        className={`group relative overflow-hidden bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 rounded-3xl p-12 border-4 border-violet-400/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(139,92,246,${marketUnlocked ? '0.5' : '0.4'})] lg:col-span-2 lg:row-span-2 transition-all ${
           marketUnlocked 
-            ? 'opacity-100 cursor-pointer hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(16,185,129,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1'
+            ? 'opacity-100 cursor-pointer hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(139,92,246,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1'
             : 'cursor-pointer'
         }`}
       >
@@ -324,7 +324,7 @@ export function HomeCards({
         {/* Badge - Shows either unlocked status or cost */}
         <div className="absolute top-6 right-6 z-10">
           {marketUnlocked ? (
-            <Badge className="bg-emerald-500/40 backdrop-blur-sm text-white border-2 border-emerald-400/50 shadow-lg px-5 py-2.5 font-black text-base">
+            <Badge className="bg-violet-500/40 backdrop-blur-sm text-white border-2 border-violet-400/50 shadow-lg px-5 py-2.5 font-black text-base">
               UNLOCKED
             </Badge>
           ) : nadaPoints >= 10 ? (
@@ -344,8 +344,8 @@ export function HomeCards({
           backgroundSize: '10px 10px'
         }} />
         
-        {/* Glow effect - NADA colors */}
-        <div className={`absolute -inset-2 bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 rounded-3xl blur-2xl transition-opacity ${
+        {/* Glow effect - Purple comet colors */}
+        <div className={`absolute -inset-2 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600 rounded-3xl blur-2xl transition-opacity ${
           marketUnlocked ? 'opacity-30 group-hover:opacity-50' : 'opacity-20'
         }`} />
         

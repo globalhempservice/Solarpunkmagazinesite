@@ -825,6 +825,7 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       nickname: progress.nickname,
       homeButtonTheme: progress.home_button_theme,
       marketingOptIn: profile?.marketing_opt_in || false,
+      marketUnlocked: progress.market_unlocked || false,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
@@ -1252,6 +1253,7 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
       lastReadDate: updatedProgress.last_read_date,
       nickname: updatedProgress.nickname,
       homeButtonTheme: updatedProgress.home_button_theme,
+      marketUnlocked: updatedProgress.market_unlocked || false,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
@@ -1528,6 +1530,7 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
       nickname: updatedProgress.nickname,
       homeButtonTheme: updatedProgress.home_button_theme,
       marketingOptIn: updatedProgress.marketing_opt_in,
+      marketUnlocked: updatedProgress.market_unlocked || false,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
@@ -1554,6 +1557,265 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
     }
     
     return c.json({ error: 'Failed to exchange points', details: error.message }, 500)
+  }
+})
+
+// Unlock Community Market for 10 NADA
+app.post('/make-server-053bcd80/unlock-market', async (c) => {
+  console.log('🛒 MARKET UNLOCK ENDPOINT CALLED')
+  
+  try {
+    // Verify access token
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      console.log('ERROR: No access token provided')
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user) {
+      console.log('ERROR: Auth failed', { authError })
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const userId = user.id
+    console.log('User ID:', userId)
+    
+    // Get current wallet and progress
+    const { data: wallet, error: walletFetchError } = await supabase
+      .from('wallets')
+      .select('nada_points')
+      .eq('user_id', userId)
+      .single()
+    
+    if (walletFetchError) {
+      console.log('ERROR: Failed to fetch wallet:', walletFetchError)
+      return c.json({ error: 'Failed to fetch wallet', details: walletFetchError.message }, 500)
+    }
+    
+    const currentNadaPoints = wallet?.nada_points || 0
+    console.log('Current NADA points:', currentNadaPoints)
+    
+    // Check if user has enough NADA
+    if (currentNadaPoints < 10) {
+      console.log('ERROR: Insufficient NADA points')
+      return c.json({ error: `You need 10 NADA to unlock the market. You have ${currentNadaPoints} NADA.` }, 400)
+    }
+    
+    // Check if already unlocked
+    const { data: currentProgress } = await supabase
+      .from('user_progress')
+      .select('market_unlocked')
+      .eq('user_id', userId)
+      .single()
+    
+    if (currentProgress?.market_unlocked) {
+      console.log('Market already unlocked for user')
+      return c.json({ error: 'Market already unlocked' }, 400)
+    }
+    
+    // Deduct 10 NADA
+    const newNadaPoints = currentNadaPoints - 10
+    const { error: walletUpdateError } = await supabase
+      .from('wallets')
+      .update({ nada_points: newNadaPoints })
+      .eq('user_id', userId)
+    
+    if (walletUpdateError) {
+      console.log('ERROR: Failed to update wallet:', walletUpdateError)
+      return c.json({ error: 'Failed to update wallet', details: walletUpdateError.message }, 500)
+    }
+    
+    // Set market_unlocked to true
+    const { error: progressUpdateError } = await supabase
+      .from('user_progress')
+      .update({ market_unlocked: true })
+      .eq('user_id', userId)
+    
+    if (progressUpdateError) {
+      console.log('ERROR: Failed to update progress:', progressUpdateError)
+      return c.json({ error: 'Failed to unlock market', details: progressUpdateError.message }, 500)
+    }
+    
+    // Create transaction record
+    const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
+    await supabase
+      .from('wallet_transactions')
+      .insert([{
+        user_id: userId,
+        transaction_type: 'market_unlock',
+        amount: -10,
+        balance_after: newNadaPoints,
+        description: 'Unlocked Community Market for 10 NADA',
+        ip_address: ipAddress
+      }])
+    
+    console.log('✅ Market unlocked successfully')
+    console.log('New NADA balance:', newNadaPoints)
+    
+    return c.json({ 
+      success: true,
+      nadaPoints: newNadaPoints,
+      marketUnlocked: true
+    })
+  } catch (error: any) {
+    console.log('=== MARKET UNLOCK ERROR ===')
+    console.log('Error:', error)
+    console.log('Error message:', error.message)
+    return c.json({ error: 'Failed to unlock market', details: error.message }, 500)
+  }
+})
+
+// Admin: Get all NADA transactions
+app.get('/make-server-053bcd80/admin/nada-transactions', async (c) => {
+  console.log('📊 ADMIN: NADA TRANSACTIONS ENDPOINT CALLED')
+  
+  try {
+    // Verify access token
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      console.log('ERROR: No access token provided')
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user) {
+      console.log('ERROR: Auth failed', { authError })
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    // Check if user is admin
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      console.log('ERROR: User is not admin')
+      return c.json({ error: 'Forbidden: Admin access required' }, 403)
+    }
+    
+    console.log('Admin verified, fetching NADA transactions...')
+    
+    // Fetch all wallet transactions
+    const { data: transactions, error: txError } = await supabase
+      .from('wallet_transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500)
+    
+    if (txError) {
+      console.log('ERROR: Failed to fetch transactions:', txError)
+      return c.json({ error: 'Failed to fetch transactions', details: txError.message }, 500)
+    }
+    
+    console.log(`Fetched ${transactions?.length || 0} transactions`)
+    
+    // Enrich with user email
+    const enrichedTransactions = await Promise.all(
+      (transactions || []).map(async (tx) => {
+        const { data: authData } = await supabase.auth.admin.getUserById(tx.user_id)
+        return {
+          ...tx,
+          user_email: authData?.user?.email || null
+        }
+      })
+    )
+    
+    return c.json({ 
+      transactions: enrichedTransactions,
+      total: enrichedTransactions.length
+    })
+  } catch (error: any) {
+    console.log('=== ADMIN NADA TRANSACTIONS ERROR ===')
+    console.log('Error:', error)
+    console.log('Error message:', error.message)
+    return c.json({ error: 'Failed to fetch NADA transactions', details: error.message }, 500)
+  }
+})
+
+// Admin: Refund NADA to a user
+app.post('/make-server-053bcd80/admin/refund-nada', async (c) => {
+  console.log('💸 ADMIN: NADA REFUND ENDPOINT CALLED')
+  
+  try {
+    // Verify access token
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      console.log('ERROR: No access token provided')
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user) {
+      console.log('ERROR: Auth failed', { authError })
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    // Check if user is admin
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      console.log('ERROR: User is not admin')
+      return c.json({ error: 'Forbidden: Admin access required' }, 403)
+    }
+    
+    const { userId, amount, reason } = await c.req.json()
+    
+    if (!userId || !amount || amount <= 0) {
+      return c.json({ error: 'Invalid parameters' }, 400)
+    }
+    
+    console.log('Refunding', amount, 'NADA to user:', userId)
+    console.log('Reason:', reason)
+    
+    // Get current wallet
+    const { data: wallet, error: walletFetchError } = await supabase
+      .from('wallets')
+      .select('nada_points')
+      .eq('user_id', userId)
+      .single()
+    
+    if (walletFetchError) {
+      console.log('ERROR: Failed to fetch wallet:', walletFetchError)
+      return c.json({ error: 'Failed to fetch wallet', details: walletFetchError.message }, 500)
+    }
+    
+    const currentNadaPoints = wallet?.nada_points || 0
+    const newNadaPoints = currentNadaPoints + amount
+    
+    // Update wallet
+    const { error: walletUpdateError } = await supabase
+      .from('wallets')
+      .update({ nada_points: newNadaPoints })
+      .eq('user_id', userId)
+    
+    if (walletUpdateError) {
+      console.log('ERROR: Failed to update wallet:', walletUpdateError)
+      return c.json({ error: 'Failed to update wallet', details: walletUpdateError.message }, 500)
+    }
+    
+    // Create transaction record
+    const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
+    await supabase
+      .from('wallet_transactions')
+      .insert([{
+        user_id: userId,
+        transaction_type: 'admin_refund',
+        amount: amount,
+        balance_after: newNadaPoints,
+        description: `Admin refund: ${reason || 'Manual refund'}`,
+        ip_address: ipAddress
+      }])
+    
+    console.log('✅ Refund successful')
+    console.log('New NADA balance:', newNadaPoints)
+    
+    return c.json({ 
+      success: true,
+      nadaPoints: newNadaPoints,
+      amountRefunded: amount
+    })
+  } catch (error: any) {
+    console.log('=== ADMIN REFUND ERROR ===')
+    console.log('Error:', error)
+    console.log('Error message:', error.message)
+    return c.json({ error: 'Failed to refund NADA', details: error.message }, 500)
   }
 })
 
@@ -5538,7 +5800,8 @@ app.get('/make-server-053bcd80/admin/wallet-stats', async (c) => {
           nadaReceived: tx.nada_received || 0,
           timestamp: tx.created_at,
           ipAddress: tx.ip_address || 'N/A',
-          riskScore: tx.risk_score || 0
+          riskScore: tx.risk_score || 0,
+          transactionType: tx.transaction_type || 'exchange'
         }
       })
     )

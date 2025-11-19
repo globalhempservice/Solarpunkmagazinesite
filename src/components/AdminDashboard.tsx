@@ -41,6 +41,7 @@ import { motion } from 'motion/react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { WalletsTab } from './WalletsTab'
 import { SecurityAudit } from './SecurityAudit'
+import { AdminNadaTracker } from './AdminNadaTracker'
 import { MonitoringBot } from './MonitoringBot'
 
 interface DashboardStats {
@@ -856,6 +857,60 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
                         <div className="flex items-center gap-1 text-green-500">
                           <CheckCircle2 className="w-3 h-3" />
                           <span>Forensics</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* NADA Tracker Card - Emerald/Teal/Cyan */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <Card 
+                  className="relative overflow-hidden p-6 cursor-pointer border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 hover:shadow-xl hover:shadow-emerald-500/20 transition-all group"
+                  onClick={() => setActiveTab('nada')}
+                >
+                  <div className="absolute bottom-0 right-0 w-32 h-32 opacity-5">
+                    <Coins className="w-full h-full rotate-12" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg">
+                        <Coins className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-emerald-700 dark:text-emerald-400">NADA Tracker</h4>
+                        <p className="text-xs text-muted-foreground">Wallet activity</p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-emerald-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    
+                    <div className="space-y-2 mt-4">
+                      <div className="flex items-center gap-2 text-xs">
+                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        <span className="text-muted-foreground">Transaction History</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1 text-emerald-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Exchanges</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-emerald-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Spending</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-emerald-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Market Unlocks</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-emerald-500">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>CSV Export</span>
                         </div>
                       </div>
                     </div>
@@ -1698,6 +1753,14 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
       {/* Security Tab - Fraud Detection & User Auditing */}
       {activeTab === 'security' && (
         <SecurityAudit
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+        />
+      )}
+
+      {/* NADA Tracker Tab - Transaction History & Analytics */}
+      {activeTab === 'nada' && (
+        <AdminNadaTracker
           accessToken={accessToken}
           serverUrl={serverUrl}
         />

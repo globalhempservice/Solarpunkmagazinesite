@@ -47,6 +47,7 @@ interface WalletStats {
     timestamp: string
     ipAddress: string
     riskScore: number
+    transactionType: 'market_unlock' | 'admin_refund' | 'exchange'
   }>
   dailyLimitHits: number
   fraudAlerts: number
@@ -404,14 +405,33 @@ export function WalletsTab({ walletStats, onRefresh, isRefreshing = false }: Wal
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-muted-foreground mb-1">Exchange:</div>
-                  <div className="font-bold text-lg">
-                    <span className="text-red-600 dark:text-red-400">−{(tx.pointsExchanged || 0).toLocaleString()}</span>
-                    <span className="text-muted-foreground text-sm"> pts</span>
-                  </div>
-                  <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                    +{(tx.nadaReceived || 0).toLocaleString()} NADA
-                  </div>
+                  {/* Show different format based on transaction type */}
+                  {tx.transactionType === 'market_unlock' ? (
+                    <div>
+                      <div className="text-sm text-muted-foreground mb-1">Market Unlock:</div>
+                      <div className="font-bold text-lg text-red-600 dark:text-red-400">
+                        −10 NADA
+                      </div>
+                    </div>
+                  ) : tx.transactionType === 'admin_refund' ? (
+                    <div>
+                      <div className="text-sm text-muted-foreground mb-1">Admin Refund:</div>
+                      <div className="font-bold text-lg text-emerald-600 dark:text-emerald-400">
+                        +{Math.abs(tx.nadaReceived || 0).toLocaleString()} NADA
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-sm text-muted-foreground mb-1">Exchange:</div>
+                      <div className="font-bold text-lg">
+                        <span className="text-red-600 dark:text-red-400">−{(tx.pointsExchanged || 0).toLocaleString()}</span>
+                        <span className="text-muted-foreground text-sm"> pts</span>
+                      </div>
+                      <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                        +{(tx.nadaReceived || 0).toLocaleString()} NADA
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))

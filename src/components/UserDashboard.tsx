@@ -253,11 +253,11 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               
               {/* Points Display - Now next to the level badge */}
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl blur-md group-hover:blur-lg transition-all" />
-                <div className="relative bg-muted/50 backdrop-blur-sm rounded-2xl px-6 py-4 border-2 border-primary/20 group-hover:border-primary/40 transition-colors">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-yellow-500/5 rounded-2xl blur-md group-hover:blur-lg transition-all" />
+                <div className="relative bg-muted/50 backdrop-blur-sm rounded-2xl px-6 py-4 border-2 border-amber-500/20 group-hover:border-amber-500/40 transition-colors">
                   <div className="flex items-center gap-3">
-                    <Zap className="w-8 h-8 text-primary animate-pulse" />
-                    <div className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    <Zap className="w-8 h-8 text-amber-500 fill-amber-500 animate-pulse" />
+                    <div className="text-3xl font-bold bg-gradient-to-r from-amber-500 to-yellow-500 bg-clip-text text-transparent">
                       {progress.points}
                     </div>
                   </div>
@@ -383,7 +383,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
         >
           <div className={`absolute -inset-1 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'articles' ? 'animate-pulse' : ''}`} />
           
-          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-emerald-500/40 overflow-hidden transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
+          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-emerald-500/40 overflow-hidden transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300 h-full">
             {/* Decorative corner */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-400/30 to-transparent rounded-bl-full" />
             
@@ -394,13 +394,22 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
             )}
             
-            <CardContent className="p-6 flex flex-col items-center justify-center gap-3">
+            <CardContent className="p-6 flex flex-col items-center justify-center gap-3 min-h-[160px]">
               <div className="relative">
                 <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
                 <Book className="relative w-10 h-10 text-emerald-500 drop-shadow-lg" />
               </div>
               <div className="text-4xl font-bold bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent">
                 {progress.totalArticlesRead}
+              </div>
+              {/* Two-line hover label */}
+              <div className={`text-xs font-medium text-emerald-600 dark:text-emerald-400 text-center transition-all duration-300 ${
+                hoveredStat === 'articles' 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 -translate-y-2 pointer-events-none'
+              }`}>
+                <div>Articles</div>
+                <div>Read</div>
               </div>
             </CardContent>
           </Card>
@@ -415,7 +424,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
         >
           <div className={`absolute -inset-1 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'matches' ? 'animate-pulse' : ''}`} />
           
-          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-pink-500/40 overflow-hidden transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
+          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-pink-500/40 overflow-hidden transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300 h-full">
             {/* Decorative corner */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-pink-400/30 to-transparent rounded-bl-full" />
             
@@ -426,13 +435,22 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
             )}
             
-            <CardContent className="p-6 flex flex-col items-center justify-center gap-3">
+            <CardContent className="p-6 flex flex-col items-center justify-center gap-3 min-h-[160px]">
               <div className="relative">
                 <div className="absolute inset-0 bg-pink-500/20 blur-xl rounded-full" />
                 <Heart className="relative w-10 h-10 text-pink-500 drop-shadow-lg fill-pink-500" />
               </div>
               <div className="text-4xl font-bold bg-gradient-to-br from-pink-500 to-rose-500 bg-clip-text text-transparent">
                 {matchesCount || 0}
+              </div>
+              {/* Two-line hover label */}
+              <div className={`text-xs font-medium text-pink-600 dark:text-pink-400 text-center transition-all duration-300 ${
+                hoveredStat === 'matches' 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 -translate-y-2 pointer-events-none'
+              }`}>
+                <div>Reading</div>
+                <div>Matches</div>
               </div>
             </CardContent>
           </Card>
@@ -448,7 +466,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
         >
           <div className={`absolute -inset-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'achievements' ? 'animate-pulse' : ''}`} />
           
-          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-purple-500/40 overflow-hidden transform group-hover:scale-105 group-hover:rotate-1 transition-all duration-300">
+          <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-purple-500/40 overflow-hidden transform group-hover:scale-105 group-hover:rotate-1 transition-all duration-300 h-full">
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-400/30 to-transparent rounded-bl-full" />
             
             {hoveredStat === 'achievements' && (
@@ -457,7 +475,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
             )}
             
-            <CardContent className="p-6 flex flex-col items-center justify-center gap-3">
+            <CardContent className="p-6 flex flex-col items-center justify-center gap-3 min-h-[160px]">
               <div className="relative">
                 <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
                 <Medal className="relative w-10 h-10 text-purple-500 drop-shadow-lg" />
@@ -465,9 +483,14 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               <div className="text-4xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent">
                 {progress.achievements.length}
               </div>
-              {/* Add label for clarity */}
-              <div className="text-xs text-muted-foreground text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                View Achievements
+              {/* Two-line hover label */}
+              <div className={`text-xs font-medium text-purple-600 dark:text-purple-400 text-center transition-all duration-300 ${
+                hoveredStat === 'achievements' 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 -translate-y-2 pointer-events-none'
+              }`}>
+                <div>View</div>
+                <div>Achievements</div>
               </div>
             </CardContent>
           </Card>

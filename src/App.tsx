@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from './utils/featureUnlocks'
@@ -29,11 +29,14 @@ import { ReadingAnalytics } from './components/ReadingAnalytics'
 import { HomeCards } from './components/HomeCards'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Skeleton } from './components/ui/skeleton'
-import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen } from 'lucide-react'
+import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen, Loader } from 'lucide-react'
 import { Input } from './components/ui/input'
 import { Button } from './components/ui/button'
 import { Badge } from './components/ui/badge'
 import { toast } from 'sonner@2.0.3'
+
+// 🏪 LAZY LOAD: Community Market (separate world - only loads when accessed)
+const CommunityMarket = lazy(() => import('./components/CommunityMarket'))
 
 interface Article {
   id: string
@@ -83,7 +86,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
@@ -780,87 +783,90 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header
-        currentView={currentView}
-        onNavigate={setCurrentView}
-        isAuthenticated={isAuthenticated}
-        onLogout={handleLogout}
-        userPoints={userProgress?.points}
-        nadaPoints={userProgress?.nadaPoints || 0}
-        exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
-        onSwitchToGrid={() => setCurrentView('feed')}
-        currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
-        homeButtonTheme={userProgress?.homeButtonTheme}
-        userId={userId || undefined}
-        accessToken={accessToken || undefined}
-        serverUrl={serverUrl}
-        isWalletOpen={isWalletOpen}
-        onWalletOpenChange={setIsWalletOpen}
-        onToggleCategoryMenu={() => setCategoryMenuOpen(prev => !prev)}
-        onExchangePoints={async (pointsToExchange) => {
-          if (!userId || !accessToken) return
-          
-          try {
-            const response = await fetch(`${serverUrl}/users/${userId}/exchange-points`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
-              },
-              body: JSON.stringify({ pointsToExchange })
-            })
+      {/* Hide Header when in Community Market - Market has its own navigation */}
+      {currentView !== 'community-market' && (
+        <Header
+          currentView={currentView}
+          onNavigate={setCurrentView}
+          isAuthenticated={isAuthenticated}
+          onLogout={handleLogout}
+          userPoints={userProgress?.points}
+          nadaPoints={userProgress?.nadaPoints || 0}
+          exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
+          onSwitchToGrid={() => setCurrentView('feed')}
+          currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
+          homeButtonTheme={userProgress?.homeButtonTheme}
+          userId={userId || undefined}
+          accessToken={accessToken || undefined}
+          serverUrl={serverUrl}
+          isWalletOpen={isWalletOpen}
+          onWalletOpenChange={setIsWalletOpen}
+          onToggleCategoryMenu={() => setCategoryMenuOpen(prev => !prev)}
+          onExchangePoints={async (pointsToExchange) => {
+            if (!userId || !accessToken) return
             
-            if (!response.ok) {
-              const errorData = await response.json()
+            try {
+              const response = await fetch(`${serverUrl}/users/${userId}/exchange-points`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({ pointsToExchange })
+              })
               
-              // Log the full error for debugging
-              console.error('Exchange failed:', errorData)
-              
-              // Handle rate limiting with specific messages
-              if (response.status === 429) {
-                if (errorData.retryAfter) {
-                  const minutes = Math.ceil(errorData.retryAfter / 60)
-                  throw new Error(`⏳ ${errorData.error} Please wait ${minutes} minute${minutes > 1 ? 's' : ''}.`)
-                } else {
-                  throw new Error(`⏳ ${errorData.error}`)
+              if (!response.ok) {
+                const errorData = await response.json()
+                
+                // Log the full error for debugging
+                console.error('Exchange failed:', errorData)
+                
+                // Handle rate limiting with specific messages
+                if (response.status === 429) {
+                  if (errorData.retryAfter) {
+                    const minutes = Math.ceil(errorData.retryAfter / 60)
+                    throw new Error(`⏳ ${errorData.error} Please wait ${minutes} minute${minutes > 1 ? 's' : ''}.`)
+                  } else {
+                    throw new Error(`⏳ ${errorData.error}`)
+                  }
                 }
+                
+                // Include detailed error message if available
+                const errorMsg = errorData.details ? 
+                  `${errorData.error}: ${errorData.details}` : 
+                  (errorData.error || 'Failed to exchange points')
+                throw new Error(errorMsg)
               }
               
-              // Include detailed error message if available
-              const errorMsg = errorData.details ? 
-                `${errorData.error}: ${errorData.details}` : 
-                (errorData.error || 'Failed to exchange points')
-              throw new Error(errorMsg)
+              const data = await response.json()
+              setUserProgress(data.progress)
+              // Success feedback is handled in WalletPanel
+            } catch (error: any) {
+              // Log error for debugging
+              console.error('Exchange error:', error)
+              
+              // Re-throw so WalletPanel can handle the UI
+              throw error
             }
-            
-            const data = await response.json()
-            setUserProgress(data.progress)
-            // Success feedback is handled in WalletPanel
-          } catch (error: any) {
-            // Log error for debugging
-            console.error('Exchange error:', error)
-            
-            // Re-throw so WalletPanel can handle the UI
-            throw error
-          }
-        }}
-        onBack={() => {
-          if (currentView === 'article') {
-            setCurrentView(previousView === 'swipe' ? 'swipe' : 'feed')
-            setSelectedArticle(null)
-          } else if (currentView === 'swipe') {
-            setCurrentView('feed')
-          } else if (currentView === 'admin') {
-            setCurrentView('dashboard')
-          } else {
-            setCurrentView('dashboard')
-          }
-        }}
-      />
+          }}
+          onBack={() => {
+            if (currentView === 'article') {
+              setCurrentView(previousView === 'swipe' ? 'swipe' : 'feed')
+              setSelectedArticle(null)
+            } else if (currentView === 'swipe') {
+              setCurrentView('feed')
+            } else if (currentView === 'admin') {
+              setCurrentView('dashboard')
+            } else {
+              setCurrentView('dashboard')
+            }
+          }}
+        />
+      )}
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : 'py-8 pb-32'}>
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' ? 'p-0' : 'py-8 pb-32'}>
         {/* Content with its own container for padding */}
-        <div className={currentView === 'browse' ? '' : 'container mx-auto px-4'}>
+        <div className={currentView === 'browse' || currentView === 'community-market' ? '' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
             <div className="space-y-6">
@@ -877,6 +883,7 @@ export default function App() {
                 setPreviousView={setPreviousView}
                 nadaPoints={userProgress?.nadaPoints || 0}
                 marketUnlocked={userProgress?.marketUnlocked || false}
+                onNavigateToMarket={() => setCurrentView('community-market')}
                 onMarketUnlock={async () => {
                   try {
                     // Call server to unlock market for 10 NADA
@@ -1097,24 +1104,48 @@ export default function App() {
               onBack={() => setCurrentView('dashboard')}
             />
           )}
+
+          {/* Community Market - Lazy Loaded */}
+          {currentView === 'community-market' && (
+            <Suspense fallback={<div className="text-center py-16"><Loader className="w-10 h-10 animate-spin" /> Loading Community Market...</div>}>
+              <CommunityMarket
+                userId={userId}
+                accessToken={accessToken}
+                serverUrl={serverUrl}
+                onBack={() => setCurrentView('dashboard')}
+                onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+                userEmail={userEmail}
+                nadaPoints={userProgress?.nadaPoints || 0}
+                onNadaUpdate={(newBalance) => {
+                  // Update user progress with new NADA balance
+                  if (userProgress) {
+                    setUserProgress({ ...userProgress, nadaPoints: newBalance })
+                  }
+                }}
+              />
+            </Suspense>
+          )}
         </div>
       </main>
 
-      <BottomNavbar
-        currentView={currentView}
-        onNavigate={setCurrentView}
-        isAuthenticated={isAuthenticated}
-        totalArticlesRead={userProgress?.totalArticlesRead || 0}
-        onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-        exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
-        swipeControls={currentView === 'swipe' ? {
-          onSkip: () => swipeModeRef.current?.handleSkip(),
-          onMatch: () => swipeModeRef.current?.handleMatch(),
-          onReset: () => swipeModeRef.current?.handleReset(),
-          isAnimating: swipeModeRef.current?.isAnimating || false
-        } : undefined}
-        closeWallet={() => setIsWalletOpen(false)}
-      />
+      {/* Hide BottomNavbar when in Community Market - Market has its own navigation */}
+      {currentView !== 'community-market' && (
+        <BottomNavbar
+          currentView={currentView}
+          onNavigate={setCurrentView}
+          isAuthenticated={isAuthenticated}
+          totalArticlesRead={userProgress?.totalArticlesRead || 0}
+          onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+          exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
+          swipeControls={currentView === 'swipe' ? {
+            onSkip: () => swipeModeRef.current?.handleSkip(),
+            onMatch: () => swipeModeRef.current?.handleMatch(),
+            onReset: () => swipeModeRef.current?.handleReset(),
+            isAnimating: swipeModeRef.current?.isAnimating || false
+          } : undefined}
+          closeWallet={() => setIsWalletOpen(false)}
+        />
+      )}
 
       {/* Feature Unlock Modal */}
       {featureUnlockModal && (

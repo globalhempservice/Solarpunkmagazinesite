@@ -462,7 +462,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
           { id: 'gamification', label: 'Gamification' },
           { id: 'swipeStats', label: 'Swipe Stats' },
           { id: 'views', label: 'Views' },
-          { id: 'nadaFeedback', label: 'Nada Feedback' },
+          { id: 'nadaFeedback', label: 'Market' },
           { id: 'wallets', label: 'Wallets' },
           { id: 'security', label: '🔒 Security' },
           { id: 'bot', label: '🤖 Bot' }
@@ -772,8 +772,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
                         <Sparkles className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-yellow-700 dark:text-yellow-400">NADA Feedback</h4>
-                        <p className="text-xs text-muted-foreground">User voice</p>
+                        <h4 className="font-bold text-yellow-700 dark:text-yellow-400">Community Market</h4>
+                        <p className="text-xs text-muted-foreground">Ideas & Votes</p>
                       </div>
                       <ArrowUpRight className="w-5 h-5 text-yellow-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
@@ -1642,12 +1642,12 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
         </div>
       )}
 
-      {/* Nada Feedback Tab */}
+      {/* Community Market Tab */}
       {activeTab === 'nadaFeedback' && nadaFeedback && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Nada Feedback</h2>
-            <p className="text-sm text-muted-foreground">User suggestions and feedback</p>
+            <h2 className="text-xl font-bold">Community Market</h2>
+            <p className="text-sm text-muted-foreground">Feature voting & idea submissions</p>
           </div>
 
           {/* Suggestions */}

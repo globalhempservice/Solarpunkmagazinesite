@@ -5458,6 +5458,65 @@ app.post('/make-server-053bcd80/nada-ideas/:ideaId/vote', async (c) => {
       return c.json({ error: 'Missing required fields' }, 400)
     }
     
+    // Convert frontend vote format to database format
+    const voteType = vote === 'upvote' ? 'yes' : vote === 'downvote' ? 'no' : vote
+    
+    // Get user's current NADA balance from wallets table
+    const { data: wallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('nada_points')
+      .eq('user_id', userId)
+      .single()
+    
+    if (walletError || !wallet) {
+      console.error('❌ Error fetching wallet data for userId:', userId)
+      console.error('Error details:', walletError)
+      
+      // If wallet doesn't exist, try to create it
+      if (walletError?.code === 'PGRST116') {
+        console.log('📝 Wallet not found, creating new wallet...')
+        const { data: newWallet, error: createError } = await supabase
+          .from('wallets')
+          .insert([{
+            user_id: userId,
+            nada_points: 0
+          }])
+          .select('nada_points')
+          .single()
+        
+        if (createError) {
+          console.error('❌ Failed to create wallet:', createError)
+          return c.json({ error: 'Failed to initialize wallet', details: createError.message }, 500)
+        }
+        
+        // User now has 0 NADA, so they can't vote
+        return c.json({ error: 'Insufficient NADA points. Read articles to earn NADA!' }, 400)
+      }
+      
+      return c.json({ error: 'Wallet not found', details: walletError?.message }, 404)
+    }
+    
+    // Check if user has enough NADA
+    const NADA_COST = 1
+    if (wallet.nada_points < NADA_COST) {
+      return c.json({ error: 'Insufficient NADA points' }, 400)
+    }
+    
+    // Deduct NADA points from wallet
+    const { error: deductError } = await supabase
+      .from('wallets')
+      .update({
+        nada_points: wallet.nada_points - NADA_COST
+      })
+      .eq('user_id', userId)
+    
+    if (deductError) {
+      console.error('Error deducting NADA points:', deductError)
+      return c.json({ error: 'Failed to deduct NADA points' }, 500)
+    }
+    
+    console.log(`💰 Deducted ${NADA_COST} NADA from user ${userId}. New balance: ${wallet.nada_points - NADA_COST}`)
+    
     // Find or create the suggestion in the database by title (for pre-loaded ideas)
     const { data: existingSuggestions } = await supabase
       .from('suggestions')
@@ -5500,7 +5559,7 @@ app.post('/make-server-053bcd80/nada-ideas/:ideaId/vote', async (c) => {
       .upsert({
         user_id: userId,
         suggestion_id: suggestionId,
-        vote_type: vote
+        vote_type: voteType
       }, {
         onConflict: 'user_id,suggestion_id'
       })
@@ -5531,9 +5590,13 @@ app.post('/make-server-053bcd80/nada-ideas/:ideaId/vote', async (c) => {
       console.error('Error updating vote counts:', updateError)
     }
     
-    console.log(`✅ NADA Vote saved: ${userId} voted "${vote}" on ${ideaId} (yes: ${yesCount}, no: ${noCount})`)
+    console.log(`✅ NADA Vote saved: ${userId} voted "${voteType}" on ${ideaId} (yes: ${yesCount}, no: ${noCount})`)
     
-    return c.json({ success: true })
+    return c.json({ 
+      success: true, 
+      newNadaBalance: wallet.nada_points - NADA_COST,
+      voteCounts: { yes: yesCount, no: noCount }
+    })
   } catch (error: any) {
     console.error('❌ Error saving NADA vote:', error)
     return c.json({ error: 'Failed to save vote', details: error?.message || 'Unknown error' }, 500)

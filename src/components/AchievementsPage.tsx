@@ -425,11 +425,35 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
   const [hoveredAchievement, setHoveredAchievement] = useState<string | null>(null)
   const [isClaiming, setIsClaiming] = useState(false)
   const [currentProgress, setCurrentProgress] = useState(progress)
+  const [claimableCount, setClaimableCount] = useState(0)
 
   // Sync local state when progress prop changes
   useEffect(() => {
     setCurrentProgress(progress)
   }, [progress])
+
+  // Calculate claimable achievements count
+  useEffect(() => {
+    const checkClaimable = async () => {
+      try {
+        const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/check-claimable-achievements`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setClaimableCount(data.claimableCount || 0)
+        }
+      } catch (error) {
+        console.error('Error checking claimable achievements:', error)
+      }
+    }
+
+    checkClaimable()
+  }, [accessToken, currentProgress])
 
   const handleClaimAchievements = async () => {
     setIsClaiming(true)
@@ -520,231 +544,128 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
       }
     })
 
-  // Filter achievements based on selected category
-  const filteredUnlocked = selectedCategory === 'all' 
-    ? unlockedAchievements 
-    : unlockedAchievements.filter(a => a.category === selectedCategory)
-  
-  const filteredLocked = selectedCategory === 'all' 
-    ? lockedAchievements 
-    : lockedAchievements.filter(a => a.category === selectedCategory)
-
   const totalAchievements = Object.keys(achievementData).length
   const completionPercent = (unlockedAchievements.length / totalAchievements) * 100
-  const totalPointsEarned = unlockedAchievements.reduce((sum, a) => sum + a.points, 0)
-  const totalPointsAvailable = Object.values(achievementData).reduce((sum, a) => sum + a.points, 0)
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-24">
-      {/* Hero Section - Updated Design */}
-      <div className="relative overflow-hidden rounded-3xl">
+    <div className="max-w-6xl mx-auto space-y-6 pb-24">
+      {/* Hero Section - Focused on Achievements */}
+      <div className="relative overflow-hidden rounded-2xl">
         {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 via-purple-500/20 to-pink-500/20 animate-gradient-xy" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-amber-500/10" />
         
-        {/* Floating particles effect */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(30)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-2 h-2 rounded-full animate-float"
-              style={{
-                background: ['#fbbf24', '#a855f7', '#ec4899', '#06b6d4'][i % 4],
-                opacity: 0.3,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${3 + Math.random() * 4}s`
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="relative backdrop-blur-xl bg-card/80 border-2 border-purple-500/30 rounded-3xl p-8 shadow-2xl">
+        <div className="relative backdrop-blur-xl bg-card/90 border-2 border-purple-500/20 rounded-2xl p-6 shadow-xl">
           {/* Top Section - Icon & Title */}
-          <div className="flex items-center justify-between gap-6 flex-wrap mb-6">
-            {/* Left: Icon Badge */}
-            <div className="flex items-center gap-6">
-              <div className="relative group">
-                {/* Rotating glow ring */}
-                <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 rounded-full blur-2xl opacity-50 group-hover:opacity-75 animate-spin-slow" />
-                
-                {/* Main badge */}
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 blur-xl opacity-75 animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-3xl p-6 transform group-hover:scale-110 transition-transform duration-300">
-                    <Trophy className="w-14 h-14 text-white drop-shadow-lg" />
-                  </div>
-                </div>
-              </div>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative">
+              {/* Glow */}
+              <div className="absolute -inset-2 bg-gradient-to-br from-amber-400 to-purple-500 rounded-2xl blur-xl opacity-40" />
               
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                    Achievement Gallery
-                  </h1>
-                  <div className="flex gap-1">
-                    {[...Array(3)].map((_, i) => (
-                      <Sparkles key={i} className="w-6 h-6 text-purple-500 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xl text-muted-foreground">Unlock rewards and track your reading journey</p>
+              {/* Icon */}
+              <div className="relative bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-2xl p-4 shadow-lg">
+                <Trophy className="w-10 h-10 text-white drop-shadow-lg" />
               </div>
             </div>
-
-            {/* Right: Points Display */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 rounded-2xl blur-md group-hover:blur-lg transition-all" />
-              <div className="relative bg-muted/50 backdrop-blur-sm rounded-2xl px-8 py-4 border-2 border-emerald-500/30 group-hover:border-emerald-500/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Zap className="w-8 h-8 text-emerald-500 animate-pulse" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Points Earned</div>
-                    <div className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-                      {totalPointsEarned}
-                    </div>
-                  </div>
-                </div>
-              </div>
+            
+            <div>
+              <h1 className="text-3xl font-black bg-gradient-to-r from-amber-500 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Achievement Gallery
+              </h1>
+              <p className="text-sm text-muted-foreground">Track your reading journey</p>
             </div>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
-                <Medal className="w-5 h-5 text-white" />
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-md rounded-xl p-3 border border-purple-500/20 flex items-center justify-center gap-2">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+                <Medal className="w-4 h-4 text-white" />
               </div>
-              <div>
-                <div className="text-3xl font-bold text-foreground">{unlockedAchievements.length}/{totalAchievements}</div>
+              <div className="text-2xl font-bold text-foreground">
+                {unlockedAchievements.length}<span className="text-sm text-muted-foreground">/{totalAchievements}</span>
               </div>
             </div>
             
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-white" />
+            <div className="bg-gradient-to-br from-amber-500/10 to-yellow-500/10 backdrop-blur-md rounded-xl p-3 border border-amber-500/20 flex items-center justify-center gap-2">
+              <div className="p-2 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-lg">
+                <TrendingUp className="w-4 h-4 text-white" />
               </div>
-              <div>
-                <div className="text-3xl font-bold text-foreground">{Math.round(completionPercent)}%</div>
+              <div className="text-2xl font-bold text-foreground">
+                {Math.round(completionPercent)}<span className="text-sm text-muted-foreground">%</span>
               </div>
             </div>
           </div>
 
           {/* Overall Progress Bar */}
-          <div className="pt-6 border-t border-border/50">
-            <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-muted-foreground">Overall Completion</span>
-              <span className="font-bold text-foreground">{unlockedAchievements.length} of {totalAchievements} unlocked</span>
+          <div className="pt-4 border-t border-border/50">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="text-muted-foreground font-medium">Overall Progress</span>
+              <span className="font-bold text-foreground">{unlockedAchievements.length} of {totalAchievements}</span>
             </div>
             
-            <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/50">
-              {/* Animated background shimmer */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-              
+            <div className="relative h-3 bg-muted/50 rounded-full overflow-hidden border border-border/30">
               {/* Progress fill */}
               <div 
-                className="relative h-full bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 transition-all duration-1000 ease-out rounded-full"
+                className="relative h-full bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 transition-all duration-1000 ease-out rounded-full shadow-lg"
                 style={{ width: `${completionPercent}%` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
-                {completionPercent > 10 && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-white drop-shadow-lg">
-                    {Math.round(completionPercent)}%
-                  </div>
-                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer" />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <Tabs defaultValue="all" className="w-full">
-        <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full h-auto">
-            <TabsTrigger 
-              value="all" 
-              onClick={() => setSelectedCategory('all')}
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              All
-            </TabsTrigger>
-            <TabsTrigger 
-              value="reading"
-              onClick={() => setSelectedCategory('reading')}
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white"
-            >
-              <Book className="w-4 h-4 mr-2" />
-              Reading
-            </TabsTrigger>
-            <TabsTrigger 
-              value="streak"
-              onClick={() => setSelectedCategory('streak')}
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white"
-            >
-              <Flame className="w-4 h-4 mr-2" />
-              Streaks
-            </TabsTrigger>
-            <TabsTrigger 
-              value="creation"
-              onClick={() => setSelectedCategory('creation')}
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Creation
-            </TabsTrigger>
-            <TabsTrigger 
-              value="social"
-              onClick={() => setSelectedCategory('social')}
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
-            >
-              <Gift className="w-4 h-4 mr-2" />
-              Social
-            </TabsTrigger>
-            <TabsTrigger 
-              value="explorer"
-              onClick={() => setSelectedCategory('explorer')}
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white"
-            >
-              <Target className="w-4 h-4 mr-2" />
-              Explorer
-            </TabsTrigger>
-            <TabsTrigger 
-              value="special"
-              onClick={() => setSelectedCategory('special')}
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white"
-            >
-              <Crown className="w-4 h-4 mr-2" />
-              Special
-            </TabsTrigger>
-          </TabsList>
-        </div>
-      </Tabs>
-
-      {/* Claim Achievements Button */}
+      {/* Claim Achievements Button - Smart Version */}
       <div className="flex justify-center">
-        <Button
+        <button
           onClick={handleClaimAchievements}
-          disabled={isClaiming}
-          size="lg"
-          className="bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 hover:from-amber-500 hover:via-purple-600 hover:to-pink-600 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+          disabled={isClaiming || claimableCount === 0}
+          className={`group relative overflow-hidden px-8 py-4 font-black rounded-2xl transition-all duration-200 ${
+            claimableCount === 0 
+              ? 'bg-muted/50 text-muted-foreground border-2 border-border/50 cursor-not-allowed'
+              : 'bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 hover:from-amber-500 hover:via-purple-600 hover:to-pink-600 text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-x-[2px] active:translate-y-[2px]'
+          }`}
         >
-          <Gift className="w-5 h-5 mr-2" />
-          {isClaiming ? 'Checking...' : 'Claim Eligible Achievements'}
-        </Button>
+          {claimableCount > 0 && (
+            <>
+              {/* Halftone pattern overlay */}
+              <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none"
+                style={{
+                  backgroundImage: `radial-gradient(circle, black 1px, transparent 1px)`,
+                  backgroundSize: '4px 4px'
+                }}
+              />
+              
+              {/* Neon glow */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+            </>
+          )}
+          
+          <div className="relative flex items-center gap-2">
+            <Gift className="w-5 h-5" />
+            <span>
+              {isClaiming 
+                ? 'Checking...' 
+                : claimableCount === 0 
+                  ? 'No Achievements to Claim Yet'
+                  : `Claim ${claimableCount} Achievement${claimableCount > 1 ? 's' : ''}`
+              }
+            </span>
+          </div>
+        </button>
       </div>
 
       {/* Unlocked Achievements */}
-      {filteredUnlocked.length > 0 && (
+      {unlockedAchievements.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-6">
             <Trophy className="w-6 h-6 text-amber-500" />
-            <h2 className="text-2xl font-bold">Unlocked ({filteredUnlocked.length})</h2>
+            <h2 className="text-2xl font-bold">Unlocked ({unlockedAchievements.length})</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredUnlocked.map((achievement) => {
+            {unlockedAchievements.map((achievement) => {
               const Icon = achievement.icon
               const rarity = rarityConfig[achievement.rarity]
               
@@ -902,15 +823,15 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
       )}
 
       {/* Locked Achievements */}
-      {filteredLocked.length > 0 && (
+      {lockedAchievements.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-6">
             <Lock className="w-6 h-6 text-muted-foreground" />
-            <h2 className="text-2xl font-bold">Locked ({filteredLocked.length})</h2>
+            <h2 className="text-2xl font-bold">Locked ({lockedAchievements.length})</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredLocked.map((achievement) => {
+            {lockedAchievements.map((achievement) => {
               const Icon = achievement.icon
               const rarity = rarityConfig[achievement.rarity]
               
@@ -1008,7 +929,7 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
       )}
 
       {/* Empty State */}
-      {filteredUnlocked.length === 0 && filteredLocked.length === 0 && (
+      {unlockedAchievements.length === 0 && lockedAchievements.length === 0 && (
         <div className="text-center py-16">
           <Medal className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-foreground mb-2">No achievements in this category yet</h3>

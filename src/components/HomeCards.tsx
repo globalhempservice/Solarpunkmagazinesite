@@ -44,6 +44,7 @@ interface HomeCardsProps {
   nadaPoints?: number
   marketUnlocked?: boolean
   onMarketUnlock?: () => Promise<void>
+  onNavigateToMarket?: () => void
 }
 
 export function HomeCards({
@@ -58,7 +59,8 @@ export function HomeCards({
   setPreviousView,
   nadaPoints = 0,
   marketUnlocked = false,
-  onMarketUnlock
+  onMarketUnlock,
+  onNavigateToMarket
 }: HomeCardsProps) {
   const [isMarketUnlocking, setIsMarketUnlocking] = useState(false)
 
@@ -301,11 +303,13 @@ export function HomeCards({
         whileHover={{ scale: marketUnlocked ? 1.02 : 1.01 }}
         whileTap={{ scale: marketUnlocked ? 0.98 : 1 }}
         onClick={() => {
-          if (!marketUnlocked && onMarketUnlock) {
+          if (marketUnlocked && onNavigateToMarket) {
+            // Navigate to market if unlocked
+            onNavigateToMarket()
+          } else if (!marketUnlocked && onMarketUnlock) {
             // Show modal to confirm unlock
             setIsMarketUnlocking(true)
           }
-          // TODO: Navigate to market when unlocked
         }}
         className={`group relative overflow-hidden bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 rounded-3xl p-12 border-4 border-violet-400/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(139,92,246,${marketUnlocked ? '0.5' : '0.4'})] lg:col-span-2 lg:row-span-2 transition-all ${
           marketUnlocked 

@@ -34,6 +34,9 @@ import {
   Lock,
   AlertTriangle,
   CheckCircle2,
+  ShoppingBag,
+  Package,
+  Palette,
   Leaf,
   Sprout
 } from 'lucide-react'
@@ -198,11 +201,12 @@ interface AdminDashboardProps {
   serverUrl: string
   onBack: () => void
   onEditArticle?: (articleId: string) => void
+  onNavigateToSwagAdmin?: () => void
 }
 
 type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot'
 
-export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }: AdminDashboardProps) {
+export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, onNavigateToSwagAdmin }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [articles, setArticles] = useState<Article[]>([])
@@ -210,6 +214,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
   const [swipeStats, setSwipeStats] = useState<SwipeStat[]>([])
   const [viewsAnalytics, setViewsAnalytics] = useState<ViewsAnalytics | null>(null)
   const [nadaFeedback, setNadaFeedback] = useState<NadaFeedback | null>(null)
+  const [marketAnalytics, setMarketAnalytics] = useState<any | null>(null)
   const [walletStats, setWalletStats] = useState<WalletStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshingWallets, setRefreshingWallets] = useState(false)
@@ -224,7 +229,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
       setLoading(true)
       
       // Fetch all data in parallel for faster loading
-      const [statsRes, usersRes, articlesRes, rankingsRes, swipeStatsRes, viewsAnalyticsRes, nadaFeedbackRes, walletStatsRes] = await Promise.all([
+      const [statsRes, usersRes, articlesRes, rankingsRes, swipeStatsRes, viewsAnalyticsRes, nadaFeedbackRes, marketAnalyticsRes, walletStatsRes] = await Promise.all([
         fetch(`${serverUrl}/admin/stats`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }),
@@ -244,6 +249,9 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }),
         fetch(`${serverUrl}/admin/nada-feedback`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        }),
+        fetch(`${serverUrl}/admin/market-analytics`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }),
         fetch(`${serverUrl}/admin/wallet-stats`, {
@@ -291,6 +299,12 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
       if (nadaFeedbackRes.ok) {
         const data = await nadaFeedbackRes.json()
         setNadaFeedback(data)
+      }
+
+      // Process market analytics
+      if (marketAnalyticsRes.ok) {
+        const data = await marketAnalyticsRes.json()
+        setMarketAnalytics(data)
       }
 
       // Process wallet stats
@@ -1646,9 +1660,157 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle }
       {activeTab === 'nadaFeedback' && nadaFeedback && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Community Market</h2>
-            <p className="text-sm text-muted-foreground">Feature voting & idea submissions</p>
+            <div>
+              <h2 className="text-xl font-bold">Community Market</h2>
+              <p className="text-sm text-muted-foreground">Swag Shop analytics & feature voting</p>
+            </div>
+            {onNavigateToSwagAdmin && (
+              <Button
+                onClick={onNavigateToSwagAdmin}
+                className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 font-bold gap-2"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Manage Swag Shop
+              </Button>
+            )}
           </div>
+
+          {/* Market Analytics Stats */}
+          {marketAnalytics && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Total NADA Spent */}
+              <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-emerald-500/20">
+                    <Coins className="w-6 h-6 text-emerald-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-2xl font-black text-emerald-500">
+                      {marketAnalytics.totalNadaSpent.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground font-medium">Total NADA Spent</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Total Purchases */}
+              <Card className="p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-purple-500/20">
+                    <ShoppingBag className="w-6 h-6 text-purple-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-2xl font-black text-purple-500">
+                      {marketAnalytics.totalPurchases}
+                    </p>
+                    <p className="text-xs text-muted-foreground font-medium">Total Purchases</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Unique Buyers */}
+              <Card className="p-4 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-blue-500/20">
+                    <Users className="w-6 h-6 text-blue-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-2xl font-black text-blue-500">
+                      {marketAnalytics.uniqueBuyers}
+                    </p>
+                    <p className="text-xs text-muted-foreground font-medium">Unique Buyers</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Category Breakdown */}
+              <Card className="p-4 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-amber-500/20">
+                    <Package className="w-6 h-6 text-amber-500" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-sm font-bold text-emerald-500">
+                        {marketAnalytics.categoryBreakdown.themes}T
+                      </span>
+                      <span className="text-sm font-bold text-purple-500">
+                        {marketAnalytics.categoryBreakdown.badges}B
+                      </span>
+                      <span className="text-sm font-bold text-blue-500">
+                        {marketAnalytics.categoryBreakdown.merch}M
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium">Themes • Badges • Merch</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Top Items */}
+          {marketAnalytics && marketAnalytics.topItems && marketAnalytics.topItems.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="font-bold flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-500" />
+                Top Selling Items
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {marketAnalytics.topItems.map((item: any, index: number) => {
+                  // Get item display name
+                  const itemNames: Record<string, string> = {
+                    'theme-solarpunk': 'Solarpunk Dreams',
+                    'theme-midnight-hemp': 'Midnight Hemp',
+                    'theme-golden-hour': 'Golden Hour',
+                    'badge-founder': 'Founder Badge',
+                    'badge-sustainability': 'Sustainability Badge',
+                    'badge-community': 'Community Badge',
+                    'tshirt-hemp': 'Hemp T-Shirt',
+                    'hoodie-organic': 'Organic Hoodie',
+                    'totebag-recycled': 'Recycled Tote',
+                    'stickers-biodegradable': 'Bio Stickers'
+                  }
+                  
+                  const displayName = itemNames[item.itemId] || item.itemId
+                  const isTheme = item.itemId.startsWith('theme-')
+                  const isBadge = item.itemId.startsWith('badge-')
+
+                  return (
+                    <Card key={item.itemId} className="p-3 hover:bg-accent/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${
+                          isTheme ? 'bg-emerald-500/20' : 
+                          isBadge ? 'bg-purple-500/20' : 
+                          'bg-blue-500/20'
+                        }`}>
+                          {isTheme ? (
+                            <Palette className="w-4 h-4 text-emerald-500" />
+                          ) : isBadge ? (
+                            <Award className="w-4 h-4 text-purple-500" />
+                          ) : (
+                            <Package className="w-4 h-4 text-blue-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate">{displayName}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="font-medium">{item.count} sold</span>
+                            <span>•</span>
+                            <span className="text-emerald-500 font-bold">{item.totalSpent} NADA</span>
+                          </div>
+                        </div>
+                        {index === 0 && (
+                          <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30">
+                            #1
+                          </Badge>
+                        )}
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Suggestions */}
           <div className="space-y-4">

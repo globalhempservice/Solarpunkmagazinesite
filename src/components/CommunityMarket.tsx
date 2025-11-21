@@ -1,8 +1,40 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Store, Sparkles, Zap, TrendingUp, X, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Store, Zap, TrendingUp, X, ChevronRight, Leaf, Sparkles, Settings } from 'lucide-react'
 import { Button } from './ui/button'
 import { VotingModal } from './VotingModal'
 import { SubmitIdeaModal } from './SubmitIdeaModal'
+import { Badge } from './ui/badge'
+import { NadaWalletPanel } from './NadaWalletPanel'
+import { SwagShop } from './SwagShop'
+import { MarketSettings } from './MarketSettings'
+
+// Circular Forum Icon (like community discussion circles)
+function CircularForumIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 100 100" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      {/* Outer circle */}
+      <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="4" opacity="0.8" fill="none" />
+      
+      {/* Inner circles - forum seats */}
+      <circle cx="50" cy="20" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="73" cy="30" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="80" cy="50" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="73" cy="70" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="50" cy="80" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="27" cy="70" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="20" cy="50" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="27" cy="30" r="6" fill="currentColor" opacity="0.9" />
+      
+      {/* Center hub */}
+      <circle cx="50" cy="50" r="10" fill="currentColor" opacity="1" />
+    </svg>
+  )
+}
 
 // NADA Ripple Icon
 function NadaRippleIcon({ className = "w-6 h-6" }: { className?: string }) {
@@ -54,6 +86,92 @@ export default function CommunityMarket({
   const [tutorialStep, setTutorialStep] = useState(0)
   const [showVotingModal, setShowVotingModal] = useState(false)
   const [showSubmitIdeaModal, setShowSubmitIdeaModal] = useState(false)
+  const [showNadaWallet, setShowNadaWallet] = useState(false)
+  const [showSwagShop, setShowSwagShop] = useState(false)
+  const [showMarketSettings, setShowMarketSettings] = useState(false)
+  const [selectedMarketTheme, setSelectedMarketTheme] = useState('default')
+  
+  // User's personal market stats
+  const [userStats, setUserStats] = useState({
+    totalVotes: 0,
+    totalIdeasSubmitted: 0,
+    totalUnlocks: 0
+  })
+
+  // Fetch user's selected theme on mount
+  useEffect(() => {
+    if (userId && accessToken) {
+      fetchUserTheme()
+    }
+  }, [userId, accessToken])
+
+  const fetchUserTheme = async () => {
+    if (!userId || !accessToken) return
+
+    try {
+      const response = await fetch(
+        `${serverUrl}/user-progress/${userId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        const theme = data.selectedTheme || 'default'
+        setSelectedMarketTheme(theme)
+        console.log('Loaded market theme:', theme)
+      }
+    } catch (error) {
+      console.error('Error fetching user theme:', error)
+    }
+  }
+
+  // Theme background classes
+  const getThemeBackgroundClass = () => {
+    switch (selectedMarketTheme) {
+      case 'solarpunk':
+        return 'bg-gradient-to-br from-emerald-900 via-green-800 to-amber-900'
+      case 'midnight':
+        return 'bg-gradient-to-br from-purple-950 via-indigo-900 to-violet-950'
+      case 'golden':
+        return 'bg-gradient-to-br from-orange-900 via-amber-800 to-yellow-900'
+      default:
+        return 'bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950'
+    }
+  }
+
+  // Theme glow colors
+  const getThemeGlowColors = () => {
+    switch (selectedMarketTheme) {
+      case 'solarpunk':
+        return {
+          primary: 'bg-emerald-500/20',
+          secondary: 'bg-amber-500/20',
+          tertiary: 'bg-green-400/10'
+        }
+      case 'midnight':
+        return {
+          primary: 'bg-purple-500/20',
+          secondary: 'bg-indigo-500/20',
+          tertiary: 'bg-violet-400/10'
+        }
+      case 'golden':
+        return {
+          primary: 'bg-orange-500/20',
+          secondary: 'bg-amber-500/20',
+          tertiary: 'bg-yellow-400/10'
+        }
+      default:
+        return {
+          primary: 'bg-emerald-500/20',
+          secondary: 'bg-teal-500/20',
+          tertiary: 'bg-green-400/10'
+        }
+    }
+  }
 
   // Check if user has seen tutorial before
   useEffect(() => {
@@ -62,6 +180,49 @@ export default function CommunityMarket({
       setShowTutorial(false)
     }
   }, [userId])
+  
+  // Fetch user's market stats
+  useEffect(() => {
+    if (userId && accessToken && !showTutorial) {
+      fetchUserStats()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, accessToken, showTutorial])
+  
+  const fetchUserStats = async () => {
+    if (!userId || !accessToken) return
+    
+    try {
+      const response = await fetch(`${serverUrl}/user-market-stats/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUserStats({
+          totalVotes: data.totalVotes || 0,
+          totalIdeasSubmitted: data.totalIdeasSubmitted || 0,
+          totalUnlocks: data.totalUnlocks || 0
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching user market stats:', error)
+    }
+  }
+  
+  // Refresh stats after voting or submitting idea
+  const handleVoteSuccess = (newBalance: number) => {
+    onNadaUpdate(newBalance)
+    fetchUserStats() // Refresh stats
+    console.log('Vote successful! New NADA balance:', newBalance)
+  }
+  
+  const handleIdeaSubmitSuccess = () => {
+    fetchUserStats() // Refresh stats
+    console.log('Idea submitted successfully!')
+  }
 
   const tutorialSteps = [
     {
@@ -216,80 +377,211 @@ export default function CommunityMarket({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
-      {/* Custom Market Header with NADA Counter */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl bg-black/30 border-b border-white/10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            {/* Back Button */}
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Solarpunk Hemp Universe Background - Dynamic Theme */}
+      <div className={`fixed inset-0 ${getThemeBackgroundClass()}`}>
+        {/* Hemp fiber texture overlay */}
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23059669' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundSize: '80px 80px'
+        }} />
+        
+        {/* Organic glow orbs - Dynamic Theme Colors */}
+        {(() => {
+          const glows = getThemeGlowColors()
+          return (
+            <>
+              <div className={`absolute top-20 left-20 w-96 h-96 ${glows.primary} rounded-full blur-3xl animate-pulse`} />
+              <div className={`absolute bottom-40 right-20 w-[32rem] h-[32rem] ${glows.secondary} rounded-full blur-3xl animate-pulse`} style={{ animationDelay: '1s' }} />
+              <div className={`absolute top-1/2 left-1/3 w-64 h-64 ${glows.tertiary} rounded-full blur-3xl animate-pulse`} style={{ animationDelay: '2s' }} />
+            </>
+          )
+        })()}
+        
+        {/* Floating hemp leaves */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute opacity-10"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `floatLeaf ${15 + Math.random() * 10}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 5}s`
+              }}
+            >
+              <Leaf className="w-12 h-12 text-emerald-300" style={{
+                transform: `rotate(${Math.random() * 360}deg)`
+              }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom Market Header */}
+      <div className="sticky top-0 z-50 backdrop-blur-xl bg-emerald-950/40 border-b border-emerald-500/20 shadow-lg shadow-emerald-950/50">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* EXIT Pill Button */}
             <button
               onClick={onBack}
-              className="flex items-center gap-2 text-white/80 hover:text-white transition-colors px-4 py-2 rounded-lg hover:bg-white/10"
+              className="flex items-center gap-1.5 sm:gap-2 text-emerald-100/90 hover:text-emerald-50 transition-all px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 hover:border-emerald-400/50 shadow-lg"
             >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="font-medium">Exit Market</span>
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-sm sm:text-base font-medium">EXIT</span>
             </button>
             
-            {/* Market Title */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg blur-md opacity-50" />
-                <Store className="relative w-7 h-7 text-purple-300" />
-              </div>
-              <h1 className="text-2xl font-black text-white">Community Market</h1>
-            </div>
+            {/* Hemp'in Pink Action Button */}
+            <button
+              onClick={() => setShowSubmitIdeaModal(true)}
+              className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-bold text-sm sm:text-base bg-gradient-to-r from-pink-500 via-pink-600 to-fuchsia-600 hover:from-pink-600 hover:via-pink-700 hover:to-fuchsia-700 text-white shadow-lg shadow-pink-500/50 hover:shadow-pink-500/70 transition-all hover:scale-105 active:scale-95"
+            >
+              <CircularForumIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline">Submit Idea</span>
+              <span className="xs:hidden">Idea</span>
+            </button>
             
             {/* NADA Counter */}
-            <div className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-violet-500/20 to-purple-500/20 backdrop-blur-md rounded-2xl border-2 border-violet-400/30">
-              <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-violet-400 to-purple-400 rounded-full blur-sm opacity-60" />
-                <NadaRippleIcon className="relative w-8 h-8 text-violet-300" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs text-violet-200/70 font-medium uppercase tracking-wider">Voice Currency</span>
-                <span className="text-2xl font-black text-white">{nadaPoints}</span>
-              </div>
-            </div>
+            <button onClick={() => setShowNadaWallet(true)}>
+              <Badge
+                variant="secondary"
+                className="gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-400/30 text-violet-300 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+              >
+                <NadaRippleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-violet-300" />
+                <span className="font-bold">{nadaPoints}</span>
+              </Badge>
+            </button>
+
+            {/* Market Settings Icon */}
+            <button
+              onClick={() => setShowMarketSettings(true)}
+              className="p-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 hover:border-emerald-400/50 transition-all hover:scale-105 active:scale-95 shadow-md"
+              title="Market Settings"
+            >
+              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-300" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-12">
-        {/* Welcome Section */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="relative inline-block mb-6">
-            <div className="absolute -inset-4 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 rounded-full blur-2xl opacity-50 animate-pulse" />
-            <div className="relative bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 rounded-full p-6">
-              <Sparkles className="w-16 h-16 text-white" />
+      {/* Main Content - Cards & Stats are the hero */}
+      <div className="relative z-10 container mx-auto px-4 py-8 sm:py-12">
+        {/* Stats Section - MOVED TO TOP with Hemp Aesthetic */}
+        <div className="max-w-6xl mx-auto mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            {/* Active Proposals Stat */}
+            <div className="group relative overflow-hidden rounded-3xl backdrop-blur-xl border-2 border-emerald-400/30 hover:border-emerald-400/60 transition-all duration-500 hover:scale-105 hover:-translate-y-2 shadow-[0_8px_32px_rgba(16,185,129,0.2)] hover:shadow-[0_16px_48px_rgba(16,185,129,0.4)]">
+              {/* Hemp fiber texture */}
+              <div className="absolute inset-0 opacity-20" style={{
+                backgroundImage: `radial-gradient(circle at 2px 2px, rgba(16,185,129,0.3) 1px, transparent 0)`,
+                backgroundSize: '24px 24px'
+              }} />
+              
+              {/* Gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/60 via-teal-900/60 to-green-900/60" />
+              
+              {/* Depth layer - 3D effect */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              
+              {/* Glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+              
+              <div className="relative p-6 text-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <CircularForumIcon className="w-7 h-7 text-white" />
+                </div>
+                <div className="text-5xl font-black text-emerald-50 mb-2 drop-shadow-lg">{userStats.totalIdeasSubmitted}</div>
+                <div className="text-sm font-bold text-emerald-200/80 uppercase tracking-wider">My Ideas Submitted</div>
+              </div>
+            </div>
+            
+            {/* My Votes Stat */}
+            <div className="group relative overflow-hidden rounded-3xl backdrop-blur-xl border-2 border-teal-400/30 hover:border-teal-400/60 transition-all duration-500 hover:scale-105 hover:-translate-y-2 shadow-[0_8px_32px_rgba(20,184,166,0.2)] hover:shadow-[0_16px_48px_rgba(20,184,166,0.4)]">
+              {/* Hemp fiber texture */}
+              <div className="absolute inset-0 opacity-20" style={{
+                backgroundImage: `radial-gradient(circle at 2px 2px, rgba(20,184,166,0.3) 1px, transparent 0)`,
+                backgroundSize: '24px 24px'
+              }} />
+              
+              {/* Gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-900/60 via-cyan-900/60 to-emerald-900/60" />
+              
+              {/* Depth layer */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              
+              {/* Glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+              
+              <div className="relative p-6 text-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <TrendingUp className="w-7 h-7 text-white" />
+                </div>
+                <div className="text-5xl font-black text-teal-50 mb-2 drop-shadow-lg">{userStats.totalVotes}</div>
+                <div className="text-sm font-bold text-teal-200/80 uppercase tracking-wider">My Votes Cast</div>
+              </div>
+            </div>
+            
+            {/* My Unlocks Stat */}
+            <div className="group relative overflow-hidden rounded-3xl backdrop-blur-xl border-2 border-green-400/30 hover:border-green-400/60 transition-all duration-500 hover:scale-105 hover:-translate-y-2 shadow-[0_8px_32px_rgba(34,197,94,0.2)] hover:shadow-[0_16px_48px_rgba(34,197,94,0.4)]">
+              {/* Hemp fiber texture */}
+              <div className="absolute inset-0 opacity-20" style={{
+                backgroundImage: `radial-gradient(circle at 2px 2px, rgba(34,197,94,0.3) 1px, transparent 0)`,
+                backgroundSize: '24px 24px'
+              }} />
+              
+              {/* Gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-green-900/60 via-emerald-900/60 to-teal-900/60" />
+              
+              {/* Depth layer */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              
+              {/* Glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+              
+              <div className="relative p-6 text-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Zap className="w-7 h-7 text-white" />
+                </div>
+                <div className="text-5xl font-black text-green-50 mb-2 drop-shadow-lg">{userStats.totalUnlocks}</div>
+                <div className="text-sm font-bold text-green-200/80 uppercase tracking-wider">Features Unlocked</div>
+              </div>
             </div>
           </div>
-          
-          <h2 className="text-5xl font-black text-white mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-amber-400 bg-clip-text text-transparent">
-            Welcome to the Market!
-          </h2>
-          
-          <p className="text-xl text-white/70">
-            A completely different world. Vote on features, submit ideas, and shape the future of DEWII.
-          </p>
         </div>
 
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {/* Feature Cards Grid - Enhanced with depth and texture */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto mb-12">
           {/* Card 1 - Vote on Features */}
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-xl border-2 border-purple-500/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-105">
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity" />
+          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-purple-400/40 hover:border-purple-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(168,85,247,0.3)] hover:shadow-[0_30px_80px_rgba(168,85,247,0.5)]">
+            {/* Organic texture pattern */}
+            <div className="absolute inset-0 opacity-30" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 30 L35 20 L40 30 L35 40 Z M20 30 L25 20 L30 30 L25 40 Z' fill='%23a855f7' fill-opacity='0.3'/%3E%3C/svg%3E")`,
+              backgroundSize: '40px 40px'
+            }} />
             
-            <div className="relative p-8 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <TrendingUp className="w-7 h-7 text-white" />
+            {/* Gradient background with depth */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-pink-900/70 to-fuchsia-900/80" />
+            
+            {/* Depth layers */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-purple-500/10 to-pink-500/10" />
+            
+            {/* Outer glow */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-purple-500 via-pink-500 to-fuchsia-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
+            
+            <div className="relative p-8 space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-2xl shadow-purple-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                <TrendingUp className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
               
-              <h3 className="text-2xl font-bold text-white">Vote on Features</h3>
-              <p className="text-white/60">Use your NADA points to vote on upcoming features and help prioritize development.</p>
+              <div>
+                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Vote on Features</h3>
+                <p className="text-purple-100/80 leading-relaxed">Use your NADA points to vote on upcoming features and help prioritize development.</p>
+              </div>
               
               <Button 
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold"
+                className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-fuchsia-500 hover:from-purple-600 hover:via-pink-600 hover:to-fuchsia-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
                 onClick={() => setShowVotingModal(true)}
               >
                 Vote Now
@@ -298,19 +590,35 @@ export default function CommunityMarket({
           </div>
 
           {/* Card 2 - Submit Ideas */}
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600/20 to-cyan-600/20 backdrop-blur-xl border-2 border-blue-500/30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity" />
+          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-cyan-400/40 hover:border-cyan-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(34,211,238,0.3)] hover:shadow-[0_30px_80px_rgba(34,211,238,0.5)]">
+            {/* Organic texture pattern */}
+            <div className="absolute inset-0 opacity-30" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='15' r='5' fill='%2322d3ee' fill-opacity='0.3'/%3E%3Ccircle cx='30' cy='45' r='5' fill='%2322d3ee' fill-opacity='0.3'/%3E%3C/svg%3E")`,
+              backgroundSize: '40px 40px'
+            }} />
             
-            <div className="relative p-8 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Zap className="w-7 h-7 text-white" />
+            {/* Gradient background with depth */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-cyan-900/70 to-teal-900/80" />
+            
+            {/* Depth layers */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-cyan-500/10 to-blue-500/10" />
+            
+            {/* Outer glow */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
+            
+            <div className="relative p-8 space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-2xl shadow-cyan-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                <CircularForumIcon className="w-8 h-8 text-white" />
               </div>
               
-              <h3 className="text-2xl font-bold text-white">Submit Ideas</h3>
-              <p className="text-white/60">Have a great feature idea? Submit it to the community and earn rewards if it gets implemented.</p>
+              <div>
+                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Submit Ideas</h3>
+                <p className="text-cyan-100/80 leading-relaxed">Have a great feature idea? Submit it to the community and earn rewards if it gets implemented.</p>
+              </div>
               
               <Button 
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold"
+                className="w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
                 onClick={() => setShowSubmitIdeaModal(true)}
               >
                 Submit Idea
@@ -318,96 +626,55 @@ export default function CommunityMarket({
             </div>
           </div>
 
-          {/* Card 3 - Marketplace */}
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-600/20 to-yellow-600/20 backdrop-blur-xl border-2 border-amber-500/30 hover:border-amber-400/50 transition-all duration-300 hover:scale-105">
-            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity" />
+          {/* Card 3 - Swag Shop (Coming Soon) */}
+          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-amber-400/40 hover:border-amber-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(245,158,11,0.3)] hover:shadow-[0_30px_80px_rgba(245,158,11,0.5)]">
+            {/* Organic texture pattern */}
+            <div className="absolute inset-0 opacity-30" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 10 L35 25 L50 25 L38 35 L43 50 L30 40 L17 50 L22 35 L10 25 L25 25 Z' fill='%23f59e0b' fill-opacity='0.3'/%3E%3C/svg%3E")`,
+              backgroundSize: '40px 40px'
+            }} />
             
-            <div className="relative p-8 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center">
-                <Store className="w-7 h-7 text-white" />
+            {/* Gradient background with depth */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-900/80 via-yellow-900/70 to-orange-900/80" />
+            
+            {/* Depth layers */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-amber-500/10 to-yellow-500/10" />
+            
+            {/* Outer glow */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
+            
+            <div className="relative p-8 space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-amber-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                <Store className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
               
-              <h3 className="text-2xl font-bold text-white">Marketplace</h3>
-              <p className="text-white/60">Trade items, unlock special themes, and access exclusive community content.</p>
+              <div>
+                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Swag Shop</h3>
+                <p className="text-amber-100/80 leading-relaxed">Unlock hemp merch, exclusive themes, and special community rewards with your NADA.</p>
+              </div>
               
               <Button 
-                className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-bold"
-                disabled
+                className="w-full bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-600 hover:via-yellow-600 hover:to-orange-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all"
+                onClick={() => setShowSwagShop(true)}
               >
-                Coming Soon
+                Open Swag Shop
               </Button>
             </div>
           </div>
         </div>
-
-        {/* Stats Section */}
-        <div className="mt-16 max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10">
-              <div className="text-4xl font-black text-white mb-2">0</div>
-              <div className="text-sm text-white/60">Active Proposals</div>
-            </div>
-            
-            <div className="text-center p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10">
-              <div className="text-4xl font-black text-white mb-2">0</div>
-              <div className="text-sm text-white/60">Total Votes Cast</div>
-            </div>
-            
-            <div className="text-center p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10">
-              <div className="text-4xl font-black text-white mb-2">0</div>
-              <div className="text-sm text-white/60">Ideas Implemented</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Info Banner */}
-        <div className="mt-12 max-w-3xl mx-auto">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600/30 to-pink-600/30 backdrop-blur-xl border-2 border-purple-500/30 p-8">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl" />
-            
-            <div className="relative text-center space-y-4">
-              <h3 className="text-2xl font-bold text-white">Building Something Amazing</h3>
-              <p className="text-white/70 max-w-2xl mx-auto">
-                The Community Market is under construction! We're creating a unique space where your voice matters and your engagement is rewarded. Stay tuned for updates.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-white/5 animate-float"
-            style={{
-              width: `${Math.random() * 100 + 50}px`,
-              height: `${Math.random() * 100 + 50}px`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${Math.random() * 10 + 10}s`
-            }}
-          />
-        ))}
       </div>
 
       <style>{`
-        @keyframes float {
+        @keyframes floatLeaf {
           0%, 100% {
-            transform: translateY(0) translateX(0);
-            opacity: 0.1;
+            transform: translateY(0) translateX(0) rotate(0deg);
+            opacity: 0.05;
           }
           50% {
-            transform: translateY(-100px) translateX(50px);
-            opacity: 0.3;
+            transform: translateY(-60px) translateX(40px) rotate(180deg);
+            opacity: 0.15;
           }
-        }
-        
-        .animate-float {
-          animation: float linear infinite;
         }
       `}</style>
 
@@ -420,10 +687,7 @@ export default function CommunityMarket({
           serverUrl={serverUrl}
           accessToken={accessToken}
           nadaPoints={nadaPoints}
-          onVoteSuccess={(newBalance) => {
-            onNadaUpdate(newBalance)
-            console.log('Vote successful! New NADA balance:', newBalance)
-          }}
+          onVoteSuccess={handleVoteSuccess}
         />
       )}
 
@@ -435,10 +699,43 @@ export default function CommunityMarket({
           userId={userId}
           serverUrl={serverUrl}
           accessToken={accessToken}
-          onSubmitSuccess={() => {
-            // Refresh or show success message
-            console.log('Idea submitted successfully!')
-          }}
+          onSubmitSuccess={handleIdeaSubmitSuccess}
+        />
+      )}
+
+      {/* Nada Wallet Panel */}
+      {showNadaWallet && (
+        <NadaWalletPanel
+          isOpen={showNadaWallet}
+          onClose={() => setShowNadaWallet(false)}
+          nadaPoints={nadaPoints}
+          userId={userId}
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+        />
+      )}
+
+      {/* Swag Shop Panel */}
+      {showSwagShop && (
+        <SwagShop
+          isOpen={showSwagShop}
+          onClose={() => setShowSwagShop(false)}
+          userId={userId}
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+          nadaPoints={nadaPoints}
+          onNadaUpdate={onNadaUpdate}
+        />
+      )}
+
+      {/* Market Settings Panel */}
+      {showMarketSettings && (
+        <MarketSettings
+          isOpen={showMarketSettings}
+          onClose={() => setShowMarketSettings(false)}
+          userId={userId}
+          accessToken={accessToken}
+          serverUrl={serverUrl}
         />
       )}
     </div>

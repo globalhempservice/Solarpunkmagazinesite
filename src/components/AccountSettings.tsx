@@ -29,6 +29,7 @@ interface AccountSettingsProps {
   marketingOptIn?: boolean
   accessToken?: string
   totalArticlesRead?: number
+  selectedTheme?: string
   onLogout: () => void
   onUpdateProfile?: (nickname: string, theme: string) => Promise<void>
   onUpdateMarketingPreference?: (marketingOptIn: boolean) => Promise<void>
@@ -41,6 +42,7 @@ export function AccountSettings({
   userPoints, 
   userNickname: initialNickname,
   homeButtonTheme: initialTheme,
+  selectedTheme: initialSelectedTheme,
   marketingOptIn: initialMarketingOptIn,
   accessToken,
   totalArticlesRead = 0,
@@ -607,6 +609,19 @@ export function AccountSettings({
               </CardContent>
             </Card>
           </div>
+
+          {/* Premium Themes Section */}
+          {userId && accessToken && (
+            <PremiumThemeSelector
+              userId={userId}
+              accessToken={accessToken}
+              currentTheme={initialSelectedTheme || 'default'}
+              onThemeChange={() => {
+                // Reload to fetch updated theme from backend
+                window.location.reload()
+              }}
+            />
+          )}
 
           {/* Newsletter Preferences */}
           <Card className="border-2 border-blue-500/20 bg-card/50 backdrop-blur-sm">

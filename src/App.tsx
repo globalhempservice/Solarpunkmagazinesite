@@ -12,6 +12,7 @@ import { ArticleEditor } from './components/ArticleEditor'
 import { LinkedInImporter } from './components/LinkedInImporter'
 import { AdminPanel } from './components/AdminPanel'
 import { AdminDashboard } from './components/AdminDashboard'
+import { SwagShopAdmin } from './components/SwagShopAdmin'
 import { BottomNavbar } from './components/BottomNavbar'
 import { StreakBanner } from './components/StreakBanner'
 import { ReadingHistory } from './components/ReadingHistory'
@@ -79,6 +80,10 @@ interface UserProgress {
   homeButtonTheme?: string
   marketingOptIn?: boolean
   marketUnlocked?: boolean
+  selectedTheme?: string
+  selectedBadge?: string
+  profileBannerUrl?: string
+  prioritySupport?: boolean
 }
 
 export default function App() {
@@ -86,7 +91,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
@@ -267,6 +272,21 @@ export default function App() {
       fetchUserArticles()
     }
   }, [isAuthenticated, userId, accessToken])
+
+  // Apply theme globally when user progress loads or theme changes
+  useEffect(() => {
+    if (userProgress?.selectedTheme) {
+      // Remove all theme classes first
+      document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour')
+      // Add the selected theme class
+      document.documentElement.classList.add(userProgress.selectedTheme)
+      console.log('🎨 Theme applied:', userProgress.selectedTheme)
+    } else {
+      // Default: no theme class (uses :root styles)
+      document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour')
+      console.log('🎨 Theme applied: default')
+    }
+  }, [userProgress?.selectedTheme])
 
   const fetchArticles = async () => {
     try {
@@ -999,6 +1019,14 @@ export default function App() {
                   handleEditArticle(article)
                 }
               }}
+              onNavigateToSwagAdmin={() => setCurrentView('swag-admin')}
+            />
+          )}
+
+          {currentView === 'swag-admin' && accessToken && (
+            <SwagShopAdmin
+              accessToken={accessToken}
+              onBack={() => setCurrentView('admin')}
             />
           )}
 
@@ -1074,6 +1102,7 @@ export default function App() {
               userPoints={userProgress?.points}
               userNickname={userProgress?.nickname}
               homeButtonTheme={userProgress?.homeButtonTheme}
+              selectedTheme={userProgress?.selectedTheme}
               marketingOptIn={userProgress?.marketingOptIn}
               totalArticlesRead={userProgress?.totalArticlesRead || 0}
               accessToken={accessToken || undefined}

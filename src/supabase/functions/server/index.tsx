@@ -824,6 +824,10 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       lastReadDate: progress.last_read_date,
       nickname: progress.nickname,
       homeButtonTheme: progress.home_button_theme,
+      selectedTheme: progress.selected_theme,
+      selectedBadge: progress.selected_badge,
+      profileBannerUrl: progress.profile_banner_url,
+      prioritySupport: progress.priority_support || false,
       marketingOptIn: profile?.marketing_opt_in || false,
       marketUnlocked: progress.market_unlocked || false,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
@@ -1253,6 +1257,10 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
       lastReadDate: updatedProgress.last_read_date,
       nickname: updatedProgress.nickname,
       homeButtonTheme: updatedProgress.home_button_theme,
+      selectedTheme: updatedProgress.selected_theme,
+      selectedBadge: updatedProgress.selected_badge,
+      profileBannerUrl: updatedProgress.profile_banner_url,
+      prioritySupport: updatedProgress.priority_support || false,
       marketUnlocked: updatedProgress.market_unlocked || false,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
@@ -1268,6 +1276,173 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
     console.log('Error message:', error.message)
     console.log('Error stack:', error.stack)
     return c.json({ error: 'Failed to update profile', details: error.message }, 500)
+  }
+})
+
+// Update user selected theme (premium themes from Swag Shop)
+app.put('/make-server-053bcd80/users/:userId/select-theme', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const { theme } = await c.req.json()
+    
+    console.log('=== SELECT THEME REQUEST ===')
+    console.log('User ID:', userId)
+    console.log('Theme:', theme)
+    
+    // Verify access token
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    // Update selected theme in user_progress
+    const { data: updatedProgress, error: updateError } = await supabase
+      .from('user_progress')
+      .update({ selected_theme: theme })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (updateError) {
+      console.log('ERROR: Failed to update theme:', updateError)
+      return c.json({ error: 'Failed to update theme', details: updateError.message }, 500)
+    }
+    
+    console.log('Theme updated successfully:', updatedProgress.selected_theme)
+    
+    return c.json({ success: true, theme: updatedProgress.selected_theme })
+  } catch (error: any) {
+    console.log('=== THEME UPDATE ERROR ===')
+    console.log('Error:', error.message)
+    return c.json({ error: 'Failed to update theme', details: error.message }, 500)
+  }
+})
+
+// Update user selected badge (premium badges from Swag Shop)
+app.put('/make-server-053bcd80/users/:userId/select-badge', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const { badge } = await c.req.json()
+    
+    console.log('=== SELECT BADGE REQUEST ===')
+    console.log('User ID:', userId)
+    console.log('Badge:', badge)
+    
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const { data: updatedProgress, error: updateError } = await supabase
+      .from('user_progress')
+      .update({ selected_badge: badge })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (updateError) {
+      console.log('ERROR: Failed to update badge:', updateError)
+      return c.json({ error: 'Failed to update badge', details: updateError.message }, 500)
+    }
+    
+    console.log('Badge updated successfully:', updatedProgress.selected_badge)
+    
+    return c.json({ success: true, badge: updatedProgress.selected_badge })
+  } catch (error: any) {
+    console.log('=== BADGE UPDATE ERROR ===')
+    console.log('Error:', error.message)
+    return c.json({ error: 'Failed to update badge', details: error.message }, 500)
+  }
+})
+
+// Update profile banner URL (custom profile banner feature)
+app.put('/make-server-053bcd80/users/:userId/profile-banner', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const { bannerUrl } = await c.req.json()
+    
+    console.log('=== UPDATE PROFILE BANNER REQUEST ===')
+    console.log('User ID:', userId)
+    
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const { data: updatedProgress, error: updateError } = await supabase
+      .from('user_progress')
+      .update({ profile_banner_url: bannerUrl })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (updateError) {
+      console.log('ERROR: Failed to update profile banner:', updateError)
+      return c.json({ error: 'Failed to update profile banner', details: updateError.message }, 500)
+    }
+    
+    console.log('Profile banner updated successfully')
+    
+    return c.json({ success: true, bannerUrl: updatedProgress.profile_banner_url })
+  } catch (error: any) {
+    console.log('=== PROFILE BANNER UPDATE ERROR ===')
+    console.log('Error:', error.message)
+    return c.json({ error: 'Failed to update profile banner', details: error.message }, 500)
+  }
+})
+
+// Enable priority support feature
+app.post('/make-server-053bcd80/users/:userId/enable-priority-support', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    console.log('=== ENABLE PRIORITY SUPPORT REQUEST ===')
+    console.log('User ID:', userId)
+    
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const { data: updatedProgress, error: updateError } = await supabase
+      .from('user_progress')
+      .update({ priority_support: true })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (updateError) {
+      console.log('ERROR: Failed to enable priority support:', updateError)
+      return c.json({ error: 'Failed to enable priority support', details: updateError.message }, 500)
+    }
+    
+    console.log('Priority support enabled successfully')
+    
+    return c.json({ success: true, prioritySupport: updatedProgress.priority_support })
+  } catch (error: any) {
+    console.log('=== PRIORITY SUPPORT ENABLE ERROR ===')
+    console.log('Error:', error.message)
+    return c.json({ error: 'Failed to enable priority support', details: error.message }, 500)
   }
 })
 
@@ -1529,6 +1704,10 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
       lastReadDate: updatedProgress.last_read_date,
       nickname: updatedProgress.nickname,
       homeButtonTheme: updatedProgress.home_button_theme,
+      selectedTheme: updatedProgress.selected_theme,
+      selectedBadge: updatedProgress.selected_badge,
+      profileBannerUrl: updatedProgress.profile_banner_url,
+      prioritySupport: updatedProgress.priority_support || false,
       marketingOptIn: updatedProgress.marketing_opt_in,
       marketUnlocked: updatedProgress.market_unlocked || false,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
@@ -5435,6 +5614,27 @@ app.post('/make-server-053bcd80/nada-suggestions', async (c) => {
       return c.json({ error: 'Failed to save suggestion', details: error.message }, 500)
     }
     
+    // Create transaction record for the idea submission (no cost, just tracking)
+    const { error: txError } = await supabase
+      .from('nada_transactions')
+      .insert({
+        user_id: userId,
+        type: 'submit',
+        amount: 0,
+        description: `Submitted idea: "${suggestion.substring(0, 50)}${suggestion.length > 50 ? '...' : ''}"`,
+        metadata: {
+          suggestion_id: data.id,
+          idea_title: suggestion
+        }
+      })
+    
+    if (txError) {
+      console.error('⚠️ Warning: Failed to create transaction record:', txError)
+      // Don't fail the whole operation if transaction logging fails
+    } else {
+      console.log(`📝 Transaction recorded for idea submission by ${userId}`)
+    }
+    
     console.log(`💡 NADA Suggestion submitted by ${userId}:`, suggestion)
     
     return c.json({ success: true, suggestionId: data.id })
@@ -5590,6 +5790,28 @@ app.post('/make-server-053bcd80/nada-ideas/:ideaId/vote', async (c) => {
       console.error('Error updating vote counts:', updateError)
     }
     
+    // Create transaction record for the vote
+    const { error: txError } = await supabase
+      .from('nada_transactions')
+      .insert({
+        user_id: userId,
+        type: 'vote',
+        amount: -NADA_COST,
+        description: `Voted "${voteType === 'yes' ? '👍' : '👎'}" on "${ideaTitle}"`,
+        metadata: {
+          suggestion_id: suggestionId,
+          vote_type: voteType,
+          idea_title: ideaTitle
+        }
+      })
+    
+    if (txError) {
+      console.error('⚠️ Warning: Failed to create transaction record:', txError)
+      // Don't fail the whole operation if transaction logging fails
+    } else {
+      console.log(`📝 Transaction recorded for vote by ${userId}`)
+    }
+    
     console.log(`✅ NADA Vote saved: ${userId} voted "${voteType}" on ${ideaId} (yes: ${yesCount}, no: ${noCount})`)
     
     return c.json({ 
@@ -5728,6 +5950,210 @@ app.get('/make-server-053bcd80/admin/nada-feedback', async (c) => {
   } catch (error) {
     console.error('Error fetching NADA feedback:', error)
     return c.json({ error: 'Failed to fetch feedback' }, 500)
+  }
+})
+
+// ========== NADA WALLET ENDPOINTS ==========
+
+// Get market analytics for admin (swag shop stats)
+app.get('/make-server-053bcd80/admin/market-analytics', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  try {
+    // Verify admin
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      return c.json({ error: 'Admin access required' }, 403)
+    }
+    
+    // Get total NADA spent on swag items
+    const { data: purchases, error: purchasesError } = await supabase
+      .from('user_swag_items')
+      .select('item_id, purchased_at, user_id')
+    
+    if (purchasesError) {
+      console.error('Error fetching purchases:', purchasesError)
+      return c.json({ error: 'Failed to fetch purchases' }, 500)
+    }
+    
+    // Calculate stats
+    const totalPurchases = purchases?.length || 0
+    
+    // Item prices (matching SwagShop component)
+    const itemPrices: Record<string, number> = {
+      'theme-solarpunk': 150,
+      'theme-midnight-hemp': 150,
+      'theme-golden-hour': 150,
+      'badge-founder': 200,
+      'badge-sustainability': 200,
+      'badge-community': 200,
+      'tshirt-hemp': 500,
+      'hoodie-organic': 1000,
+      'totebag-recycled': 250,
+      'stickers-biodegradable': 100
+    }
+    
+    let totalNadaSpent = 0
+    const itemCounts: Record<string, number> = {}
+    
+    purchases?.forEach(purchase => {
+      const price = itemPrices[purchase.item_id] || 0
+      totalNadaSpent += price
+      itemCounts[purchase.item_id] = (itemCounts[purchase.item_id] || 0) + 1
+    })
+    
+    // Get top items
+    const topItems = Object.entries(itemCounts)
+      .map(([itemId, count]) => ({
+        itemId,
+        count,
+        totalSpent: count * (itemPrices[itemId] || 0)
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+    
+    // Get category breakdown
+    const categoryBreakdown = {
+      themes: Object.entries(itemCounts)
+        .filter(([id]) => id.startsWith('theme-'))
+        .reduce((sum, [, count]) => sum + count, 0),
+      badges: Object.entries(itemCounts)
+        .filter(([id]) => id.startsWith('badge-'))
+        .reduce((sum, [, count]) => sum + count, 0),
+      merch: Object.entries(itemCounts)
+        .filter(([id]) => !id.startsWith('theme-') && !id.startsWith('badge-'))
+        .reduce((sum, [, count]) => sum + count, 0)
+    }
+    
+    // Get unique buyers
+    const uniqueBuyers = new Set(purchases?.map(p => p.user_id) || []).size
+    
+    // Get recent purchases (last 10)
+    const { data: recentPurchases, error: recentError } = await supabase
+      .from('user_swag_items')
+      .select('item_id, purchased_at, user_id')
+      .order('purchased_at', { ascending: false })
+      .limit(10)
+    
+    if (recentError) {
+      console.error('Error fetching recent purchases:', recentError)
+    }
+    
+    return c.json({
+      totalNadaSpent,
+      totalPurchases,
+      uniqueBuyers,
+      topItems,
+      categoryBreakdown,
+      recentPurchases: (recentPurchases || []).map(p => ({
+        itemId: p.item_id,
+        userId: p.user_id,
+        purchasedAt: p.purchased_at
+      }))
+    })
+  } catch (error: any) {
+    console.error('Error fetching market analytics:', error)
+    return c.json({ error: 'Failed to fetch market analytics', details: error.message }, 500)
+  }
+})
+
+// Get user market stats (votes, ideas, unlocks)
+app.get('/make-server-053bcd80/user-market-stats/:userId', async (c) => {
+  const userId = c.req.param('userId')
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!userId) {
+    return c.json({ error: 'Missing userId' }, 400)
+  }
+  
+  try {
+    // Verify user is authenticated
+    if (accessToken) {
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+      if (authError || !user || user.id !== userId) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
+    }
+    
+    // Get user stats
+    const { data: stats, error: statsError } = await supabase
+      .from('user_market_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (statsError && statsError.code !== 'PGRST116') {
+      console.error('Error fetching user market stats:', statsError)
+      return c.json({ error: 'Failed to fetch stats', details: statsError.message }, 500)
+    }
+    
+    // If no stats exist, return zeros
+    if (!stats || statsError?.code === 'PGRST116') {
+      return c.json({
+        totalVotes: 0,
+        totalIdeasSubmitted: 0,
+        totalUnlocks: 0
+      })
+    }
+    
+    return c.json({
+      totalVotes: stats.total_votes || 0,
+      totalIdeasSubmitted: stats.total_ideas_submitted || 0,
+      totalUnlocks: stats.total_unlocks || 0
+    })
+  } catch (error: any) {
+    console.error('Error in user-market-stats endpoint:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// Get user NADA transactions (recent activity)
+app.get('/make-server-053bcd80/nada-transactions/:userId', async (c) => {
+  const userId = c.req.param('userId')
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  const limit = parseInt(c.req.query('limit') || '20')
+  
+  if (!userId) {
+    return c.json({ error: 'Missing userId' }, 400)
+  }
+  
+  try {
+    // Verify user is authenticated
+    if (accessToken) {
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+      if (authError || !user || user.id !== userId) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
+    }
+    
+    // Get recent transactions
+    const { data: transactions, error: txError } = await supabase
+      .from('nada_transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    
+    if (txError) {
+      console.error('Error fetching NADA transactions:', txError)
+      return c.json({ error: 'Failed to fetch transactions', details: txError.message }, 500)
+    }
+    
+    return c.json({
+      transactions: transactions || []
+    })
+  } catch (error: any) {
+    console.error('Error in nada-transactions endpoint:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
   }
 })
 
@@ -6457,6 +6883,380 @@ app.get('/make-server-053bcd80/health-check', requireAuth, async (c) => {
   } catch (error) {
     console.error('❌ Health check failed:', error)
     return c.json({ error: 'Health check failed', details: error.message }, 500)
+  }
+})
+
+// ========== SWAG SHOP ENDPOINTS ==========
+
+// ADMIN: Get all swag items
+app.get('/make-server-053bcd80/admin/swag-items', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  try {
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      return c.json({ error: 'Admin access required' }, 403)
+    }
+    
+    const { data: items, error } = await supabase
+      .from('swag_items')
+      .select('*')
+      .order('category', { ascending: true })
+      .order('price', { ascending: true })
+    
+    if (error) {
+      console.error('Error fetching swag items:', error)
+      return c.json({ error: 'Failed to fetch swag items' }, 500)
+    }
+    
+    return c.json({ items: items || [] })
+  } catch (error: any) {
+    console.error('Error in admin swag items:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// ADMIN: Create swag item
+app.post('/make-server-053bcd80/admin/swag-items', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  try {
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      return c.json({ error: 'Admin access required' }, 403)
+    }
+    
+    const body = await c.req.json()
+    const { id, name, description, price, category, gradient, icon, limited, stock } = body
+    
+    if (!id || !name || !price || !category) {
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+    
+    const { data: newItem, error } = await supabase
+      .from('swag_items')
+      .insert([{
+        id,
+        name,
+        description,
+        price,
+        category,
+        gradient,
+        icon,
+        limited: limited || false,
+        stock: stock || null,
+        active: true
+      }])
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Error creating swag item:', error)
+      return c.json({ error: 'Failed to create swag item', details: error.message }, 500)
+    }
+    
+    return c.json({ item: newItem })
+  } catch (error: any) {
+    console.error('Error in create swag item:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// ADMIN: Update swag item
+app.put('/make-server-053bcd80/admin/swag-items/:itemId', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  try {
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      return c.json({ error: 'Admin access required' }, 403)
+    }
+    
+    const itemId = c.req.param('itemId')
+    const body = await c.req.json()
+    const { name, description, price, category, gradient, icon, limited, stock, active } = body
+    
+    const { data: updatedItem, error } = await supabase
+      .from('swag_items')
+      .update({
+        name,
+        description,
+        price,
+        category,
+        gradient,
+        icon,
+        limited: limited || false,
+        stock: stock || null,
+        active: active !== undefined ? active : true
+      })
+      .eq('id', itemId)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Error updating swag item:', error)
+      return c.json({ error: 'Failed to update swag item', details: error.message }, 500)
+    }
+    
+    return c.json({ item: updatedItem })
+  } catch (error: any) {
+    console.error('Error in update swag item:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// ADMIN: Delete swag item
+app.delete('/make-server-053bcd80/admin/swag-items/:itemId', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  
+  try {
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    const adminUserId = Deno.env.get('ADMIN_USER_ID')
+    if (user.id !== adminUserId) {
+      return c.json({ error: 'Admin access required' }, 403)
+    }
+    
+    const itemId = c.req.param('itemId')
+    
+    const { error } = await supabase
+      .from('swag_items')
+      .delete()
+      .eq('id', itemId)
+    
+    if (error) {
+      console.error('Error deleting swag item:', error)
+      return c.json({ error: 'Failed to delete swag item', details: error.message }, 500)
+    }
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('Error in delete swag item:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// PUBLIC: Get active swag items
+app.get('/make-server-053bcd80/swag-items', async (c) => {
+  try {
+    const { data: items, error } = await supabase
+      .from('swag_items')
+      .select('*')
+      .eq('active', true)
+      .order('category', { ascending: true })
+      .order('price', { ascending: true })
+    
+    if (error) {
+      console.error('Error fetching swag items:', error)
+      return c.json({ error: 'Failed to fetch swag items' }, 500)
+    }
+    
+    return c.json({ items: items || [] })
+  } catch (error: any) {
+    console.error('Error in swag items:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// Get user's owned swag items
+app.get('/make-server-053bcd80/user-swag-items/:userId', async (c) => {
+  const userId = c.req.param('userId')
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!userId) {
+    return c.json({ error: 'Missing userId' }, 400)
+  }
+  
+  try {
+    // Verify user is authenticated
+    if (accessToken) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+      if (authError || user?.id !== userId) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
+    }
+    
+    // Get owned items from database
+    const { data, error } = await supabase
+      .from('user_swag_items')
+      .select('item_id, purchased_at')
+      .eq('user_id', userId)
+    
+    if (error) {
+      console.error('Error fetching user swag items:', error)
+      return c.json({ error: 'Failed to fetch owned items' }, 500)
+    }
+    
+    return c.json({
+      items: data?.map(item => item.item_id) || []
+    })
+  } catch (error: any) {
+    console.error('Error in user-swag-items endpoint:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// Purchase swag item
+app.post('/make-server-053bcd80/purchase-swag-item', async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1]
+  
+  if (!accessToken) {
+    return c.json({ error: 'Missing authorization token' }, 401)
+  }
+  
+  try {
+    const body = await c.req.json()
+    const { userId, itemId, itemName, price } = body
+    
+    if (!userId || !itemId || !price) {
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+    
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || user?.id !== userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    // Check if user already owns this item
+    const { data: existingItem } = await supabase
+      .from('user_swag_items')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('item_id', itemId)
+      .single()
+    
+    if (existingItem) {
+      return c.json({ error: 'You already own this item' }, 400)
+    }
+    
+    // Get user's current NADA balance from wallets table
+    let { data: wallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('nada_points')
+      .eq('user_id', userId)
+      .single()
+    
+    // If wallet doesn't exist, create one
+    if (walletError && walletError.code === 'PGRST116') {
+      console.log('Creating wallet for user:', userId)
+      const { data: newWallet, error: createWalletError } = await supabase
+        .from('wallets')
+        .insert([{ user_id: userId, nada_points: 0 }])
+        .select()
+        .single()
+      
+      if (createWalletError) {
+        console.error('Failed to create wallet:', createWalletError)
+        return c.json({ error: 'Failed to create wallet' }, 500)
+      }
+      
+      wallet = newWallet
+    } else if (walletError) {
+      console.error('Error fetching wallet:', walletError)
+      return c.json({ error: 'Failed to fetch wallet' }, 500)
+    }
+    
+    if (!wallet) {
+      return c.json({ error: 'Wallet not found' }, 404)
+    }
+    
+    const currentBalance = wallet.nada_points || 0
+    
+    // Check if user has enough NADA
+    if (currentBalance < price) {
+      return c.json({ error: 'Insufficient NADA points' }, 400)
+    }
+    
+    const newBalance = currentBalance - price
+    
+    // Update user's NADA balance in wallets table
+    const { error: updateError } = await supabase
+      .from('wallets')
+      .update({ nada_points: newBalance })
+      .eq('user_id', userId)
+    
+    if (updateError) {
+      console.error('Error updating NADA balance:', updateError)
+      return c.json({ error: 'Failed to update NADA balance' }, 500)
+    }
+    
+    // Add item to user's inventory
+    const { error: insertError } = await supabase
+      .from('user_swag_items')
+      .insert({
+        user_id: userId,
+        item_id: itemId,
+        item_name: itemName,
+        price_paid: price,
+        purchased_at: new Date().toISOString()
+      })
+    
+    if (insertError) {
+      console.error('Error adding item to inventory:', insertError)
+      // Rollback NADA balance in wallets table
+      await supabase
+        .from('wallets')
+        .update({ nada_points: currentBalance })
+        .eq('user_id', userId)
+      return c.json({ error: 'Failed to add item to inventory' }, 500)
+    }
+    
+    // Create NADA transaction record
+    await supabase
+      .from('nada_transactions')
+      .insert({
+        user_id: userId,
+        amount: -price,
+        type: 'purchase',
+        description: `Purchased: ${itemName}`,
+        created_at: new Date().toISOString()
+      })
+    
+    console.log(`✅ User ${userId} purchased ${itemName} for ${price} NADA. New balance: ${newBalance}`)
+    
+    return c.json({
+      success: true,
+      newBalance,
+      message: 'Item purchased successfully!'
+    })
+  } catch (error: any) {
+    console.error('Error in purchase-swag-item endpoint:', error)
+    return c.json({ error: 'Internal server error', details: error.message }, 500)
   }
 })
 

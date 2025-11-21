@@ -12,6 +12,7 @@ interface MarketSettingsProps {
   accessToken: string | null
   serverUrl: string
   onClose: () => void
+  onThemeUpdate: (theme: string) => void
 }
 
 interface OwnedItem {
@@ -107,7 +108,8 @@ export function MarketSettings({
   userId,
   accessToken,
   serverUrl,
-  onClose
+  onClose,
+  onThemeUpdate
 }: MarketSettingsProps) {
   const [ownedItems, setOwnedItems] = useState<OwnedItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -115,10 +117,10 @@ export function MarketSettings({
   const [currentTheme, setCurrentTheme] = useState('default')
   const [selectedBadge, setSelectedBadge] = useState('default')
   const [currentBadge, setCurrentBadge] = useState('default')
-  const [isSaving, setIsSaving] = useState(false)
+  const [isSavingTheme, setIsSavingTheme] = useState(false)
   const [isSavingBadge, setIsSavingBadge] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [badgeSaveSuccess, setBadgeSaveSuccess] = useState(false)
+  const [savingThemeId, setSavingThemeId] = useState<string | null>(null)
+  const [savingBadgeId, setSavingBadgeId] = useState<string | null>(null)
 
   // Fetch current theme and owned items from backend
   useEffect(() => {
@@ -198,72 +200,86 @@ export function MarketSettings({
     return ownedItems.some(item => item.id === badge.swagShopId)
   }
 
-  // Save selected theme
-  const handleSaveTheme = async () => {
-    if (!userId || !accessToken) return
-
-    setIsSaving(true)
+  // Auto-save theme when selected
+  const handleThemeSelect = async (themeId: string) => {
+    if (!userId || !accessToken || themeId === currentTheme) return
+    
+    setSelectedTheme(themeId)
+    setSavingThemeId(themeId)
+    setIsSavingTheme(true)
+    
     try {
       const response = await fetch(
         `${serverUrl}/users/${userId}/select-theme`,
         {
-          method: 'POST',
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`
           },
-          body: JSON.stringify({ theme: selectedTheme })
+          body: JSON.stringify({ theme: themeId })
         }
       )
 
       if (response.ok) {
-        setCurrentTheme(selectedTheme)
-        setSaveSuccess(true)
+        setCurrentTheme(themeId)
+        console.log('Theme saved successfully:', themeId)
+        // Update theme instantly via callback (no reload)
+        onThemeUpdate(themeId)
+        // Clear loading state after showing success
         setTimeout(() => {
-          setSaveSuccess(false)
-          onClose()
-          // Reload to apply theme
-          window.location.reload()
-        }, 1500)
+          setSavingThemeId(null)
+          setIsSavingTheme(false)
+        }, 800)
+      } else {
+        console.error('Failed to save theme:', await response.text())
+        setSavingThemeId(null)
+        setIsSavingTheme(false)
       }
     } catch (error) {
       console.error('Error saving theme:', error)
-    } finally {
-      setIsSaving(false)
+      setSavingThemeId(null)
+      setIsSavingTheme(false)
     }
   }
 
-  // Save selected badge
-  const handleSaveBadge = async () => {
-    if (!userId || !accessToken) return
-
+  // Auto-save badge when selected
+  const handleBadgeSelect = async (badgeId: string) => {
+    if (!userId || !accessToken || badgeId === currentBadge) return
+    
+    setSelectedBadge(badgeId)
+    setSavingBadgeId(badgeId)
     setIsSavingBadge(true)
+    
     try {
       const response = await fetch(
         `${serverUrl}/users/${userId}/select-badge`,
         {
-          method: 'POST',
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`
           },
-          body: JSON.stringify({ badge: selectedBadge })
+          body: JSON.stringify({ badge: badgeId })
         }
       )
 
       if (response.ok) {
-        setCurrentBadge(selectedBadge)
-        setBadgeSaveSuccess(true)
+        setCurrentBadge(badgeId)
+        console.log('Badge saved successfully:', badgeId)
+        // Clear loading state after showing success
         setTimeout(() => {
-          setBadgeSaveSuccess(false)
-          onClose()
-          // Reload to apply badge
-          window.location.reload()
-        }, 1500)
+          setSavingBadgeId(null)
+          setIsSavingBadge(false)
+        }, 1000)
+      } else {
+        console.error('Failed to save badge:', await response.text())
+        setSavingBadgeId(null)
+        setIsSavingBadge(false)
       }
     } catch (error) {
       console.error('Error saving badge:', error)
-    } finally {
+      setSavingBadgeId(null)
       setIsSavingBadge(false)
     }
   }
@@ -302,7 +318,7 @@ export function MarketSettings({
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Success Message */}
-          {saveSuccess && (
+          {savingThemeId && (
             <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
               <div>
@@ -341,7 +357,7 @@ export function MarketSettings({
                       >
                         {/* Lock Overlay */}
                         {!isOwned && (
-                          <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-2 border-2 border-destructive/30">
+                          <div className="absolute inset-0 z-[5] bg-black/60 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-2 border-2 border-destructive/30">
                             <Lock className="w-8 h-8 text-destructive" />
                             <p className="text-sm font-semibold text-white">Purchase in Swag Shop</p>
                             <Badge variant="outline" className="bg-destructive/20 border-destructive/50 text-destructive">
@@ -351,14 +367,21 @@ export function MarketSettings({
                         )}
 
                         <button
-                          onClick={() => isOwned && setSelectedTheme(theme.id)}
-                          disabled={!isOwned}
-                          className={`w-full p-5 rounded-2xl border-2 transition-all duration-300 ${
+                          onClick={() => isOwned && handleThemeSelect(theme.id)}
+                          disabled={!isOwned || isSavingTheme}
+                          className={`w-full p-5 rounded-2xl border-2 transition-all duration-300 relative ${
                             isSelected
                               ? 'border-primary bg-primary/10 shadow-lg scale-105'
                               : 'border-border/50 hover:border-primary/30 bg-card/50'
                           } ${!isOwned ? 'opacity-50' : 'hover:scale-105'}`}
                         >
+                          {/* Loading Spinner Overlay */}
+                          {savingThemeId === theme.id && (
+                            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
+                              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                            </div>
+                          )}
+                          
                           {/* Theme Preview */}
                           <div className="space-y-3">
                             {/* Gradient Preview */}
@@ -400,114 +423,10 @@ export function MarketSettings({
                   })}
                 </div>
               )}
-
-              {/* Save Button */}
-              {selectedTheme !== currentTheme && (
-                <div className="pt-4">
-                  <Button
-                    onClick={handleSaveTheme}
-                    disabled={isSaving}
-                    className="w-full bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/60 font-bold py-6 text-base gap-2"
-                  >
-                    {isSaving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Applying Theme...
-                      </>
-                    ) : (
-                      <>
-                        <Palette className="w-5 h-5" />
-                        Apply Theme
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
 
           <Separator />
-
-          {/* Premium Badges Section - Coming Soon */}
-          <Card className="border-2 border-purple-500/20 bg-gradient-to-br from-purple-500/5 via-card/50 to-pink-500/5 opacity-60">
-            <CardHeader>
-              <div className="flex items-center gap-2 mb-2">
-                <Award className="w-5 h-5 text-purple-500" />
-                <CardTitle className="flex items-center gap-2">
-                  Premium Badges
-                  <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600">
-                    Coming Soon
-                  </Badge>
-                </CardTitle>
-              </div>
-              <CardDescription>
-                Show off your achievements with exclusive profile badges
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {PREMIUM_BADGES.map((badge) => {
-                  const BadgeIcon = badge.icon || Award
-
-                  return (
-                    <div
-                      key={badge.id}
-                      className="relative group"
-                    >
-                      {/* Comic-style card with drop shadow */}
-                      <div className="relative p-4 rounded-2xl border-4 border-border bg-card transition-all hover:translate-y-[-4px]" 
-                        style={{
-                          boxShadow: '6px 6px 0px 0px rgba(0,0,0,0.3)',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {/* Halftone dot pattern overlay */}
-                        <div className="absolute inset-0 rounded-2xl opacity-20 pointer-events-none" style={{
-                          backgroundImage: `radial-gradient(circle at 2px 2px, rgba(0,0,0,0.2) 1px, transparent 0)`,
-                          backgroundSize: '8px 8px'
-                        }} />
-                        
-                        {/* Icon container with neon glow and comic styling */}
-                        <div className="mb-3 flex justify-center relative">
-                          {/* Neon glow ring */}
-                          <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${badge.bgGradient} blur-md opacity-40 scale-110`} />
-                          
-                          {/* Badge icon with comic border */}
-                          <div className={`relative w-16 h-16 rounded-xl bg-gradient-to-br ${badge.bgGradient} flex items-center justify-center shadow-lg border-4 border-background`}
-                            style={{
-                              boxShadow: '4px 4px 0px 0px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.2)'
-                            }}
-                          >
-                            <BadgeIcon className={`w-8 h-8 ${badge.iconColor} drop-shadow-lg`} strokeWidth={2.5} />
-                            
-                            {/* Shine effect */}
-                            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/30 via-transparent to-transparent" />
-                          </div>
-                        </div>
-                        
-                        {/* Badge info with comic text styling */}
-                        <div className="text-center relative">
-                          <p className="text-sm font-black text-foreground mb-1 drop-shadow-md tracking-tight" 
-                            style={{
-                              textShadow: '2px 2px 0px rgba(0,0,0,0.1)'
-                            }}
-                          >
-                            {badge.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground/90 line-clamp-2 font-medium">
-                            {badge.description}
-                          </p>
-                        </div>
-
-                        {/* Solarpunk accent corner */}
-                        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 animate-pulse" />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Info Footer */}
           <div className="p-4 rounded-lg bg-muted/30 border border-dashed border-border">

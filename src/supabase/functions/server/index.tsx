@@ -834,6 +834,14 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
     
+    console.log('📊 User Progress Retrieved:', {
+      userId,
+      points: transformedProgress.points,
+      marketUnlocked: transformedProgress.marketUnlocked,
+      marketUnlockedRaw: progress.market_unlocked,
+      nadaPoints: transformedProgress.nadaPoints
+    })
+    
     return c.json({ progress: transformedProgress })
   } catch (error) {
     console.log('Error fetching user progress:', error)
@@ -855,8 +863,8 @@ app.post('/make-server-053bcd80/articles/:articleId/start-reading', requireAuth,
       return c.json({ error: 'Unauthorized' }, 401)
     }
     
-    // Generate read token
-    const readToken = articleSecurity.generateReadToken(user.id, articleId)
+    // Generate read token (now async)
+    const readToken = await articleSecurity.generateReadToken(user.id, articleId)
     
     console.log('🔐 Generated read token for user:', user.id, 'article:', articleId)
     
@@ -1172,7 +1180,7 @@ app.put('/make-server-053bcd80/users/:userId/profile', async (c) => {
     
     console.log('Access token present:', accessToken ? 'YES' : 'NO')
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
       console.log('ERROR: Auth failed', { authError, userId: user?.id, expectedUserId: userId })
       return c.json({ error: 'Unauthorized' }, 401)
@@ -1295,7 +1303,7 @@ app.put('/make-server-053bcd80/users/:userId/select-theme', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
       return c.json({ error: 'Unauthorized' }, 401)
     }
@@ -1338,7 +1346,7 @@ app.put('/make-server-053bcd80/users/:userId/select-badge', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
       return c.json({ error: 'Unauthorized' }, 401)
     }
@@ -1379,7 +1387,7 @@ app.put('/make-server-053bcd80/users/:userId/profile-banner', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
       return c.json({ error: 'Unauthorized' }, 401)
     }
@@ -1419,7 +1427,7 @@ app.post('/make-server-053bcd80/users/:userId/enable-priority-support', async (c
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
       return c.json({ error: 'Unauthorized' }, 401)
     }
@@ -1476,7 +1484,7 @@ app.post('/make-server-053bcd80/users/:userId/exchange-points', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
       console.log('ERROR: Auth failed', { authError, userId: user?.id, expectedUserId: userId })
       await walletSecurity.createAuditLog(supabase, userId, 'exchange_failed', 
@@ -1751,7 +1759,7 @@ app.post('/make-server-053bcd80/unlock-market', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user) {
       console.log('ERROR: Auth failed', { authError })
       return c.json({ error: 'Unauthorized' }, 401)
@@ -1857,7 +1865,7 @@ app.get('/make-server-053bcd80/admin/nada-transactions', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user) {
       console.log('ERROR: Auth failed', { authError })
       return c.json({ error: 'Unauthorized' }, 401)
@@ -1921,7 +1929,7 @@ app.post('/make-server-053bcd80/admin/refund-nada', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user) {
       console.log('ERROR: Auth failed', { authError })
       return c.json({ error: 'Unauthorized' }, 401)
@@ -2015,7 +2023,7 @@ app.put('/make-server-053bcd80/users/:userId/marketing-preference', async (c) =>
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !user || user.id !== userId) {
       console.log('ERROR: Auth failed', { authError, userId: user?.id, expectedUserId: userId })
       return c.json({ error: 'Unauthorized' }, 401)
@@ -2548,7 +2556,7 @@ app.post('/make-server-053bcd80/track-share', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     
     if (authError || !user) {
       return c.json({ error: 'Invalid access token' }, 401)
@@ -2602,7 +2610,7 @@ app.post('/make-server-053bcd80/track-swipe', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     
     if (authError || !user) {
       return c.json({ error: 'Invalid access token' }, 401)
@@ -2716,7 +2724,7 @@ app.post('/make-server-053bcd80/track-creation', async (c) => {
       return c.json({ error: 'No access token provided' }, 401)
     }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     
     if (authError || !user) {
       return c.json({ error: 'Invalid access token' }, 401)
@@ -7104,7 +7112,7 @@ app.get('/make-server-053bcd80/user-swag-items/:userId', async (c) => {
   try {
     // Verify user is authenticated
     if (accessToken) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
       if (authError || user?.id !== userId) {
         return c.json({ error: 'Unauthorized' }, 401)
       }
@@ -7147,7 +7155,7 @@ app.post('/make-server-053bcd80/purchase-swag-item', async (c) => {
     }
     
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || user?.id !== userId) {
       return c.json({ error: 'Unauthorized' }, 401)
     }

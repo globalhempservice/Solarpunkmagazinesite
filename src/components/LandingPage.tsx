@@ -185,10 +185,10 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
       icon: BookOpen,
       gradient: 'from-emerald-500 via-teal-500 to-green-600',
       features: [
-        { icon: Flame, text: "Daily Streaks", gradient: 'from-orange-500 to-red-500' },
-        { icon: Trophy, text: "35+ Achievements", gradient: 'from-amber-500 to-yellow-500' },
-        { icon: Target, text: "Progressive Rewards", gradient: 'from-violet-500 to-purple-500' },
-        { icon: Star, text: "Level Up", gradient: 'from-blue-500 to-cyan-500' }
+        { icon: Flame, text: "Daily Streaks", gradient: 'from-emerald-400 via-teal-400 to-green-500' },
+        { icon: Trophy, text: "35+ Achievements", gradient: 'from-teal-400 via-emerald-500 to-green-600' },
+        { icon: Target, text: "Progressive Rewards", gradient: 'from-green-400 via-emerald-500 to-teal-600' },
+        { icon: Star, text: "Level Up", gradient: 'from-emerald-500 via-green-500 to-teal-500' }
       ]
     },
     {
@@ -196,12 +196,12 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
       subtitle: "Vote, Share, Create",
       description: "Join a thriving community where your voice matters. Vote on features and submit ideas.",
       icon: Users,
-      gradient: 'from-violet-500 via-purple-500 to-fuchsia-600',
+      gradient: 'from-teal-500 via-emerald-500 to-green-600',
       features: [
-        { icon: TrendingUp, text: "Community Voting", gradient: 'from-green-500 to-emerald-500' },
-        { icon: Sparkles, text: "Submit Ideas", gradient: 'from-pink-500 to-rose-500' },
-        { icon: Heart, text: "Share Articles", gradient: 'from-red-500 to-pink-500' },
-        { icon: Users, text: "Reading Matches", gradient: 'from-indigo-500 to-purple-500' }
+        { icon: TrendingUp, text: "Community Voting", gradient: 'from-emerald-400 via-teal-500 to-green-500' },
+        { icon: Sparkles, text: "Submit Ideas", gradient: 'from-teal-500 via-green-400 to-emerald-500' },
+        { icon: Heart, text: "Share Articles", gradient: 'from-green-500 via-teal-400 to-emerald-500' },
+        { icon: Users, text: "Reading Matches", gradient: 'from-emerald-500 via-teal-500 to-green-400' }
       ]
     },
     {
@@ -209,12 +209,12 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
       subtitle: "NADA Points Buy Power",
       description: "Trade NADA for exclusive features like Swipe Mode, custom themes, and hemp merch.",
       icon: Unlock,
-      gradient: 'from-amber-500 via-yellow-500 to-orange-600',
+      gradient: 'from-green-500 via-emerald-500 to-teal-600',
       features: [
-        { icon: Zap, text: "Swipe Mode", gradient: 'from-yellow-500 to-amber-500' },
-        { icon: ShoppingBag, text: "Swag Shop", gradient: 'from-orange-500 to-red-500' },
-        { icon: Palette, text: "Premium Themes", gradient: 'from-fuchsia-500 to-pink-500' },
-        { icon: Gift, text: "Exclusive Content", gradient: 'from-emerald-500 to-teal-500' }
+        { icon: Zap, text: "Swipe Mode", gradient: 'from-teal-400 via-emerald-400 to-green-500' },
+        { icon: ShoppingBag, text: "Swag Shop", gradient: 'from-emerald-500 via-green-400 to-teal-500' },
+        { icon: Palette, text: "Premium Themes", gradient: 'from-green-400 via-teal-500 to-emerald-500' },
+        { icon: Gift, text: "Exclusive Content", gradient: 'from-emerald-400 via-teal-500 to-green-600' }
       ]
     }
   ]
@@ -236,12 +236,24 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
   const visibleSlides = getVisibleSlides()
 
   return (
-    <div className="h-screen bg-background text-foreground overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-900 to-green-950 text-foreground overflow-hidden flex flex-col relative">
+      
+      {/* Hemp fiber texture overlay */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23059669' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        backgroundSize: '80px 80px'
+      }} />
+
+      {/* Animated background orbs */}
+      <div className="absolute top-20 left-20 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-20 right-20 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-green-400/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+
       {/* Top Header - Fixed at Top */}
       <header className="fixed top-0 left-0 right-0 z-50 w-full">
         {/* Gradient blur mask */}
         <div 
-          className="absolute inset-0 backdrop-blur-2xl"
+          className="absolute inset-0 backdrop-blur-xl bg-gradient-to-b from-emerald-950/80 via-emerald-950/40 to-transparent"
           style={{
             WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
             maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
@@ -250,39 +262,27 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
 
         {/* Content */}
         <div className="relative">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-center gap-4">
-              {/* CENTER: Logo Button */}
-              <button
-                onClick={cycleTheme}
-                className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full active:scale-95"
-                aria-label="Change theme"
-              >
-                {/* Animated glow on theme change */}
-                {isAnimating && (
-                  <div className={`absolute -inset-6 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-2xl opacity-50 animate-pulse`} />
-                )}
-
+          <div className="container mx-auto px-4 py-5">
+            <div className="flex items-center justify-center gap-3">
+              {/* Logo with comic style */}
+              <div className="relative group">
+                {/* Animated glow */}
+                <div className="absolute -inset-4 bg-gradient-to-r from-emerald-400 via-teal-400 to-green-400 rounded-full blur-xl opacity-30 group-hover:opacity-50 transition-all" />
+                
                 {/* Logo */}
-                <div className={`relative transition-all ${isAnimating ? 'scale-110' : 'group-hover:scale-105'}`}>
+                <div className="relative">
                   <BrandLogo size="md" showAnimation={isAnimating} />
                 </div>
+              </div>
 
-                {/* Floating sparkles on animation */}
-                {isAnimating && (
-                  <>
-                    <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-primary animate-ping" />
-                    <Sparkles className="absolute -bottom-1 -left-1 w-3 h-3 text-primary animate-ping" style={{ animationDelay: '150ms' }} />
-                  </>
-                )}
-              </button>
-
-              {/* Title & Subtitle (Right of Logo) */}
+              {/* Title & Subtitle */}
               <div className="text-left">
-                <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tighter drop-shadow-lg" style={{
+                  textShadow: '3px 3px 0 rgba(5, 150, 105, 0.8), 0 0 20px rgba(16, 185, 129, 0.4)'
+                }}>
                   DEWII
                 </h1>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-emerald-300 font-bold tracking-wide">
                   Digital Eco Wisdom
                 </p>
               </div>
@@ -292,20 +292,21 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
       </header>
 
       {/* Secondary Navbar - Carousel Navigation Icons */}
-      <div className="fixed top-16 left-0 right-0 z-40 w-full">
-        {/* Blurred background with gradient - strongest in center, fading at top/bottom */}
-        <div className="absolute inset-0 overflow-hidden">
+      <div className="fixed top-20 left-0 right-0 z-40 w-full">
+        {/* Blurred background with radial gradient - only visible at center */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div 
-            className="absolute inset-0 bg-background/40"
+            className="absolute inset-0 backdrop-blur-md"
             style={{
-              backdropFilter: 'blur(2px)',
+              WebkitMaskImage: 'radial-gradient(ellipse 60% 100% at center, black 0%, rgba(0,0,0,0.6) 40%, transparent 70%)',
+              maskImage: 'radial-gradient(ellipse 60% 100% at center, black 0%, rgba(0,0,0,0.6) 40%, transparent 70%)'
             }}
           />
           <div 
-            className="absolute inset-0"
+            className="absolute inset-0 bg-emerald-950/40"
             style={{
-              background: 'radial-gradient(ellipse 80% 100% at center, rgba(0,0,0,0.15) 0%, transparent 100%)',
-              backdropFilter: 'blur(20px)',
+              WebkitMaskImage: 'radial-gradient(ellipse 50% 100% at center, black 0%, rgba(0,0,0,0.4) 30%, transparent 60%)',
+              maskImage: 'radial-gradient(ellipse 50% 100% at center, black 0%, rgba(0,0,0,0.4) 30%, transparent 60%)'
             }}
           />
         </div>
@@ -317,9 +318,9 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
             <button
               onClick={slideToPrevious}
               disabled={isSliding}
-              className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-background/80 border border-border/50 hover:border-primary/50 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-emerald-950/60 border-2 border-emerald-700/40 hover:border-emerald-500/60 hover:bg-emerald-900/70 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
             >
-              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-300" />
             </button>
 
             {/* Slide Icons: All 3 visible */}
@@ -341,19 +342,33 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
                       duration: 0.5,
                       ease: [0.4, 0, 0.2, 1],
                     }}
-                    className={`flex-shrink-0 p-2.5 sm:p-4 rounded-full transition-all duration-500 ease-out ${
+                    className={`relative flex-shrink-0 p-2.5 sm:p-4 rounded-full transition-all duration-500 ease-out border-2 ${
                       isCenter
-                        ? `bg-gradient-to-br ${gradient} shadow-xl cursor-default`
-                        : 'bg-muted/40 hover:bg-muted/60 hover:scale-90 cursor-pointer'
+                        ? 'bg-gradient-to-br from-emerald-400 via-teal-400 to-green-500 border-emerald-950 shadow-xl cursor-default'
+                        : 'bg-emerald-950/50 border-emerald-800/30 hover:bg-emerald-900/60 hover:scale-90 cursor-pointer'
                     } ${isSliding ? 'pointer-events-none' : ''}`}
                     title={title}
                   >
+                    {/* Halftone pattern for active icon */}
+                    {isCenter && (
+                      <div className="absolute inset-0 rounded-full opacity-20 pointer-events-none" style={{
+                        backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.6) 1px, transparent 0)`,
+                        backgroundSize: '8px 8px'
+                      }} />
+                    )}
+                    
+                    {/* Neon glow for active icon */}
+                    {isCenter && (
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-300/30 to-transparent blur-md" />
+                    )}
+                    
                     <Icon 
-                      className={`w-5 h-5 sm:w-7 sm:h-7 transition-colors duration-500 ${
+                      className={`relative w-5 h-5 sm:w-7 sm:h-7 transition-colors duration-500 ${ 
                         isCenter 
-                          ? 'text-white' 
-                          : 'text-muted-foreground'
-                      }`} 
+                          ? 'text-emerald-950 drop-shadow-lg' 
+                          : 'text-emerald-400/60'
+                      }`}
+                      strokeWidth={isCenter ? 3 : 2}
                     />
                   </motion.button>
                 )
@@ -364,9 +379,9 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
             <button
               onClick={slideToNext}
               disabled={isSliding}
-              className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-background/80 border border-border/50 hover:border-primary/50 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-emerald-950/60 border-2 border-emerald-700/40 hover:border-emerald-500/60 hover:bg-emerald-900/70 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
             >
-              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-300" />
             </button>
           </div>
         </div>
@@ -435,26 +450,37 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
                       onMouseEnter={() => setHoveredCard(i)}
                       onMouseLeave={() => setHoveredCard(null)}
                       onClick={(e) => handleCardClick(i, e)}
-                      className="group relative w-full aspect-square rounded-3xl overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95"
+                      className="group relative w-full aspect-square transition-all duration-300 hover:scale-105 active:scale-95"
                     >
-                      {/* Subtle glow effect */}
-                      <div className={`absolute -inset-2 bg-gradient-to-r ${feature.gradient} rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500`} />
-                      
-                      {/* Main gradient background - Wallet style */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-85`} />
-                      
-                      {/* Subtle pattern overlay */}
-                      <div className="absolute inset-0 opacity-5" style={{
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-                      }} />
-                      
-                      {/* Icon - Large and centered */}
-                      <div className="relative h-full flex items-center justify-center p-4">
-                        <FeatureIcon className="w-12 h-12 md:w-16 md:h-16 text-white drop-shadow-lg" strokeWidth={2} />
-                      </div>
+                      {/* Comic drop shadow */}
+                      <div 
+                        className="absolute inset-0 bg-emerald-950 rounded-3xl"
+                        style={{
+                          transform: 'translate(6px, 6px)',
+                          zIndex: -1
+                        }}
+                      />
 
-                      {/* Subtle shine effect on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      {/* Main card with border and gradient */}
+                      <div className={`relative w-full h-full bg-gradient-to-br ${feature.gradient} rounded-3xl border-4 border-emerald-950 shadow-2xl overflow-hidden`}>
+                        
+                        {/* Halftone pattern overlay */}
+                        <div className="absolute inset-0 rounded-3xl opacity-30 pointer-events-none" style={{
+                          backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.4) 1px, transparent 0)`,
+                          backgroundSize: '12px 12px'
+                        }} />
+
+                        {/* Neon glow */}
+                        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-emerald-300/40 to-transparent blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                        {/* Icon - Large and centered */}
+                        <div className="relative h-full flex items-center justify-center p-4">
+                          <FeatureIcon className="w-12 h-12 md:w-16 md:h-16 text-emerald-950 drop-shadow-lg" strokeWidth={3} />
+                        </div>
+
+                        {/* Shine effect on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      </div>
                     </button>
 
                     {/* Text - Space always reserved, visibility toggles */}

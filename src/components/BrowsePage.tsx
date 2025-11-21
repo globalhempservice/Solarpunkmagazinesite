@@ -29,6 +29,8 @@ interface BrowsePageProps {
   onArticleClick: (article: Article) => void
   loading?: boolean
   categoryMenuOpen?: boolean
+  browseCategoryIndex?: number
+  setBrowseCategoryIndex?: (index: number) => void
 }
 
 // Category definitions with icons
@@ -70,8 +72,8 @@ const categories = [
   },
 ]
 
-export function BrowsePage({ articles, onArticleClick, loading = false, categoryMenuOpen = true }: BrowsePageProps) {
-  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0)
+export function BrowsePage({ articles, onArticleClick, loading = false, categoryMenuOpen = true, browseCategoryIndex, setBrowseCategoryIndex }: BrowsePageProps) {
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(browseCategoryIndex ?? 0)
   const [displayedArticles, setDisplayedArticles] = useState<Article[]>([])
   const [isSpinning, setIsSpinning] = useState(false)
   const [showArticles, setShowArticles] = useState(false)
@@ -80,6 +82,21 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
 
   const currentCategory = categories[currentCategoryIndex]
   const totalCategories = categories.length
+
+  // Sync with parent state when browseCategoryIndex changes (e.g., returning from article)
+  useEffect(() => {
+    if (browseCategoryIndex !== undefined && browseCategoryIndex !== currentCategoryIndex) {
+      setCurrentCategoryIndex(browseCategoryIndex)
+    }
+  }, [browseCategoryIndex])
+
+  // Save category to parent state and localStorage when it changes
+  useEffect(() => {
+    if (setBrowseCategoryIndex) {
+      setBrowseCategoryIndex(currentCategoryIndex)
+    }
+    localStorage.setItem('browseCategoryIndex', currentCategoryIndex.toString())
+  }, [currentCategoryIndex, setBrowseCategoryIndex])
 
   // Helper function to get category metadata by name
   const getCategoryMetadata = (categoryName: string) => {
@@ -116,20 +133,15 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
     // Get articles from selected category
     const categoryArticles = articles.filter(a => a.category === currentCategory.name)
     
-    // Shuffle the category articles
-    const shuffled = [...categoryArticles].sort(() => Math.random() - 0.5)
+    // Sort by date (latest first) - assuming createdAt is in ISO format
+    const sortedByDate = [...categoryArticles].sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime()
+      const dateB = new Date(b.createdAt).getTime()
+      return dateB - dateA // Latest first
+    })
     
-    // If we have less than 6, fill with random articles from other categories
-    if (shuffled.length < 6) {
-      const otherArticles = articles
-        .filter(a => a.category !== currentCategory.name)
-        .sort(() => Math.random() - 0.5)
-      
-      shuffled.push(...otherArticles.slice(0, 6 - shuffled.length))
-    }
-    
-    // Take only 6 articles
-    setDisplayedArticles(shuffled.slice(0, 6))
+    // Take all articles from this category
+    setDisplayedArticles(sortedByDate)
 
     // Show articles after brief delay
     const articlesTimer = setTimeout(() => {
@@ -285,11 +297,11 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  className="space-y-6 max-w-4xl mx-auto"
                 >
-                  {[...Array(6)].map((_, i) => (
+                  {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-3">
-                      <Skeleton className="h-48 w-full" />
+                      <Skeleton className="h-64 w-full" />
                       <Skeleton className="h-4 w-3/4" />
                       <Skeleton className="h-4 w-1/2" />
                     </div>
@@ -321,7 +333,7 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.4 }}
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  className="space-y-6 max-w-4xl mx-auto"
                 >
                   {displayedArticles.map((article, index) => {
                     const categoryMeta = getCategoryMetadata(article.category)
@@ -330,7 +342,7 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
                         key={article.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
+                        transition={{ delay: index * 0.05 }}
                       >
                         <ArticleCard
                           article={article}
@@ -344,7 +356,7 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
                 </motion.div>
               )}
 
-              {/* Shuffle hint */}
+              {/* Category info hint */}
               {!loading && displayedArticles.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -354,7 +366,7 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
                 >
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                     <Sparkles className="w-4 h-4" />
-                    <span>Fresh picks every spin</span>
+                    <span>{displayedArticles.length} article{displayedArticles.length !== 1 ? 's' : ''} • Latest first</span>
                   </div>
                 </motion.div>
               )}

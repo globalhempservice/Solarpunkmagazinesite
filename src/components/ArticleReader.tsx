@@ -38,6 +38,8 @@ import { PlaceholderArt } from "./PlaceholderArt"
 import { ShareButton } from "./ShareButton"
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from "../utils/featureUnlocks"
 import { FeatureUnlockModal } from "./FeatureUnlockModal"
+import { ClaimPointsButton } from "./ClaimPointsButton"
+import { projectId } from "../utils/supabase/info"
 
 interface MediaItem {
   type: 'youtube' | 'audio' | 'image' | 'pdf'
@@ -75,15 +77,23 @@ interface ArticleReaderProps {
     currentStreak: number
     longestStreak: number
     totalArticlesRead: number
+    readArticles?: string[]
   } | null
   suggestedArticles?: Article[]
   onArticleSelect?: (article: Article) => void
   accessToken?: string
+  userId?: string | null
+  onProgressUpdate?: (progress: any) => void
 }
 
-export function ArticleReader({ article, onBack, allArticles = [], userProgress, suggestedArticles, onArticleSelect, accessToken }: ArticleReaderProps) {
+export function ArticleReader({ article, onBack, allArticles = [], userProgress, suggestedArticles, onArticleSelect, accessToken, userId, onProgressUpdate }: ArticleReaderProps) {
   const [isSliding, setIsSliding] = useState(false)
   const [showUnlockModal, setShowUnlockModal] = useState(false)
+  const [claimingPoints, setClaimingPoints] = useState(false)
+  const [pointsClaimed, setPointsClaimed] = useState(false)
+
+  // Check if article is already read
+  const isAlreadyRead = userProgress?.readArticles?.includes(article.id) || false
 
   // Debug: Log media to console
   console.log('📰 Article Media:', article.media)
@@ -116,6 +126,73 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
       }
       setIsSliding(false)
     }, 300)
+  }
+
+  const handleClaimPoints = async () => {
+    if (!userId || !accessToken || isAlreadyRead || claimingPoints || pointsClaimed) return
+
+    setClaimingPoints(true)
+
+    try {
+      const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`
+      
+      // Step 1: Start reading session to get a read token
+      const startResponse = await fetch(`${serverUrl}/articles/${article.id}/start-reading`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+
+      if (!startResponse.ok) {
+        throw new Error('Failed to start reading session')
+      }
+
+      const { readToken } = await startResponse.json()
+
+      // Step 2: Wait 2 seconds (minimum required time)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Step 3: Mark as read with security metrics
+      const response = await fetch(`${serverUrl}/users/${userId}/read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          articleId: article.id,
+          readToken,
+          readingStartTime: Date.now() - 2500, // 2.5 seconds ago
+          scrollDepth: 100, // Full scroll
+          scrollEvents: 5,
+          mouseMovements: 10,
+          focusTime: 2500,
+          fingerprint: 'web-reader'
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setPointsClaimed(true)
+        
+        // Update parent progress
+        if (onProgressUpdate && data.progress) {
+          onProgressUpdate(data.progress)
+        }
+
+        console.log('✅ Points claimed successfully!')
+      } else {
+        const error = await response.json()
+        console.error('Failed to claim points:', error)
+        alert(`Could not claim points: ${error.details || error.error}`)
+      }
+    } catch (error: any) {
+      console.error('Error claiming points:', error)
+      alert('Failed to claim points. Please try again.')
+    } finally {
+      setClaimingPoints(false)
+    }
   }
 
   const renderMedia = (mediaItem: MediaItem, index: number) => {
@@ -255,19 +332,34 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
     <AnimatePresence mode="wait">
       <motion.div
         key={article.id}
-        initial={{ opacity: 0, x: 100 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -100 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
         className="min-h-screen pb-32 relative"
       >
+        {/* Scroll Progress Indicator */}
+        <motion.div
+          className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 dark:from-emerald-400 dark:via-teal-400 dark:to-cyan-400 hempin:from-amber-500 hempin:via-orange-500 hempin:to-teal-500 z-50 origin-left shadow-lg shadow-emerald-500/50"
+          style={{
+            scaleX: 0,
+          }}
+          animate={{
+            scaleX: 1
+          }}
+          transition={{
+            duration: 2,
+            ease: "easeOut"
+          }}
+        />
+
         {/* Fixed Background Art - matches the article card preview */}
         <motion.div
           key={`bg-${article.id}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
           className="fixed inset-0 z-0"
         >
           <div className="absolute inset-0 opacity-35 dark:opacity-30 hempin:opacity-40">
@@ -285,85 +377,153 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
         
         <div className="max-w-3xl mx-auto px-4 py-6 md:py-8 space-y-6 relative z-10">
           
-          {/* Clean Points & Stats Card */}
+          {/* Clean Points & Stats Card - SOLARPUNK GAME STYLE */}
           {userProgress && (
-            <Card className="relative overflow-hidden border-0 shadow-2xl">
-              {/* Multi-layer gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 dark:from-emerald-500 dark:via-teal-600 dark:to-cyan-700 hempin:from-amber-500 hempin:via-orange-600 hempin:to-teal-600" />
-              <div className="absolute inset-0 bg-gradient-to-tl from-purple-600/40 via-transparent to-blue-500/40 animate-gradient-xy" />
-              
-              {/* Glow effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 dark:from-emerald-400 dark:via-teal-500 dark:to-cyan-500 hempin:from-amber-600 hempin:via-orange-500 hempin:to-teal-500 blur-xl opacity-50 animate-pulse" />
-              
-              {/* Floating particles */}
-              <div className="absolute inset-0 overflow-hidden">
-                {[...Array(12)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-2 h-2 bg-white/30 rounded-full animate-float"
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
-                      animationDelay: `${Math.random() * 5}s`,
-                      animationDuration: `${3 + Math.random() * 4}s`
-                    }}
-                  />
-                ))}
+            <Card className="relative overflow-hidden border-0 shadow-2xl rounded-3xl">
+              {/* Comic-style neon gradient border */}
+              <div className="absolute inset-0 rounded-3xl p-[4px] bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600">
+                <div className="w-full h-full bg-card rounded-[22px]" />
               </div>
-
-              <CardContent className="relative p-6 md:p-8">
-                {/* Header with Points */}
-                <div className="flex items-center justify-between gap-4 mb-6">
-                  <div className="text-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
-                        <Award className="w-6 h-6" />
-                      </div>
-                      <h3 className="text-xl md:text-2xl font-bold">Reading Rewards</h3>
-                    </div>
-                    <p className="text-white/90 text-sm md:text-base">Complete this article to level up!</p>
-                  </div>
-                  
-                  {/* Points to Earn - Compact with Bolt */}
-                  <div className="relative group">
-                    <div className="absolute -inset-1 bg-white/40 rounded-2xl blur-md group-hover:blur-lg transition-all" />
-                    <div className="relative bg-gradient-to-br from-white/95 to-white/80 backdrop-blur-md rounded-2xl p-4 border border-white/50 shadow-xl">
-                      <div className="text-xs text-emerald-700 dark:text-emerald-800 hempin:text-amber-800 font-semibold mb-1">You'll Earn</div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 hempin:from-amber-600 hempin:to-orange-600 bg-clip-text text-transparent">+10</span>
-                        <Zap className="w-5 h-5 fill-emerald-600 text-emerald-600 dark:fill-emerald-500 dark:text-emerald-500 hempin:fill-amber-600 hempin:text-amber-600" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              
+              {/* Inner content container */}
+              <div className="relative">
+                {/* Halftone pattern overlay */}
+                <div className="absolute inset-0 opacity-[0.04] pointer-events-none rounded-3xl" style={{
+                  backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.5) 1.5px, transparent 1.5px)',
+                  backgroundSize: '16px 16px'
+                }} />
                 
-                {/* Stats Grid - Icon + Number Only - Matching UserDashboard */}
-                <div className="grid grid-cols-3 gap-3 md:gap-4">
-                  {/* Current Streak with Flame */}
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
-                    <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg">
-                      <Flame className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                <CardContent className="relative p-6 md:p-8 space-y-6">
+                  {/* Header Section */}
+                  <div className="text-center space-y-2">
+                    <div className="inline-flex items-center justify-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center shadow-[0_6px_0_rgba(0,0,0,0.2),0_0_20px_rgba(251,191,36,0.4)] border-2 border-white/30">
+                        <Award className="w-6 h-6 text-white drop-shadow-lg" strokeWidth={2.5} />
+                      </div>
                     </div>
-                    <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.currentStreak}</div>
+                    <h3 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent" style={{
+                      textShadow: '0 0 30px rgba(16,185,129,0.3)'
+                    }}>
+                      READING REWARDS
+                    </h3>
+                    <p className="text-muted-foreground font-medium">Complete this article to level up!</p>
                   </div>
                   
-                  {/* Total Articles with Book */}
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
-                    <div className="p-2 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg">
-                      <Book className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                  {/* MEGA POINTS CARD - Comic Style */}
+                  <div className="relative group">
+                    {/* Outer glow */}
+                    <div className="absolute -inset-2 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 rounded-2xl blur-xl opacity-60 group-hover:opacity-80 transition-all animate-pulse" />
+                    
+                    {/* Main card with comic shadow */}
+                    <div className="relative rounded-2xl p-[3px] bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 shadow-[0_10px_0_rgba(0,0,0,0.25),0_0_40px_rgba(251,191,36,0.5)] group-hover:shadow-[0_12px_0_rgba(0,0,0,0.3),0_0_60px_rgba(251,191,36,0.6)] transition-all">
+                      <div className="relative rounded-[14px] bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/90 dark:to-yellow-900/90 p-6 md:p-8 border-2 border-white/40">
+                        {/* Halftone on points card */}
+                        <div className="absolute inset-0 opacity-[0.06] rounded-[14px]" style={{
+                          backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.6) 2px, transparent 2px)',
+                          backgroundSize: '20px 20px'
+                        }} />
+                        
+                        <div className="relative text-center space-y-4">
+                          <div className="text-xs md:text-sm font-black text-amber-700 dark:text-amber-300 tracking-widest uppercase">
+                            You'll Earn
+                          </div>
+                          
+                          {/* MASSIVE +10 DISPLAY */}
+                          <div className="flex items-center justify-center gap-3 md:gap-4">
+                            <Zap className="w-10 h-10 md:w-14 md:h-14 text-amber-600 dark:text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.8)] animate-pulse" strokeWidth={2.5} fill="currentColor" />
+                            <div className="flex items-center">
+                              <span className="text-6xl md:text-8xl font-black bg-gradient-to-br from-amber-600 via-yellow-600 to-orange-600 dark:from-amber-400 dark:via-yellow-400 dark:to-orange-400 bg-clip-text text-transparent drop-shadow-2xl" style={{
+                                textShadow: '4px 4px 0 rgba(0,0,0,0.1)',
+                                WebkitTextStroke: '2px rgba(251,191,36,0.3)'
+                              }}>
+                                +10
+                              </span>
+                            </div>
+                            <Zap className="w-10 h-10 md:w-14 md:h-14 text-amber-600 dark:text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.8)] animate-pulse" strokeWidth={2.5} fill="currentColor" />
+                          </div>
+                          
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-600/20 to-orange-600/20 rounded-full border-2 border-amber-500/30">
+                            <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
+                            <span className="text-sm md:text-base font-black text-amber-700 dark:text-amber-300 tracking-wide">
+                              POINTS
+                            </span>
+                            <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.totalArticlesRead}</div>
                   </div>
                   
-                  {/* Longest Streak with Trophy */}
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20 flex items-center justify-center gap-2">
-                    <div className="p-2 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-lg">
-                      <Trophy className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                  {/* Stats Grid - Each in its own COMIC CARD */}
+                  <div className="grid grid-cols-3 gap-3 md:gap-4">
+                    {/* Current Streak Card */}
+                    <div className="relative group">
+                      <div className="absolute -inset-1 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-all" />
+                      <div className="relative rounded-2xl p-[3px] bg-gradient-to-br from-orange-500 to-red-500 shadow-[0_6px_0_rgba(0,0,0,0.2),0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_8px_0_rgba(0,0,0,0.25),0_0_30px_rgba(249,115,22,0.5)] transition-all">
+                        <div className="rounded-[14px] bg-card p-4 md:p-5 border-2 border-white/20">
+                          <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg">
+                              <Flame className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-lg" strokeWidth={2.5} />
+                            </div>
+                            <div>
+                              <div className="text-3xl md:text-4xl font-black bg-gradient-to-br from-orange-600 to-red-600 bg-clip-text text-transparent">
+                                {userProgress.currentStreak}
+                              </div>
+                              <div className="text-xs font-black text-muted-foreground tracking-wide uppercase mt-1">
+                                Streak
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-2xl md:text-3xl font-bold text-white">{userProgress.longestStreak}</div>
+                    
+                    {/* Total Articles Card */}
+                    <div className="relative group">
+                      <div className="absolute -inset-1 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-all" />
+                      <div className="relative rounded-2xl p-[3px] bg-gradient-to-br from-blue-400 to-cyan-500 shadow-[0_6px_0_rgba(0,0,0,0.2),0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_8px_0_rgba(0,0,0,0.25),0_0_30px_rgba(59,130,246,0.5)] transition-all">
+                        <div className="rounded-[14px] bg-card p-4 md:p-5 border-2 border-white/20">
+                          <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center shadow-lg">
+                              <Book className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-lg" strokeWidth={2.5} />
+                            </div>
+                            <div>
+                              <div className="text-3xl md:text-4xl font-black bg-gradient-to-br from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                                {userProgress.totalArticlesRead}
+                              </div>
+                              <div className="text-xs font-black text-muted-foreground tracking-wide uppercase mt-1">
+                                Read
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Longest Streak Card */}
+                    <div className="relative group">
+                      <div className="absolute -inset-1 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-all" />
+                      <div className="relative rounded-2xl p-[3px] bg-gradient-to-br from-amber-400 to-yellow-500 shadow-[0_6px_0_rgba(0,0,0,0.2),0_0_20px_rgba(251,191,36,0.4)] hover:shadow-[0_8px_0_rgba(0,0,0,0.25),0_0_30px_rgba(251,191,36,0.5)] transition-all">
+                        <div className="rounded-[14px] bg-card p-4 md:p-5 border-2 border-white/20">
+                          <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center shadow-lg">
+                              <Trophy className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-lg" strokeWidth={2.5} />
+                            </div>
+                            <div>
+                              <div className="text-3xl md:text-4xl font-black bg-gradient-to-br from-amber-600 to-yellow-600 bg-clip-text text-transparent">
+                                {userProgress.longestStreak}
+                              </div>
+                              <div className="text-xs font-black text-muted-foreground tracking-wide uppercase mt-1">
+                                Best
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
+                </CardContent>
+              </div>
             </Card>
           )}
           
@@ -696,43 +856,87 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
             </CardContent>
           </Card>
           
+          {/* BIG CLAIM POINTS BUTTON */}
+          {userId && accessToken && (
+            <ClaimPointsButton
+              isAlreadyRead={isAlreadyRead}
+              claimingPoints={claimingPoints}
+              pointsClaimed={pointsClaimed}
+              onClick={handleClaimPoints}
+            />
+          )}
+          
           {/* Navigation & Next Article Suggestions */}
           <div className="space-y-6">
-            {/* Continue Reading - 2 Suggestions */}
+            {/* Continue Reading - Single Suggestion for Unclaimed Articles */}
             {suggestedArticles && suggestedArticles.length > 0 && (
-              <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    <h3 className="text-lg font-bold">Continue Reading</h3>
+              <Card className="relative overflow-hidden border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 dark:from-emerald-500/20 dark:via-teal-500/10 dark:to-cyan-500/20 hempin:from-amber-500/10 hempin:via-orange-500/5 hempin:to-teal-500/10 shadow-xl">
+                {/* Animated gradient shimmer */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                
+                {/* Glowing border effect */}
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-emerald-500/50 via-teal-500/50 to-cyan-500/50 dark:from-emerald-400/50 dark:via-teal-400/50 dark:to-cyan-400/50 hempin:from-amber-500/50 hempin:via-orange-500/50 hempin:to-teal-500/50 rounded-xl blur opacity-50 animate-pulse" />
+                
+                <CardContent className="relative p-6 space-y-4">
+                  {/* Header with icon */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-400 dark:to-teal-500 hempin:from-amber-500 hempin:to-orange-600 rounded-xl shadow-lg">
+                        <Sparkles className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg md:text-xl font-bold text-foreground">Continue Reading</h3>
+                        <p className="text-xs text-muted-foreground">Earn +10 more points 🌿</p>
+                      </div>
+                    </div>
+                    <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-emerald-400 dark:to-teal-500 hempin:from-amber-500 hempin:to-orange-600 text-white border-0 px-3 py-1.5 shadow-lg">
+                      <Zap className="w-3 h-3 mr-1 fill-white" />
+                      Unclaimed
+                    </Badge>
                   </div>
                   
-                  <div className="space-y-3">
-                    {suggestedArticles.slice(0, 2).map((suggestedArticle) => (
-                      <div 
-                        key={suggestedArticle.id} 
-                        onClick={() => handleSuggestedArticleClick(suggestedArticle)}
-                        className="group cursor-pointer p-4 rounded-xl bg-card/80 backdrop-blur-sm border-2 border-border hover:border-primary/50 hover:shadow-lg transition-all"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="secondary" className="bg-primary/10 text-primary border-0 text-xs">
-                                {suggestedArticle.category}
-                              </Badge>
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Clock className="w-3 h-3" />
-                                <span>{suggestedArticle.readingTime} min</span>
-                              </div>
-                            </div>
-                            <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                              {suggestedArticle.title}
-                            </h4>
+                  {/* Single Article Card - Larger and more prominent */}
+                  <div 
+                    onClick={() => handleSuggestedArticleClick(suggestedArticles[0])}
+                    className="group cursor-pointer p-5 rounded-xl bg-card/90 backdrop-blur-sm border-2 border-border hover:border-emerald-500/60 dark:hover:border-emerald-400/60 hempin:hover:border-amber-500/60 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0 space-y-3">
+                        {/* Category & Reading Time */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hempin:bg-amber-500/10 hempin:text-amber-700 border-0">
+                            {suggestedArticles[0].category}
+                          </Badge>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>{suggestedArticles[0].readingTime} min read</span>
                           </div>
-                          <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
+                        </div>
+                        
+                        {/* Title */}
+                        <h4 className="font-bold text-lg text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 hempin:group-hover:text-amber-600 transition-colors line-clamp-2">
+                          {suggestedArticles[0].title}
+                        </h4>
+                        
+                        {/* Excerpt if available */}
+                        {(suggestedArticles[0] as any).excerpt && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {(suggestedArticles[0] as any).excerpt}
+                          </p>
+                        )}
+                        
+                        {/* CTA with arrow */}
+                        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hempin:text-amber-600">
+                          <span>Read Now & Claim Points</span>
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
                         </div>
                       </div>
-                    ))}
+                      
+                      {/* Arrow icon on the right */}
+                      <div className="flex-shrink-0 p-3 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-400/20 dark:to-teal-400/20 hempin:from-amber-500/20 hempin:to-orange-500/20 group-hover:from-emerald-500/30 group-hover:to-teal-500/30 dark:group-hover:from-emerald-400/30 dark:group-hover:to-teal-400/30 hempin:group-hover:from-amber-500/30 hempin:group-hover:to-orange-500/30 transition-all">
+                        <ArrowRight className="w-6 h-6 text-emerald-600 dark:text-emerald-400 hempin:text-amber-600 group-hover:scale-110 transition-transform" />
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -27,12 +27,14 @@ interface AccountSettingsProps {
   userNickname?: string
   homeButtonTheme?: string
   marketingOptIn?: boolean
+  marketNewsletterOptIn?: boolean
   accessToken?: string
   totalArticlesRead?: number
   selectedTheme?: string
   onLogout: () => void
   onUpdateProfile?: (nickname: string, theme: string) => Promise<void>
   onUpdateMarketingPreference?: (marketingOptIn: boolean) => Promise<void>
+  onUpdateMarketNewsletterPreference?: (marketNewsletterOptIn: boolean) => Promise<void>
   onFeatureUnlock?: (featureId: 'theme-customization') => void
 }
 
@@ -44,11 +46,13 @@ export function AccountSettings({
   homeButtonTheme: initialTheme,
   selectedTheme: initialSelectedTheme,
   marketingOptIn: initialMarketingOptIn,
+  marketNewsletterOptIn: initialMarketNewsletterOptIn,
   accessToken,
   totalArticlesRead = 0,
   onLogout,
   onUpdateProfile,
   onUpdateMarketingPreference,
+  onUpdateMarketNewsletterPreference,
   onFeatureUnlock
 }: AccountSettingsProps) {
   const level = userPoints ? Math.floor(userPoints / 100) + 1 : 1
@@ -59,6 +63,7 @@ export function AccountSettings({
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [nicknameError, setNicknameError] = useState('')
   const [marketingNewsletter, setMarketingNewsletter] = useState(initialMarketingOptIn || false)
+  const [marketNewsletter, setMarketNewsletter] = useState(initialMarketNewsletterOptIn || false)
   
   // Password reset state
   const [passwordResetLoading, setPasswordResetLoading] = useState(false)
@@ -231,6 +236,29 @@ export function AccountSettings({
 
     saveMarketingPreference()
   }, [marketingNewsletter])
+
+  // Auto-save market newsletter preference immediately when changed
+  useEffect(() => {
+    const saveMarketNewsletterPreference = async () => {
+      if (onUpdateMarketNewsletterPreference && marketNewsletter !== initialMarketNewsletterOptIn) {
+        setIsSaving(true)
+        try {
+          console.log('Attempting to save market newsletter preference:', marketNewsletter)
+          await onUpdateMarketNewsletterPreference(marketNewsletter)
+          setShowSuccessMessage(true)
+          setTimeout(() => setShowSuccessMessage(false), 2000)
+        } catch (error: any) {
+          console.error('Error saving market newsletter preference:', error)
+          // Revert to previous value on error
+          setMarketNewsletter(initialMarketNewsletterOptIn || false)
+        } finally {
+          setIsSaving(false)
+        }
+      }
+    }
+
+    saveMarketNewsletterPreference()
+  }, [marketNewsletter])
 
   const getLevelTitle = (lvl: number) => {
     if (lvl >= 20) return '🌟 Legendary Scholar'
@@ -610,19 +638,6 @@ export function AccountSettings({
             </Card>
           </div>
 
-          {/* Premium Themes Section */}
-          {userId && accessToken && (
-            <PremiumThemeSelector
-              userId={userId}
-              accessToken={accessToken}
-              currentTheme={initialSelectedTheme || 'default'}
-              onThemeChange={() => {
-                // Reload to fetch updated theme from backend
-                window.location.reload()
-              }}
-            />
-          )}
-
           {/* Newsletter Preferences */}
           <Card className="border-2 border-blue-500/20 bg-card/50 backdrop-blur-sm">
             <CardHeader>
@@ -648,6 +663,23 @@ export function AccountSettings({
                 <Switch
                   checked={marketingNewsletter}
                   onCheckedChange={setMarketingNewsletter}
+                  className="flex-shrink-0"
+                />
+              </div>
+
+              {/* Market Newsletter Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-xl border-2 border-border/50 bg-muted/30 hover:bg-muted/50 transition-all">
+                <div className="flex-1 pr-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-semibold text-foreground">Market Newsletter</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Weekly updates from the Hemp'in Market with new listings, vendor spotlights, exclusive deals, and sustainable product discoveries
+                  </p>
+                </div>
+                <Switch
+                  checked={marketNewsletter}
+                  onCheckedChange={setMarketNewsletter}
                   className="flex-shrink-0"
                 />
               </div>

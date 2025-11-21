@@ -177,10 +177,9 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
             <Button
               onClick={onBack}
               size="sm"
-              variant="ghost"
-              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group rounded-full w-10 h-10 sm:w-12 sm:h-12 p-0"
+              className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all group rounded-full w-12 h-12 p-0 border-2 border-white/20"
             >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform stroke-[2.5]" />
             </Button>
           )}
           
@@ -267,16 +266,25 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
             )}
           </motion.button>
           
-          {/* Settings button - Right of Points */}
-          {currentView !== 'feed' && currentView !== 'admin' && (
-            <Button
+          {/* Settings button - Colorful Pill - ONLY on ME page */}
+          {currentView === 'dashboard' && (
+            <motion.button
               onClick={() => onNavigate('settings')}
-              size="sm"
-              variant="ghost"
-              className="gap-2 hover:bg-primary/10 hover:text-primary transition-all group rounded-full w-10 h-10 sm:w-12 sm:h-12 p-0"
+              className="relative group"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <Settings className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
-            </Button>
+              {/* Outer glow */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 rounded-full blur opacity-60 group-hover:opacity-80 transition-all" />
+              
+              {/* Main pill button */}
+              <div className="relative flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 rounded-full shadow-lg hover:shadow-xl transition-all">
+                <Settings className="w-5 h-5 text-white group-hover:rotate-90 transition-transform duration-300" strokeWidth={2.5} />
+                <span className="hidden sm:inline text-white font-bold tracking-wide">
+                  Settings
+                </span>
+              </div>
+            </motion.button>
           )}
         </div>
       </div>

@@ -146,7 +146,7 @@ export function HomeCards({
           
           {/* Stat badge */}
           <Badge className="bg-white/30 backdrop-blur-sm text-white border-2 border-white/40 shadow-lg px-4 py-1 text-sm font-black">
-            LEVEL {Math.floor((userProgress?.totalArticlesRead || 0) / 10) + 1}
+            LEVEL {Math.floor((userProgress?.points || 0) / 100) + 1}
           </Badge>
           
           {/* Description with stats - Using SVG icons */}

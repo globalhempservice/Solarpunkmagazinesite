@@ -58,109 +58,9 @@ export function SwagShop({
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<SwagItem | null>(null)
 
-  // Swag Items Database
-  const swagItems: SwagItem[] = [
-    // MERCH
-    {
-      id: 'hemp-tee-black',
-      name: 'DEWII Hemp Tee',
-      description: 'Premium organic hemp t-shirt with solarpunk design',
-      price: 500,
-      category: 'merch',
-      gradient: 'from-emerald-500 to-teal-600',
-      icon: Shirt,
-      limited: true,
-      stock: 25
-    },
-    {
-      id: 'hemp-hoodie',
-      name: 'Hemp Universe Hoodie',
-      description: 'Cozy hemp blend hoodie with embroidered logo',
-      price: 1000,
-      category: 'merch',
-      gradient: 'from-green-500 to-emerald-600',
-      icon: Shirt,
-      limited: true,
-      stock: 15
-    },
-    // THEMES
-    {
-      id: 'theme-solarpunk',
-      name: 'Solarpunk Dreams',
-      description: 'Emerald and gold color scheme with organic animations',
-      price: 150,
-      category: 'theme',
-      gradient: 'from-emerald-500 via-green-500 to-teal-500',
-      icon: Palette
-    },
-    {
-      id: 'theme-midnight-hemp',
-      name: 'Midnight Hemp',
-      description: 'Dark mode theme with bioluminescent accents',
-      price: 150,
-      category: 'theme',
-      gradient: 'from-indigo-500 via-purple-500 to-pink-500',
-      icon: Palette
-    },
-    {
-      id: 'theme-golden-hour',
-      name: 'Golden Hour',
-      description: 'Warm sunset colors with ambient glow effects',
-      price: 150,
-      category: 'theme',
-      gradient: 'from-amber-500 via-orange-500 to-yellow-500',
-      icon: Palette
-    },
-    // BADGES
-    {
-      id: 'badge-founder',
-      name: 'Founder Badge',
-      description: 'Exclusive badge for early community members',
-      price: 250,
-      category: 'badge',
-      gradient: 'from-purple-500 to-pink-600',
-      icon: Award,
-      limited: true,
-      stock: 100
-    },
-    {
-      id: 'badge-hemp-pioneer',
-      name: 'Hemp Pioneer',
-      description: 'Show your dedication to the hemp movement',
-      price: 200,
-      category: 'badge',
-      gradient: 'from-green-500 to-emerald-600',
-      icon: Award
-    },
-    {
-      id: 'badge-nada-whale',
-      name: 'NADA Whale',
-      description: 'For the true NADA collectors',
-      price: 500,
-      category: 'badge',
-      gradient: 'from-cyan-500 to-blue-600',
-      icon: Award
-    },
-    // FEATURES
-    {
-      id: 'feature-custom-profile',
-      name: 'Custom Profile Banner',
-      description: 'Upload your own profile banner image',
-      price: 300,
-      category: 'feature',
-      gradient: 'from-violet-500 to-purple-600',
-      icon: Sparkles
-    },
-    {
-      id: 'feature-priority-support',
-      name: 'Priority Support',
-      description: 'Get priority response on feature requests',
-      price: 400,
-      category: 'feature',
-      gradient: 'from-blue-500 to-cyan-600',
-      icon: Sparkles
-    }
-  ]
+  // Swag Items - now loaded from database
+  const [swagItems, setSwagItems] = useState<SwagItem[]>([])
+  const [loadingItems, setLoadingItems] = useState(true)
 
   const categories = [
     { id: 'all', name: 'All Items', icon: ShoppingBag },
@@ -193,6 +93,51 @@ export function SwagShop({
       }
     } catch (error) {
       console.error('Error fetching owned items:', error)
+    }
+  }
+
+  // Fetch swag items from database
+  useEffect(() => {
+    if (isOpen && userId && accessToken) {
+      fetchSwagItems()
+    }
+  }, [isOpen, userId, accessToken])
+
+  // Map icon names to actual icon components
+  const getIconComponent = (iconName: string) => {
+    const iconMap: { [key: string]: any } = {
+      'Shirt': Shirt,
+      'Palette': Palette,
+      'Award': Award,
+      'Sparkles': Sparkles,
+      'ShoppingBag': ShoppingBag
+    }
+    return iconMap[iconName] || ShoppingBag
+  }
+
+  const fetchSwagItems = async () => {
+    if (!userId || !accessToken) return
+    
+    try {
+      const response = await fetch(`${serverUrl}/swag-items`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Map icon strings to components
+        const itemsWithIcons = data.items.map((item: any) => ({
+          ...item,
+          icon: getIconComponent(item.icon)
+        }))
+        setSwagItems(itemsWithIcons || [])
+        setLoadingItems(false)
+      }
+    } catch (error) {
+      console.error('Error fetching swag items:', error)
+      setLoadingItems(false)
     }
   }
 
@@ -319,100 +264,106 @@ export function SwagShop({
 
           {/* Content */}
           <div className="relative overflow-y-auto max-h-[calc(90vh-200px)] p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems.map((item) => {
-                const Icon = item.icon
-                const isOwned = ownedItems.includes(item.id)
-                const canAfford = nadaPoints >= item.price
-                const isPurchasing = purchasingItem === item.id
+            {loadingItems ? (
+              <div className="text-center py-12">
+                <p className="text-emerald-200/60 text-lg">Loading items...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems.map((item) => {
+                  const Icon = item.icon
+                  const isOwned = ownedItems.includes(item.id)
+                  const canAfford = nadaPoints >= item.price
+                  const isPurchasing = purchasingItem === item.id
 
-                return (
-                  <div
-                    key={item.id}
-                    className="group relative overflow-hidden rounded-2xl backdrop-blur-xl border-2 border-emerald-400/20 hover:border-emerald-400/40 transition-all duration-300 hover:scale-105 hover:-translate-y-2 shadow-lg hover:shadow-2xl"
-                  >
-                    {/* Gradient background */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-20`} />
-                    
-                    {/* Depth layer */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                    
-                    {/* Glow effect */}
-                    <div className={`absolute -inset-1 bg-gradient-to-r ${item.gradient} rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300`} />
+                  return (
+                    <div
+                      key={item.id}
+                      className="group relative overflow-hidden rounded-2xl backdrop-blur-xl border-2 border-emerald-400/20 hover:border-emerald-400/40 transition-all duration-300 hover:scale-105 hover:-translate-y-2 shadow-lg hover:shadow-2xl"
+                    >
+                      {/* Gradient background */}
+                      <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-20`} />
+                      
+                      {/* Depth layer */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      
+                      {/* Glow effect */}
+                      <div className={`absolute -inset-1 bg-gradient-to-r ${item.gradient} rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300`} />
 
-                    <div className="relative p-6 space-y-4">
-                      {/* Icon & Badge */}
-                      <div className="flex items-start justify-between">
-                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shadow-lg`}>
-                          <Icon className="w-7 h-7 text-white" />
-                        </div>
-                        
-                        {isOwned && (
-                          <Badge className="bg-green-500/20 border-green-400/50 text-green-300 gap-1">
-                            <Check className="w-3 h-3" />
-                            Owned
-                          </Badge>
-                        )}
-                        
-                        {item.limited && !isOwned && (
-                          <Badge className="bg-amber-500/20 border-amber-400/50 text-amber-300">
-                            Limited
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div>
-                        <h3 className="text-xl font-black text-emerald-50 mb-2">{item.name}</h3>
-                        <p className="text-emerald-200/60 text-sm leading-relaxed">{item.description}</p>
-                      </div>
-
-                      {/* Stock */}
-                      {item.limited && item.stock && !isOwned && (
-                        <div className="text-xs text-emerald-300/70">
-                          Only {item.stock} available
-                        </div>
-                      )}
-
-                      {/* Price & Action */}
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-2">
-                          <NadaRippleIcon className="w-5 h-5 text-violet-400" />
-                          <span className="text-2xl font-black text-emerald-50">{item.price}</span>
-                        </div>
-
-                        <Button
-                          onClick={() => handlePurchaseClick(item)}
-                          disabled={isOwned || !canAfford || isPurchasing}
-                          className={`font-bold ${
-                            isOwned
-                              ? 'bg-green-500/20 border-green-400/50 text-green-300 cursor-not-allowed'
-                              : canAfford
-                              ? `bg-gradient-to-r ${item.gradient} hover:opacity-90 text-white`
-                              : 'bg-gray-500/20 border-gray-400/50 text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {isPurchasing ? (
-                            'Processing...'
-                          ) : isOwned ? (
-                            'Owned'
-                          ) : !canAfford ? (
-                            <>
-                              <Lock className="w-4 h-4 mr-1" />
-                              Not Enough
-                            </>
-                          ) : (
-                            'Purchase'
+                      <div className="relative p-6 space-y-4">
+                        {/* Icon & Badge */}
+                        <div className="flex items-start justify-between">
+                          <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shadow-lg`}>
+                            <Icon className="w-7 h-7 text-white" />
+                          </div>
+                          
+                          {isOwned && (
+                            <Badge className="bg-green-500/20 border-green-400/50 text-green-300 gap-1">
+                              <Check className="w-3 h-3" />
+                              Owned
+                            </Badge>
                           )}
-                        </Button>
+                          
+                          {item.limited && !isOwned && (
+                            <Badge className="bg-amber-500/20 border-amber-400/50 text-amber-300">
+                              Limited
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div>
+                          <h3 className="text-xl font-black text-emerald-50 mb-2">{item.name}</h3>
+                          <p className="text-emerald-200/60 text-sm leading-relaxed">{item.description}</p>
+                        </div>
+
+                        {/* Stock */}
+                        {item.limited && item.stock && !isOwned && (
+                          <div className="text-xs text-emerald-300/70">
+                            Only {item.stock} available
+                          </div>
+                        )}
+
+                        {/* Price & Action */}
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center gap-2">
+                            <NadaRippleIcon className="w-5 h-5 text-violet-400" />
+                            <span className="text-2xl font-black text-emerald-50">{item.price}</span>
+                          </div>
+
+                          <Button
+                            onClick={() => handlePurchaseClick(item)}
+                            disabled={isOwned || !canAfford || isPurchasing}
+                            className={`font-bold ${
+                              isOwned
+                                ? 'bg-green-500/20 border-green-400/50 text-green-300 cursor-not-allowed'
+                                : canAfford
+                                ? `bg-gradient-to-r ${item.gradient} hover:opacity-90 text-white`
+                                : 'bg-gray-500/20 border-gray-400/50 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {isPurchasing ? (
+                              'Processing...'
+                            ) : isOwned ? (
+                              'Owned'
+                            ) : !canAfford ? (
+                              <>
+                                <Lock className="w-4 h-4 mr-1" />
+                                Not Enough
+                              </>
+                            ) : (
+                              'Purchase'
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
 
-            {filteredItems.length === 0 && (
+            {filteredItems.length === 0 && !loadingItems && (
               <div className="text-center py-12">
                 <p className="text-emerald-200/60 text-lg">No items in this category yet</p>
               </div>

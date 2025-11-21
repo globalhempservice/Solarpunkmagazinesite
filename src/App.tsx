@@ -1,4 +1,8 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { CommunityMarketLoader } from './components/CommunityMarketLoader'
+import { FeatureUnlockModal } from './components/FeatureUnlockModal'
+import { LoadingScreen } from './components/LoadingScreen'
+
 import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from './utils/featureUnlocks'
@@ -24,7 +28,6 @@ import { AccountSettings } from './components/AccountSettings'
 import { PointsSystemPage } from './components/PointsSystemPage'
 import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
-import { FeatureUnlockModal } from './components/FeatureUnlockModal'
 import { ComicLockOverlay } from './components/ComicLockOverlay'
 import { ReadingAnalytics } from './components/ReadingAnalytics'
 import { HomeCards } from './components/HomeCards'
@@ -35,56 +38,6 @@ import { Input } from './components/ui/input'
 import { Button } from './components/ui/button'
 import { Badge } from './components/ui/badge'
 import { toast } from 'sonner@2.0.3'
-
-// 🏪 LAZY LOAD: Community Market (separate world - only loads when accessed)
-const CommunityMarket = lazy(() => import('./components/CommunityMarket'))
-
-interface Article {
-  id: string
-  title: string
-  content: string
-  excerpt: string
-  category: string
-  coverImage?: string
-  readingTime: number
-  views?: number
-  createdAt: string
-  source?: string
-  sourceUrl?: string
-  // LinkedIn metadata
-  author?: string
-  authorImage?: string
-  authorTitle?: string
-  publishDate?: string
-  media?: Array<{
-    type: 'youtube' | 'audio' | 'image' | 'pdf'
-    url: string
-    caption?: string
-    title?: string
-    previewUrl?: string
-    isLinkedInDocument?: boolean
-  }>
-}
-
-interface UserProgress {
-  userId: string
-  totalArticlesRead: number
-  points: number
-  nadaPoints?: number
-  currentStreak: number
-  longestStreak: number
-  achievements: string[]
-  readArticles: string[]
-  lastReadDate: string | null
-  nickname?: string
-  homeButtonTheme?: string
-  marketingOptIn?: boolean
-  marketUnlocked?: boolean
-  selectedTheme?: string
-  selectedBadge?: string
-  profileBannerUrl?: string
-  prioritySupport?: boolean
-}
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -104,12 +57,17 @@ export default function App() {
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
   const [swipeRefReady, setSwipeRefReady] = useState(false)
-  const [previousView, setPreviousView] = useState<'feed' | 'swipe'>('feed')
+  const [previousView, setPreviousView] = useState<'feed' | 'swipe' | 'browse'>('feed')
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
   const [resetToken, setResetToken] = useState<string | null>(null)
   const [featureUnlockModal, setFeatureUnlockModal] = useState<{ featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization'; isOpen: boolean } | null>(null)
   const [isWalletOpen, setIsWalletOpen] = useState(false)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(true)
+  const [browseCategoryIndex, setBrowseCategoryIndex] = useState(() => {
+    // Load from localStorage on init
+    const saved = localStorage.getItem('browseCategoryIndex')
+    return saved ? parseInt(saved, 10) : 0
+  })
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
   const supabase = createClient()
@@ -169,12 +127,54 @@ export default function App() {
         }
         
         if (session?.access_token) {
-          console.log('✅ Session found, setting up auth state')
+          console.log('✅ Session found, validating with server...')
           console.log('🔑 Access token:', session.access_token.substring(0, 20) + '...')
           console.log('👤 User ID:', session.user.id)
           console.log('📧 Email:', session.user.email)
           console.log('⏰ Expires at:', new Date(session.expires_at! * 1000).toLocaleString())
           
+          // ============================================
+          // CRITICAL: Validate token with server before trusting it
+          // ============================================
+          try {
+            const validationResponse = await fetch(`${serverUrl}/my-articles`, {
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`
+              }
+            })
+            
+            if (!validationResponse.ok) {
+              console.error('❌ Token validation failed - session is expired/invalid')
+              console.log('🧹 Clearing expired session...')
+              
+              // Clear everything
+              await supabase.auth.signOut()
+              
+              // Clear localStorage
+              const keysToRemove = []
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                if (key && key.includes('supabase')) {
+                  keysToRemove.push(key)
+                }
+              }
+              keysToRemove.forEach(key => localStorage.removeItem(key))
+              
+              console.log('✅ Expired session cleared - user will see login screen')
+              setInitializing(false)
+              return
+            }
+            
+            console.log('✅ Token validated successfully with server')
+          } catch (validationError) {
+            console.error('❌ Token validation request failed:', validationError)
+            // Network error - clear session to be safe
+            await supabase.auth.signOut()
+            setInitializing(false)
+            return
+          }
+          
+          // Token is valid - set auth state
           setAccessToken(session.access_token)
           setUserId(session.user.id)
           setUserEmail(session.user.email)
@@ -330,6 +330,8 @@ export default function App() {
       }
 
       const data = await response.json()
+      console.log('✅ User progress fetched:', data.progress)
+      console.log('🔐 Market Unlocked Status:', data.progress?.marketUnlocked)
       setUserProgress(data.progress)
     } catch (error: any) {
       console.error('Error fetching user progress:', error)
@@ -366,13 +368,29 @@ export default function App() {
         if (response.status === 401) {
           console.log('⚠️ Session expired or invalid (401) - logging out silently')
           
+          // Show notification to user
+          toast.error('🔐 Your session has expired. Please log in again.', {
+            duration: 5000,
+          })
+          
           // Clear the session
           await supabase.auth.signOut()
           setIsAuthenticated(false)
           setAccessToken(null)
           setUserId(null)
+          setUserEmail(null)
           setUserProgress(null)
           setUserArticles([])
+          
+          // Clear localStorage auth data
+          const keysToRemove = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && key.includes('supabase')) {
+              keysToRemove.push(key)
+            }
+          }
+          keysToRemove.forEach(key => localStorage.removeItem(key))
           
           console.log('👋 Logged out - user will see login screen')
           return
@@ -454,13 +472,35 @@ export default function App() {
   }
 
   const handleLogout = async () => {
+    console.log('🚪 Logging out...')
+    
+    // Sign out from Supabase
     await supabase.auth.signOut()
+    
+    // Clear ALL auth state
     setIsAuthenticated(false)
     setAccessToken(null)
     setUserId(null)
+    setUserEmail(null)
     setUserProgress(null)
     setArticles([])
+    setUserArticles([])
+    setMatchedArticles([])
+    
+    // Clear localStorage auth data (but keep theme preferences)
+    const keysToRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && (key.includes('supabase') || key.includes('matchedArticles') || key.includes('readArticles'))) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key))
+    
+    // Reset view
     setCurrentView('feed')
+    
+    console.log('✅ Logout complete - all auth data cleared')
   }
 
   const handleArticleClick = async (article: Article) => {
@@ -749,14 +789,7 @@ export default function App() {
   })
 
   if (initializing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-sky-50">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-sky-400 animate-pulse" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingScreen message="Initializing DEWII" variant="app" />
   }
 
   if (!isAuthenticated) {
@@ -871,7 +904,7 @@ export default function App() {
           }}
           onBack={() => {
             if (currentView === 'article') {
-              setCurrentView(previousView === 'swipe' ? 'swipe' : 'feed')
+              setCurrentView(previousView === 'swipe' ? 'swipe' : previousView === 'browse' ? 'browse' : 'feed')
               setSelectedArticle(null)
             } else if (currentView === 'swipe') {
               setCurrentView('feed')
@@ -994,16 +1027,23 @@ export default function App() {
               userProgress={userProgress}
               allArticles={articles}
               accessToken={accessToken}
-              suggestedArticles={articles.filter(a => a.id !== selectedArticle.id && a.category === selectedArticle.category).slice(0, 2)}
+              userId={userId}
+              onProgressUpdate={(progress) => setUserProgress(progress)}
+              suggestedArticles={articles
+                .filter(a => 
+                  a.id !== selectedArticle.id && // Not the current article
+                  !userProgress?.readArticles?.includes(a.id) // User hasn't claimed points yet
+                )
+                .slice(0, 1) // Only show 1 suggestion
+              }
               onArticleSelect={(article) => {
                 setSelectedArticle(article)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               onBack={() => {
-                setCurrentView('feed')
+                // Always go back to Browse Magazine view from articles
+                setCurrentView('browse')
                 setSelectedArticle(null)
-                // Restore the previous explore mode (grid or swipe)
-                setPreviousView('feed')
               }}
             />
           )}
@@ -1092,6 +1132,8 @@ export default function App() {
               onArticleClick={handleArticleClick}
               loading={loading}
               categoryMenuOpen={categoryMenuOpen}
+              browseCategoryIndex={browseCategoryIndex}
+              setBrowseCategoryIndex={setBrowseCategoryIndex}
             />
           )}
 
@@ -1136,23 +1178,21 @@ export default function App() {
 
           {/* Community Market - Lazy Loaded */}
           {currentView === 'community-market' && (
-            <Suspense fallback={<div className="text-center py-16"><Loader className="w-10 h-10 animate-spin" /> Loading Community Market...</div>}>
-              <CommunityMarket
-                userId={userId}
-                accessToken={accessToken}
-                serverUrl={serverUrl}
-                onBack={() => setCurrentView('dashboard')}
-                onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-                userEmail={userEmail}
-                nadaPoints={userProgress?.nadaPoints || 0}
-                onNadaUpdate={(newBalance) => {
-                  // Update user progress with new NADA balance
-                  if (userProgress) {
-                    setUserProgress({ ...userProgress, nadaPoints: newBalance })
-                  }
-                }}
-              />
-            </Suspense>
+            <CommunityMarketLoader
+              userId={userId}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              onBack={() => setCurrentView('dashboard')}
+              onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+              userEmail={userEmail}
+              nadaPoints={userProgress?.nadaPoints || 0}
+              onNadaUpdate={(newBalance) => {
+                // Update user progress with new NADA balance
+                if (userProgress) {
+                  setUserProgress({ ...userProgress, nadaPoints: newBalance })
+                }
+              }}
+            />
           )}
         </div>
       </main>

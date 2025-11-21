@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Store, Zap, TrendingUp, X, ChevronRight, Leaf, Sparkles, Settings } from 'lucide-react'
+import { ArrowLeft, Store, Zap, TrendingUp, X, ChevronRight, Leaf, Sparkles, Settings, User } from 'lucide-react'
 import { Button } from './ui/button'
 import { VotingModal } from './VotingModal'
 import { SubmitIdeaModal } from './SubmitIdeaModal'
@@ -7,6 +7,7 @@ import { Badge } from './ui/badge'
 import { NadaWalletPanel } from './NadaWalletPanel'
 import { SwagShop } from './SwagShop'
 import { MarketSettings } from './MarketSettings'
+import { MarketProfilePanel } from './MarketProfilePanel'
 
 // Circular Forum Icon (like community discussion circles)
 function CircularForumIcon({ className = "w-6 h-6" }: { className?: string }) {
@@ -89,6 +90,7 @@ export default function CommunityMarket({
   const [showNadaWallet, setShowNadaWallet] = useState(false)
   const [showSwagShop, setShowSwagShop] = useState(false)
   const [showMarketSettings, setShowMarketSettings] = useState(false)
+  const [showProfilePanel, setShowProfilePanel] = useState(false)
   const [selectedMarketTheme, setSelectedMarketTheme] = useState('default')
   
   // User's personal market stats
@@ -127,6 +129,12 @@ export default function CommunityMarket({
     } catch (error) {
       console.error('Error fetching user theme:', error)
     }
+  }
+
+  // Callback to update theme instantly (no reload)
+  const handleThemeUpdate = (newTheme: string) => {
+    setSelectedMarketTheme(newTheme)
+    console.log('Theme updated instantly:', newTheme)
   }
 
   // Theme background classes
@@ -226,20 +234,20 @@ export default function CommunityMarket({
 
   const tutorialSteps = [
     {
-      title: "Welcome to the Community Market",
-      description: "A place where your voice shapes the future of DEWII. This is a completely different world where you can vote, submit ideas, and earn rewards.",
+      title: "Welcome to Community Market",
+      description: "Your voice shapes DEWII's future. Vote, submit ideas, and earn rewards!",
       icon: Store,
       gradient: "from-purple-500 via-pink-500 to-amber-500"
     },
     {
-      title: "NADA: Your Voice Currency",
-      description: "Use NADA points to cast votes on features, submit proposals, and unlock exclusive content. Earn NADA by reading articles and engaging with the community.",
+      title: "NADA Currency",
+      description: "Use NADA to vote on features and submit proposals. Earn more by reading!",
       icon: NadaRippleIcon,
       gradient: "from-violet-500 via-purple-500 to-indigo-500"
     },
     {
       title: "Shape the Future",
-      description: "Vote on features, submit ideas, and see them come to life. The most popular proposals get implemented, and contributors earn rewards.",
+      description: "Top proposals get implemented. Contributors earn rewards!",
       icon: TrendingUp,
       gradient: "from-blue-500 via-cyan-500 to-teal-500"
     }
@@ -255,22 +263,22 @@ export default function CommunityMarket({
     setShowTutorial(false)
   }
 
-  // Tutorial Full Screen Overlay
+  // Tutorial Full Screen Overlay - Mobile Optimized
   if (showTutorial) {
     const currentStep = tutorialSteps[tutorialStep]
     const Icon = currentStep.icon
 
     return (
-      <div className="fixed inset-0 z-[9999] bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999] bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center p-4 overflow-hidden">
         {/* Animated background particles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(30)].map((_, i) => (
+          {[...Array(20)].map((_, i) => (
             <div
               key={i}
               className="absolute rounded-full bg-white/10 animate-float"
               style={{
-                width: `${Math.random() * 150 + 50}px`,
-                height: `${Math.random() * 150 + 50}px`,
+                width: `${Math.random() * 100 + 30}px`,
+                height: `${Math.random() * 100 + 30}px`,
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
                 animationDelay: `${Math.random() * 5}s`,
@@ -280,77 +288,90 @@ export default function CommunityMarket({
           ))}
         </div>
 
-        {/* Tutorial Card */}
-        <div className="relative max-w-2xl w-full">
-          {/* Skip button */}
+        {/* Tutorial Card - Mobile Optimized */}
+        <div className="relative w-full max-w-md mx-auto flex flex-col items-center">
+          {/* Skip button - Fixed top right */}
           <button
             onClick={handleSkipTutorial}
-            className="absolute -top-4 -right-4 z-10 p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors text-white"
+            className="fixed top-4 right-4 z-20 p-3 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors text-white shadow-xl"
+            aria-label="Skip tutorial"
           >
             <X className="w-6 h-6" />
           </button>
 
-          <div className="relative overflow-hidden rounded-3xl bg-black/40 backdrop-blur-2xl border-2 border-white/20 p-12 shadow-2xl">
+          {/* Main Content Card */}
+          <div className="relative w-full overflow-hidden rounded-3xl bg-black/40 backdrop-blur-2xl border-2 border-white/20 p-6 sm:p-8 shadow-2xl">
             {/* Gradient overlay */}
             <div className={`absolute inset-0 bg-gradient-to-br ${currentStep.gradient} opacity-10`} />
             
+            {/* Halftone pattern */}
+            <div className="absolute inset-0 opacity-10" style={{
+              backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+              backgroundSize: '12px 12px'
+            }} />
+            
             {/* Content */}
-            <div className="relative z-10 text-center space-y-8">
-              {/* Icon */}
+            <div className="relative z-10 text-center space-y-6">
+              {/* Icon with glow */}
               <div className="flex justify-center">
                 <div className="relative">
-                  <div className={`absolute -inset-6 bg-gradient-to-r ${currentStep.gradient} rounded-full blur-3xl opacity-50 animate-pulse`} />
-                  <div className={`relative bg-gradient-to-r ${currentStep.gradient} rounded-full p-8`}>
+                  <div className={`absolute -inset-4 bg-gradient-to-r ${currentStep.gradient} rounded-full blur-2xl opacity-50 animate-pulse`} />
+                  <div className={`relative bg-gradient-to-r ${currentStep.gradient} rounded-full p-6 shadow-2xl`}>
                     {Icon === NadaRippleIcon ? (
-                      <NadaRippleIcon className="w-20 h-20 text-white" />
+                      <NadaRippleIcon className="w-14 h-14 sm:w-16 sm:h-16 text-white" />
                     ) : (
-                      <Icon className="w-20 h-20 text-white" />
+                      <Icon className="w-14 h-14 sm:w-16 sm:h-16 text-white" />
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Title */}
-              <h2 className="text-5xl font-black text-white">
+              {/* Title - Mobile optimized */}
+              <h2 className="text-3xl sm:text-4xl font-black text-white leading-tight px-2">
                 {currentStep.title}
               </h2>
 
-              {/* Description */}
-              <p className="text-xl text-white/80 max-w-lg mx-auto leading-relaxed">
+              {/* Description - Mobile optimized */}
+              <p className="text-base sm:text-lg text-white/90 leading-relaxed px-2">
                 {currentStep.description}
               </p>
 
               {/* Progress dots */}
-              <div className="flex justify-center gap-3 pt-4">
+              <div className="flex justify-center gap-2 pt-2">
                 {tutorialSteps.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-3 rounded-full transition-all duration-300 ${
+                    className={`h-2 rounded-full transition-all duration-300 ${
                       index === tutorialStep 
-                        ? 'w-12 bg-white' 
-                        : 'w-3 bg-white/30'
+                        ? 'w-8 bg-white shadow-lg' 
+                        : 'w-2 bg-white/30'
                     }`}
                   />
                 ))}
               </div>
 
-              {/* Navigation */}
-              <div className="flex justify-center gap-4 pt-4">
+              {/* Navigation Button */}
+              <div className="pt-4">
                 {tutorialStep < tutorialSteps.length - 1 ? (
                   <Button
                     onClick={() => setTutorialStep(tutorialStep + 1)}
-                    className={`bg-gradient-to-r ${currentStep.gradient} hover:opacity-90 text-white font-black text-lg px-8 py-6 rounded-2xl shadow-lg`}
+                    className={`w-full bg-gradient-to-r ${currentStep.gradient} hover:opacity-90 text-white font-black text-lg px-6 py-6 rounded-2xl shadow-xl border-2 border-white/20`}
                   >
                     Next <ChevronRight className="w-5 h-5 ml-2" />
                   </Button>
                 ) : (
                   <Button
                     onClick={handleTutorialComplete}
-                    className={`bg-gradient-to-r ${currentStep.gradient} hover:opacity-90 text-white font-black text-lg px-8 py-6 rounded-2xl shadow-lg`}
+                    className={`w-full bg-gradient-to-r ${currentStep.gradient} hover:opacity-90 text-white font-black text-lg px-6 py-6 rounded-2xl shadow-xl border-2 border-white/20`}
                   >
                     Enter Market <Sparkles className="w-5 h-5 ml-2" />
                   </Button>
                 )}
+              </div>
+
+              {/* Step indicator text */}
+              <div className="text-white/60 text-sm font-semibold">
+                {tutorialStep + 1} / {tutorialSteps.length}
               </div>
             </div>
           </div>
@@ -363,7 +384,7 @@ export default function CommunityMarket({
               opacity: 0.1;
             }
             50% {
-              transform: translateY(-100px) translateX(50px) rotate(180deg);
+              transform: translateY(-80px) translateX(40px) rotate(180deg);
               opacity: 0.3;
             }
           }
@@ -736,8 +757,96 @@ export default function CommunityMarket({
           userId={userId}
           accessToken={accessToken}
           serverUrl={serverUrl}
+          onThemeUpdate={handleThemeUpdate}
         />
       )}
+
+      {/* Market Profile Panel */}
+      <MarketProfilePanel
+        isOpen={showProfilePanel}
+        onClose={() => setShowProfilePanel(false)}
+        userId={userId}
+        accessToken={accessToken}
+        serverUrl={serverUrl}
+        userEmail={userEmail}
+        nadaPoints={nadaPoints}
+      />
+
+      {/* Bottom Navbar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-none">
+        <div className="h-24 flex items-end justify-center px-4">
+          <div className="relative h-24 flex items-end justify-center w-full">
+            {/* Gradient blur mask: 100% blur at bottom, 0% blur at top */}
+            <div 
+              className="absolute inset-0 backdrop-blur-2xl pointer-events-auto"
+              style={{
+                WebkitMaskImage: 'linear-gradient(to top, black 0%, transparent 100%)',
+                maskImage: 'linear-gradient(to top, black 0%, transparent 100%)'
+              }}
+            />
+
+            {/* ME Button Container */}
+            <div className="relative flex items-center justify-center w-full max-w-md mx-auto pointer-events-auto h-full pb-4">
+              <button
+                onClick={() => setShowProfilePanel(!showProfilePanel)}
+                className="relative group"
+              >
+                {/* Outer pulsing aura - largest */}
+                <div 
+                  className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-emerald-400 to-teal-500 blur-2xl opacity-40 group-hover:opacity-70 transition-opacity duration-300"
+                  style={{
+                    width: '100px',
+                    height: '100px',
+                    marginLeft: '-25px',
+                    marginTop: '-25px',
+                    animation: 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                  }}
+                />
+                
+                {/* Middle aura */}
+                <div 
+                  className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 blur-xl opacity-50 group-hover:opacity-80 transition-opacity duration-300"
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    marginLeft: '-15px',
+                    marginTop: '-15px',
+                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                  }}
+                />
+                
+                {/* Inner glow */}
+                <div 
+                  className="absolute inset-0 rounded-full bg-primary/30 blur-lg opacity-60 group-hover:opacity-90 transition-opacity duration-300"
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    marginLeft: '-5px',
+                    marginTop: '-5px'
+                  }}
+                />
+                
+                {/* Main button */}
+                <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary via-emerald-500 to-teal-600 flex items-center justify-center border-4 border-background shadow-2xl group-hover:scale-110 transition-transform duration-300">
+                  <User className="w-7 h-7 sm:w-8 sm:h-8 text-white" strokeWidth={2.5} />
+                  
+                  {/* Shine overlay */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/50 via-transparent to-transparent" />
+                  
+                  {/* Rotating shine effect */}
+                  <div 
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background: 'conic-gradient(from 0deg, transparent 0%, rgba(255,255,255,0.3) 10%, transparent 20%)',
+                      animation: 'spin 4s linear infinite'
+                    }}
+                  />
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
     </div>
   )
 }

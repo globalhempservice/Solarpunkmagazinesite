@@ -6,9 +6,10 @@ interface ClaimPointsButtonProps {
   claimingPoints: boolean
   pointsClaimed: boolean
   onClick: () => void
+  points?: number  // Dynamic points (5 for RSS, 10 for regular)
 }
 
-export function ClaimPointsButton({ isAlreadyRead, claimingPoints, pointsClaimed, onClick }: ClaimPointsButtonProps) {
+export function ClaimPointsButton({ isAlreadyRead, claimingPoints, pointsClaimed, onClick, points = 10 }: ClaimPointsButtonProps) {
   // Already read - grey out
   if (isAlreadyRead) {
     return (
@@ -64,7 +65,7 @@ export function ClaimPointsButton({ isAlreadyRead, claimingPoints, pointsClaimed
             <Check className="w-10 h-10 text-emerald-600" strokeWidth={3} />
           </motion.div>
           <div className="text-center">
-            <h3 className="text-3xl font-black text-white mb-2">+10 Points Earned! 🎉</h3>
+            <h3 className="text-3xl font-black text-white mb-2">+{points} Points Earned!</h3>
             <p className="text-sm text-white/90">Great job completing this article!</p>
           </div>
         </div>
@@ -106,7 +107,8 @@ export function ClaimPointsButton({ isAlreadyRead, claimingPoints, pointsClaimed
               animationDuration: `${2 + Math.random() * 3}s`
             }}
           />
-        ))}\n      </div>
+        ))}
+      </div>
 
       <div className="relative z-10 flex flex-col items-center gap-4">
         {claimingPoints ? (
@@ -126,7 +128,7 @@ export function ClaimPointsButton({ isAlreadyRead, claimingPoints, pointsClaimed
               </div>
             </div>
             <div className="text-center">
-              <h3 className="text-3xl font-black text-white mb-2 group-hover:scale-110 transition-transform">Claim +10 Points</h3>
+              <h3 className="text-3xl font-black text-white mb-2 group-hover:scale-110 transition-transform">Claim +{points} Points</h3>
               <p className="text-sm text-white/90">Click here to mark as read & earn rewards!</p>
             </div>
           </>

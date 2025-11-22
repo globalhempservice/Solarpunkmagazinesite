@@ -46,6 +46,7 @@ import { WalletsTab } from './WalletsTab'
 import { SecurityAudit } from './SecurityAudit'
 import { AdminNadaTracker } from './AdminNadaTracker'
 import { MonitoringBot } from './MonitoringBot'
+import { RSSFeedManager } from './RSSFeedManager'
 
 interface DashboardStats {
   totalUsers: number
@@ -204,7 +205,7 @@ interface AdminDashboardProps {
   onNavigateToSwagAdmin?: () => void
 }
 
-type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot'
+type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss'
 
 export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, onNavigateToSwagAdmin }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -479,7 +480,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           { id: 'nadaFeedback', label: 'Market' },
           { id: 'wallets', label: 'Wallets' },
           { id: 'security', label: '🔒 Security' },
-          { id: 'bot', label: '🤖 Bot' }
+          { id: 'bot', label: '🤖 Bot' },
+          { id: 'rss', label: '📡 RSS Feeds' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1931,6 +1933,14 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
       {/* Bot Tab - Monitoring & Automation */}
       {activeTab === 'bot' && (
         <MonitoringBot
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+        />
+      )}
+
+      {/* RSS Feed Manager Tab */}
+      {activeTab === 'rss' && (
+        <RSSFeedManager
           accessToken={accessToken}
           serverUrl={serverUrl}
         />

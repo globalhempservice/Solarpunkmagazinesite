@@ -14,6 +14,8 @@ interface ArticleCardProps {
     createdAt: string
     source?: string
     sourceUrl?: string
+    siteDomain?: string // RSS website domain
+    siteTitle?: string // RSS website title
     media?: Array<{
       type: 'youtube' | 'audio' | 'image' | 'pdf'
       url: string
@@ -29,6 +31,9 @@ interface ArticleCardProps {
 export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: ArticleCardProps) {
   // Get cover image from article.coverImage or first media image
   const displayImage = article.coverImage || article.media?.find(m => m.type === 'image')?.url
+  
+  // Calculate points based on article source
+  const pointsToEarn = article.source === 'rss' ? 5 : 10
   
   // Truncate excerpt to 2 lines with ellipsis
   const truncateExcerpt = (text: string, maxLength: number = 120) => {
@@ -116,7 +121,7 @@ export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: A
                     fontSize: '1.25rem',
                     lineHeight: 1
                   }}>
-                    +10 POINTS
+                    +{pointsToEarn} POINTS
                   </span>
                 </div>
                 <Zap className="w-6 h-6 text-amber-900 drop-shadow-lg" strokeWidth={3} fill="currentColor" />
@@ -205,6 +210,26 @@ export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: A
           
           {/* Content section - Mysterious excerpt only - hidden on hover */}
           <div className="relative p-6 space-y-4 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
+            {/* RSS Source Website Info - Shows at the top for RSS articles */}
+            {article.source === 'rss' && (article.siteTitle || article.siteDomain) && (
+              <div className="flex items-center gap-2 pb-2 border-b border-border/20">
+                <svg className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" strokeWidth="2"></circle>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-purple-600 dark:text-purple-400 truncate">
+                    {article.siteTitle || article.siteDomain}
+                  </p>
+                  {article.siteTitle && article.siteDomain && (
+                    <p className="text-[10px] font-bold text-muted-foreground truncate">
+                      {article.siteDomain}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {/* Mysterious excerpt - 2 lines max with ellipsis */}
             <p className="text-foreground/90 leading-relaxed line-clamp-2 font-medium">
               {truncateExcerpt(article.excerpt)}
@@ -220,6 +245,16 @@ export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: A
                   </svg>
                   <span className="text-xs font-black text-muted-foreground">{article.readingTime} MIN</span>
                 </div>
+                
+                {/* RSS indicator if from RSS feed */}
+                {article.source === 'rss' && (
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 rounded-full border border-orange-500/20">
+                    <svg className="w-3.5 h-3.5 text-orange-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795.001 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-3.368c10.58.046 19.152 8.594 19.183 19.188h4.817c-.03-13.231-10.755-23.954-24-24v4.812z"/>
+                    </svg>
+                    <span className="text-xs font-black text-orange-600">RSS</span>
+                  </div>
+                )}
                 
                 {/* LinkedIn indicator if from LinkedIn */}
                 {article.source === 'linkedin' && (

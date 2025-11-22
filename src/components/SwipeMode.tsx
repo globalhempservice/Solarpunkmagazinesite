@@ -4,7 +4,7 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
 import { PreviewCard } from './PreviewCard'
-import { Heart, X, Sparkles, RefreshCw, Clock, User, Grid } from 'lucide-react'
+import { Heart, X, Sparkles, RefreshCw, Clock, User, Grid, ExternalLink, Rss } from 'lucide-react'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 import { toast } from 'sonner@2.0.3'
 
@@ -26,6 +26,10 @@ interface Article {
     url: string
     caption?: string
   }>
+  // External RSS article fields
+  isExternal?: boolean
+  source?: string
+  sourceUrl?: string
 }
 
 interface SwipeModeProps {
@@ -63,8 +67,11 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
 
   const currentArticle = articles[currentIndex]
   
-  // Preload next 3 cards
-  const visibleCards = articles.slice(currentIndex, currentIndex + 3)
+  // Calculate points based on article source
+  const pointsToEarn = currentArticle?.source === 'rss' ? 5 : 10
+  
+  // Preload next 3 cards - filter out any articles without valid IDs
+  const visibleCards = articles.slice(currentIndex, currentIndex + 3).filter(article => article && article.id)
 
   const handleDragEnd = (event: any, info: PanInfo) => {
     if (isAnimating) return
@@ -320,6 +327,16 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                 <Badge className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm border-2">
                   {currentArticle.category}
                 </Badge>
+                
+                {/* External RSS Badge - Top Left */}
+                {currentArticle.isExternal && (
+                  <div className="absolute top-4 left-4">
+                    <Badge className="bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 text-white border-2 border-white/30 backdrop-blur-sm shadow-lg flex items-center gap-1.5">
+                      <Rss className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      <span className="font-black" style={{ textShadow: '1px 1px 0 rgba(0,0,0,0.3)' }}>RSS FEED</span>
+                    </Badge>
+                  </div>
+                )}
               </div>
 
               {/* Content - Scrollable */}
@@ -348,13 +365,50 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                 </div>
 
                 {/* Read Now Button */}
-                <Button
-                  onClick={handleReadNow}
-                  variant="outline"
-                  className="w-full h-11 sm:h-12 border-2 border-primary/20 hover:bg-primary/5"
-                >
-                  Read Full Article
-                </Button>
+                {currentArticle.isExternal ? (
+                  <Button
+                    onClick={() => {
+                      if (currentArticle.sourceUrl) {
+                        window.open(currentArticle.sourceUrl, '_blank')
+                        // Award points for reading external article
+                        if (accessToken) {
+                          fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/external-article-read`, {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${accessToken}`,
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ articleId: currentArticle.id })
+                          })
+                            .then(res => res.json())
+                            .then(data => {
+                              if (data.success) {
+                                toast.success(`+${pointsToEarn} points for reading!`, {
+                                  description: 'Keep exploring curated content'
+                                })
+                              }
+                            })
+                            .catch(error => {
+                              console.error('Failed to award points:', error)
+                            })
+                        }
+                      }
+                    }}
+                    className="w-full h-11 sm:h-12 bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 hover:from-emerald-700 hover:to-teal-700 flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    READ NOW
+                    <span className="px-2 py-0.5 bg-amber-400 text-amber-900 rounded-full font-black text-xs">+{pointsToEarn}</span>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleReadNow}
+                    variant="outline"
+                    className="w-full h-11 sm:h-12 border-2 border-primary/20 hover:bg-primary/5"
+                  >
+                    Read Full Article
+                  </Button>
+                )}
               </div>
 
               {/* Swipe Indicators */}

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { Button } from "./ui/button"
 import { Card, CardContent } from "./ui/card"
@@ -31,7 +31,9 @@ import {
   Lock,
   FileText,
   Download,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Rss,
+  Globe
 } from "lucide-react"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 import { PlaceholderArt } from "./PlaceholderArt"
@@ -66,6 +68,12 @@ interface Article {
   authorImage?: string
   authorTitle?: string
   publishDate?: string
+  feedTitle?: string // RSS feed title
+  feedUrl?: string // RSS feed URL
+  siteDomain?: string // Origin website domain
+  siteTitle?: string // Origin website title
+  siteFavicon?: string // Origin website favicon
+  siteImage?: string // Origin website image/logo
 }
 
 interface ArticleReaderProps {
@@ -91,9 +99,21 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
   const [showUnlockModal, setShowUnlockModal] = useState(false)
   const [claimingPoints, setClaimingPoints] = useState(false)
   const [pointsClaimed, setPointsClaimed] = useState(false)
+  const [pointsEarned, setPointsEarned] = useState<number>(0)
 
   // Check if article is already read
   const isAlreadyRead = userProgress?.readArticles?.includes(article.id) || false
+  
+  // Determine if this is an RSS article to show correct points
+  const isRssArticle = article.source === 'rss'
+  const expectedPoints = isRssArticle ? 5 : 10
+
+  // Reset points claimed state when article changes
+  useEffect(() => {
+    setPointsClaimed(false)
+    setPointsEarned(0)
+    setClaimingPoints(false)
+  }, [article.id])
 
   // Debug: Log media to console
   console.log('📰 Article Media:', article.media)
@@ -176,12 +196,17 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
         const data = await response.json()
         setPointsClaimed(true)
         
+        // Save the points earned from the response
+        if (data.pointsEarned) {
+          setPointsEarned(data.pointsEarned)
+        }
+        
         // Update parent progress
         if (onProgressUpdate && data.progress) {
           onProgressUpdate(data.progress)
         }
 
-        console.log('✅ Points claimed successfully!')
+        console.log('✅ Points claimed successfully!', `Earned: ${data.pointsEarned} points`)
       } else {
         const error = await response.json()
         console.error('Failed to claim points:', error)
@@ -428,7 +453,7 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                             You'll Earn
                           </div>
                           
-                          {/* MASSIVE +10 DISPLAY */}
+                          {/* MASSIVE POINTS DISPLAY - Dynamic based on article source */}
                           <div className="flex items-center justify-center gap-3 md:gap-4">
                             <Zap className="w-10 h-10 md:w-14 md:h-14 text-amber-600 dark:text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.8)] animate-pulse" strokeWidth={2.5} fill="currentColor" />
                             <div className="flex items-center">
@@ -436,7 +461,7 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                                 textShadow: '4px 4px 0 rgba(0,0,0,0.1)',
                                 WebkitTextStroke: '2px rgba(251,191,36,0.3)'
                               }}>
-                                +10
+                                +{expectedPoints}
                               </span>
                             </div>
                             <Zap className="w-10 h-10 md:w-14 md:h-14 text-amber-600 dark:text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.8)] animate-pulse" strokeWidth={2.5} fill="currentColor" />
@@ -607,74 +632,117 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
               {/* Title */}
               <h1 className="text-3xl md:text-4xl text-foreground">{article.title}</h1>
               
-              {/* View Original Article Link - More prominent version */}
-              {article.sourceUrl && (
-                <div className="mt-4">
-                  <a
-                    href={article.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border-2 border-blue-500/40 hover:border-blue-500/60 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl group"
-                  >
-                    <ExternalLink className="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-blue-600 dark:text-blue-400">View Original Article</span>
-                    <ArrowRight className="w-4 h-4 text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </a>
-                </div>
-              )}
-              
-              {/* LinkedIn Author Info Box - Shows only if LinkedIn metadata exists */}
-              {(article.author || article.authorImage) && (
+              {/* Author Info Box - Shows for both LinkedIn and RSS articles */}
+              {(article.author || article.authorImage || (article.source === 'rss' && (article.siteDomain || article.siteImage))) && (
                 <Card className="relative overflow-hidden border-0 shadow-lg">
-                    {/* Gradient Background */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-blue-500/10" />
+                    {/* Gradient Background - Different for RSS vs LinkedIn */}
+                    <div className={`absolute inset-0 ${
+                      article.source === 'rss'
+                        ? 'bg-gradient-to-br from-purple-500/10 via-teal-500/5 to-cyan-500/10'
+                        : 'bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-blue-500/10'
+                    }`} />
                     
                     {/* Floating particles */}
                     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                      <div className="absolute top-4 right-4 w-20 h-20 bg-blue-400/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '3s' }} />
-                      <div className="absolute bottom-4 left-4 w-24 h-24 bg-cyan-400/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '4s', animationDelay: '1s' }} />
+                      <div className={`absolute top-4 right-4 w-20 h-20 rounded-full blur-2xl animate-pulse ${
+                        article.source === 'rss' ? 'bg-purple-400/10' : 'bg-blue-400/10'
+                      }`} style={{ animationDuration: '3s' }} />
+                      <div className={`absolute bottom-4 left-4 w-24 h-24 rounded-full blur-2xl animate-pulse ${
+                        article.source === 'rss' ? 'bg-teal-400/10' : 'bg-cyan-400/10'
+                      }`} style={{ animationDuration: '4s', animationDelay: '1s' }} />
                     </div>
                     
                     <CardContent className="relative p-4 md:p-6">
-                      {/* Header with LinkedIn Icon and Label */}
+                      {/* Header with Icon and Label */}
                       <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-blue-500/20 rounded-lg">
-                          <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                          </svg>
-                        </div>
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          LinkedIn Author
-                        </span>
-                        
-                        {/* LinkedIn Badge - Desktop Only */}
-                        <Badge className="hidden md:flex bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg ml-auto">
-                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                          </svg>
-                          LinkedIn
-                        </Badge>
+                        {article.source === 'rss' ? (
+                          <>
+                            <div className="p-2 bg-gradient-to-br from-purple-500/20 to-teal-500/20 rounded-lg">
+                              <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Website Source
+                            </span>
+                            
+                            {/* Website Badge - Desktop Only */}
+                            <Badge className="hidden md:flex bg-gradient-to-r from-purple-600 to-teal-600 text-white border-0 px-3 py-1.5 shadow-lg ml-auto">
+                              <Globe className="w-3 h-3 mr-1" />
+                              Website
+                            </Badge>
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-2 bg-blue-500/20 rounded-lg">
+                              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                              </svg>
+                            </div>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              LinkedIn Author
+                            </span>
+                            
+                            {/* LinkedIn Badge - Desktop Only */}
+                            <Badge className="hidden md:flex bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg ml-auto">
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                              </svg>
+                              LinkedIn
+                            </Badge>
+                          </>
+                        )}
                       </div>
                       
                       {/* Author Content - Responsive Layout */}
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         {/* Author Avatar */}
                         <div className="relative group mx-auto sm:mx-0">
-                          <div className="absolute -inset-1 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity" />
-                          <div className="relative w-20 h-20 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-3 border-blue-500/30 bg-muted flex-shrink-0">
-                            {article.authorImage ? (
-                              <img 
-                                src={article.authorImage} 
-                                alt={article.author || 'Author'} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'
-                                }}
-                              />
+                          <div className={`absolute -inset-1 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity ${
+                            article.source === 'rss'
+                              ? 'bg-gradient-to-br from-purple-500 to-teal-500'
+                              : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                          }`} />
+                          <div className={`relative w-20 h-20 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-3 bg-muted flex-shrink-0 ${
+                            article.source === 'rss'
+                              ? 'border-purple-500/30'
+                              : 'border-blue-500/30'
+                          }`}>
+                            {/* For RSS: Try siteImage, then siteFavicon, then Globe icon */}
+                            {article.source === 'rss' ? (
+                              article.siteImage || article.siteFavicon ? (
+                                <img 
+                                  src={article.siteImage || article.siteFavicon} 
+                                  alt={article.siteTitle || article.siteDomain || 'Website'} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Fallback to Globe icon if image fails to load
+                                    e.currentTarget.style.display = 'none'
+                                    const parent = e.currentTarget.parentElement
+                                    if (parent) {
+                                      parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-teal-600"><svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>'
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-teal-600">
+                                  <Globe className="w-10 h-10 text-white" />
+                                </div>
+                              )
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-2xl font-bold">
-                                {article.author?.charAt(0).toUpperCase() || 'A'}
-                              </div>
+                              /* For LinkedIn: Use authorImage or initials */
+                              article.authorImage ? (
+                                <img 
+                                  src={article.authorImage} 
+                                  alt={article.author || 'Author'} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-2xl font-bold">
+                                  {article.author?.charAt(0).toUpperCase() || 'A'}
+                                </div>
+                              )
                             )}
                           </div>
                         </div>
@@ -682,9 +750,17 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                         {/* Author Info */}
                         <div className="flex-1 min-w-0 text-center sm:text-left w-full sm:w-auto">
                           <h3 className="font-bold text-base sm:text-lg md:text-xl text-foreground mb-1">
-                            {article.author || 'LinkedIn Author'}
+                            {article.source === 'rss' 
+                              ? (article.siteTitle || article.siteDomain || article.author || 'Website')
+                              : (article.author || 'LinkedIn Author')
+                            }
                           </h3>
-                          {article.authorTitle && (
+                          {article.source === 'rss' && article.siteDomain && (
+                            <p className="text-xs sm:text-sm text-muted-foreground mb-2">
+                              {article.siteDomain}
+                            </p>
+                          )}
+                          {article.source !== 'rss' && article.authorTitle && (
                             <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
                               {article.authorTitle}
                             </p>
@@ -702,15 +778,123 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                             </div>
                           )}
                           
-                          {/* LinkedIn Badge - Mobile Only */}
-                          <Badge className="md:hidden inline-flex mt-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                            </svg>
-                            LinkedIn
-                          </Badge>
+                          {/* Badge - Mobile Only */}
+                          {article.source === 'rss' ? (
+                            <Badge className="md:hidden inline-flex mt-3 bg-gradient-to-r from-purple-600 to-teal-600 text-white border-0 px-3 py-1.5 shadow-lg">
+                              <Globe className="w-3 h-3 mr-1" />
+                              Website
+                            </Badge>
+                          ) : (
+                            <Badge className="md:hidden inline-flex mt-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg">
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                              </svg>
+                              LinkedIn
+                            </Badge>
+                          )}
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+              )}
+              
+              {/* RSS Website Source Card - Shows for RSS articles */}
+              {article.source === 'rss' && article.siteDomain && article.sourceUrl && (
+                <Card className="relative overflow-hidden border-0 shadow-lg">
+                    {/* Gradient Background - Purple/Teal for Website Style */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-teal-500/5 to-cyan-500/10" />
+                    
+                    {/* Floating particles */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      <div className="absolute top-4 right-4 w-20 h-20 bg-purple-400/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '3s' }} />
+                      <div className="absolute bottom-4 left-4 w-24 h-24 bg-teal-400/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '4s', animationDelay: '1s' }} />
+                    </div>
+                    
+                    <CardContent className="relative p-4 md:p-6">
+                      {/* Header with Globe Icon and Label */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-gradient-to-br from-purple-500/20 to-teal-500/20 rounded-lg">
+                            <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            From the Web
+                          </span>
+                        </div>
+                        
+                        {/* View Original Button - Desktop */}
+                        <a 
+                          href={article.sourceUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white rounded-lg transition-all font-semibold text-sm shadow-lg"
+                        >
+                          View Original
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                      
+                      {/* Source Content - Responsive Layout */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        {/* Website Favicon/Logo */}
+                        <div className="relative group mx-auto sm:mx-0">
+                          <div className="absolute -inset-1 bg-gradient-to-br from-purple-500 to-teal-500 rounded-2xl blur opacity-30 group-hover:opacity-50 transition-opacity" />
+                          <div className="relative w-20 h-20 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-3 border-purple-500/30 bg-white dark:bg-muted flex-shrink-0 shadow-md">
+                            {article.siteFavicon ? (
+                              <img 
+                                src={article.siteFavicon} 
+                                alt={`${article.siteTitle || article.siteDomain} favicon`}
+                                className="w-full h-full object-contain p-3"
+                                onError={(e) => {
+                                  // Fallback to Globe icon if favicon fails to load
+                                  e.currentTarget.style.display = 'none'
+                                  const parent = e.currentTarget.parentElement
+                                  if (parent) {
+                                    parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-teal-600"><svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>'
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-teal-600">
+                                <Globe className="w-10 h-10 text-white" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Website Info */}
+                        <div className="flex-1 min-w-0 text-center sm:text-left w-full sm:w-auto">
+                          <h3 className="font-bold text-base sm:text-lg md:text-xl text-foreground mb-1">
+                            {article.siteTitle || article.siteDomain}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-2">
+                            {article.siteDomain}
+                          </p>
+                          {article.publishDate && (
+                            <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">
+                                {new Date(article.publishDate).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* View Original Button - Mobile */}
+                      <a 
+                        href={article.sourceUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="md:hidden flex items-center justify-center gap-2 px-4 py-3 mt-4 bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white rounded-lg transition-all font-semibold text-sm shadow-lg w-full"
+                      >
+                        View Original Article
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
                     </CardContent>
                   </Card>
               )}
@@ -733,6 +917,29 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold text-sm"
+                  >
+                    View Original
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
+              
+              {/* RSS Source Link */}
+              {article.source === 'rss' && article.sourceUrl && (
+                <div className="flex items-center gap-2 p-4 rounded-xl bg-orange-500/10 border-2 border-orange-500/30">
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="p-2 bg-orange-500/20 rounded-lg">
+                      <Rss className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-muted-foreground font-medium">View original article from RSS feed</p>
+                    </div>
+                  </div>
+                  <a 
+                    href={article.sourceUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-semibold text-sm"
                   >
                     View Original
                     <ExternalLink className="w-4 h-4" />
@@ -863,6 +1070,7 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
               claimingPoints={claimingPoints}
               pointsClaimed={pointsClaimed}
               onClick={handleClaimPoints}
+              points={pointsClaimed ? pointsEarned : expectedPoints}
             />
           )}
           
@@ -886,7 +1094,7 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
                       </div>
                       <div>
                         <h3 className="text-lg md:text-xl font-bold text-foreground">Continue Reading</h3>
-                        <p className="text-xs text-muted-foreground">Earn +10 more points 🌿</p>
+                        <p className="text-xs text-muted-foreground">Earn more points</p>
                       </div>
                     </div>
                     <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-emerald-400 dark:to-teal-500 hempin:from-amber-500 hempin:to-orange-600 text-white border-0 px-3 py-1.5 shadow-lg">

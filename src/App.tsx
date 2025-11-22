@@ -919,7 +919,7 @@ export default function App() {
 
       <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' ? 'p-0' : 'py-8 pb-32'}>
         {/* Content with its own container for padding */}
-        <div className={currentView === 'browse' || currentView === 'community-market' ? '' : 'container mx-auto px-4'}>
+        <div className={currentView === 'browse' || currentView === 'community-market' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
             <div className="space-y-6">

@@ -4,6 +4,8 @@ import { logger } from 'npm:hono/logger'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import * as walletSecurity from './wallet_security.tsx'
 import * as articleSecurity from './article_security.tsx'
+import * as kv from './kv_store.tsx'
+import { parseRSSFeed, generateFeedId, generateArticleId, RSSFeed, RSSArticle } from './rss_parser.tsx'
 
 const app = new Hono()
 
@@ -183,9 +185,9 @@ app.get('/make-server-053bcd80/articles', async (c) => {
     const category = c.req.query('category')
     const limit = parseInt(c.req.query('limit') || '50')
     
-    console.log('Fetching articles from SQL database...')
+    console.log('Fetching articles from SQL database and KV store...')
     
-    // Build query
+    // Build query for SQL articles
     let query = supabase
       .from('articles')
       .select('*')
@@ -197,40 +199,134 @@ app.get('/make-server-053bcd80/articles', async (c) => {
       query = query.eq('category', category)
     }
     
-    const { data: articles, error } = await query
+    const { data: sqlArticles, error } = await query
     
     if (error) {
       console.error('Error fetching articles from SQL:', error)
       throw error
     }
     
-    console.log('Fetched', articles?.length || 0, 'articles from SQL database')
+    console.log('Fetched', sqlArticles?.length || 0, 'articles from SQL database')
     
-    // Transform SQL articles to frontend format (snake_case -> camelCase)
-    const transformedArticles = (articles || []).map(article => ({
-      id: article.id,
-      title: article.title,
-      content: article.content,
-      excerpt: article.excerpt,
-      category: article.category,
-      coverImage: article.cover_image,
-      readingTime: article.reading_time,
-      authorId: article.author_id,
-      views: article.views || 0,
-      likes: article.likes || 0,
-      createdAt: article.created_at,
-      updatedAt: article.updated_at,
-      media: article.media || [],
-      source: article.source,
-      sourceUrl: article.source_url,
-      author: article.author,
-      authorImage: article.author_image,
-      authorTitle: article.author_title,
-      publishDate: article.publish_date,
-      hidden: article.hidden || false
-    }))
+    // Transform SQL articles to frontend format (snake_case -> camelCase) and filter out any without IDs
+    const transformedSqlArticles = (sqlArticles || [])
+      .filter(article => article && article.id)
+      .map(article => ({
+        id: article.id,
+        title: article.title,
+        content: article.content,
+        excerpt: article.excerpt,
+        category: article.category,
+        coverImage: article.cover_image,
+        readingTime: article.reading_time,
+        authorId: article.author_id,
+        views: article.views || 0,
+        likes: article.likes || 0,
+        createdAt: article.created_at,
+        updatedAt: article.updated_at,
+        media: article.media || [],
+        source: article.source,
+        sourceUrl: article.source_url,
+        author: article.author,
+        authorImage: article.author_image,
+        authorTitle: article.author_title,
+        publishDate: article.publish_date,
+        feedTitle: article.feed_title, // RSS feed title
+        feedUrl: article.feed_url, // RSS feed URL
+        hidden: article.hidden || false
+      }))
     
-    return c.json({ articles: transformedArticles })
+    // Enrich RSS articles with feed information from rss_articles table
+    const rssArticleIds = transformedSqlArticles
+      .filter(a => a.source === 'rss' && a.sourceUrl)
+      .map(a => a.sourceUrl)
+    
+    if (rssArticleIds.length > 0) {
+      const { data: rssArticlesData } = await supabase
+        .from('rss_articles')
+        .select('link, feed_title, feed_url, site_domain, site_title, site_favicon, site_image')
+        .in('link', rssArticleIds)
+      
+      if (rssArticlesData) {
+        const rssLookup = new Map(rssArticlesData.map(r => [r.link, r]))
+        transformedSqlArticles.forEach(article => {
+          if (article.source === 'rss' && article.sourceUrl) {
+            const rssData = rssLookup.get(article.sourceUrl)
+            if (rssData) {
+              article.feedTitle = rssData.feed_title
+              article.feedUrl = rssData.feed_url
+              article.siteDomain = rssData.site_domain
+              article.siteTitle = rssData.site_title
+              article.siteFavicon = rssData.site_favicon
+              article.siteImage = rssData.site_image
+            }
+          }
+        })
+      }
+    }
+    
+    // Also fetch RSS/KV articles (published RSS articles stored in KV)
+    const kvArticles = await kv.getByPrefix('article_')
+    console.log('Fetched', kvArticles?.length || 0, 'articles from KV store')
+    
+    // Filter KV articles by category if needed and ensure they're published and have valid IDs
+    let filteredKvArticles = kvArticles.filter((article: any) => 
+      article && article.id && article.isPublished !== false && !article.hidden
+    )
+    
+    if (category && category !== 'all') {
+      filteredKvArticles = filteredKvArticles.filter((article: any) => 
+        article.category === category
+      )
+    }
+    
+    // Transform KV articles to match frontend format with comprehensive fallbacks
+    const transformedKvArticles = filteredKvArticles.map((article: any) => {
+      // Calculate reading time if missing (average 200 words per minute)
+      let readingTime = article.readingTime
+      if (!readingTime && article.content) {
+        const wordCount = article.content.split(/\s+/).length
+        readingTime = Math.max(1, Math.ceil(wordCount / 200))
+      }
+      readingTime = readingTime || 5 // Default to 5 minutes
+      
+      return {
+        id: article.id,
+        title: article.title || 'Untitled',
+        content: article.content || article.excerpt || '',
+        excerpt: article.excerpt || article.content?.substring(0, 200) || '',
+        category: article.category || 'Eco Innovation',
+        coverImage: article.coverImage || article.imageUrl || '',
+        readingTime: readingTime,
+        authorId: article.authorId || 'rss_system',
+        views: article.views || article.readCount || 0,
+        likes: article.likes || 0,
+        createdAt: article.createdAt || new Date().toISOString(),
+        updatedAt: article.updatedAt || article.createdAt || new Date().toISOString(),
+        media: article.media || [],
+        source: article.source || 'rss',
+        sourceUrl: article.sourceUrl || '',
+        author: article.author || article.authorName || 'RSS Feed',
+        authorImage: article.authorImage || article.authorAvatar || '',
+        authorTitle: article.authorTitle || '',
+        publishDate: article.publishDate || article.createdAt || new Date().toISOString(),
+        hidden: article.hidden || false,
+        isExternal: article.source === 'rss' // Flag for external RSS articles
+      }
+    })
+    
+    // Combine and sort by date
+    const allArticles = [...transformedSqlArticles, ...transformedKvArticles]
+    allArticles.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    
+    // Apply limit after combining
+    const limitedArticles = allArticles.slice(0, limit)
+    
+    console.log('Total articles returned:', limitedArticles.length, '(SQL:', transformedSqlArticles.length, '+ KV:', transformedKvArticles.length, ')')
+    
+    return c.json({ articles: limitedArticles })
   } catch (error: any) {
     console.error('Error fetching articles:', error)
     return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
@@ -284,7 +380,27 @@ app.get('/make-server-053bcd80/articles/:id', async (c) => {
       authorImage: article.author_image,
       authorTitle: article.author_title,
       publishDate: article.publish_date,
+      feedTitle: article.feed_title, // RSS feed title
+      feedUrl: article.feed_url, // RSS feed URL
       hidden: article.hidden || false
+    }
+    
+    // Enrich RSS article with feed information if needed
+    if (transformedArticle.source === 'rss' && transformedArticle.sourceUrl && !transformedArticle.feedTitle) {
+      const { data: rssArticleData } = await supabase
+        .from('rss_articles')
+        .select('feed_title, feed_url, site_domain, site_title, site_favicon, site_image')
+        .eq('link', transformedArticle.sourceUrl)
+        .single()
+      
+      if (rssArticleData) {
+        transformedArticle.feedTitle = rssArticleData.feed_title
+        transformedArticle.feedUrl = rssArticleData.feed_url
+        transformedArticle.siteDomain = rssArticleData.site_domain
+        transformedArticle.siteTitle = rssArticleData.site_title
+        transformedArticle.siteFavicon = rssArticleData.site_favicon
+        transformedArticle.siteImage = rssArticleData.site_image
+      }
     }
     
     return c.json({ article: transformedArticle })
@@ -944,6 +1060,24 @@ app.post('/make-server-053bcd80/users/:userId/read', requireAuth, async (c) => {
     
     console.log('✅ SECURITY: All checks passed. Suspicion score:', securityCheck.suspicionScore)
     
+    // Fetch the article to determine if it's an RSS article
+    const { data: article, error: articleError } = await supabase
+      .from('articles')
+      .select('source')
+      .eq('id', articleId)
+      .single()
+    
+    if (articleError) {
+      console.log('Error fetching article:', articleError)
+      return c.json({ error: 'Article not found', details: articleError.message }, 404)
+    }
+    
+    // Determine points based on article source
+    const isRssArticle = article?.source === 'rss'
+    const pointsForReading = isRssArticle ? 5 : 10
+    
+    console.log(`📰 Article source: ${article?.source}, awarding ${pointsForReading} points`)
+    
     // Try to insert read_article (will fail if already read due to unique constraint)
     const { data: readArticle, error: readError } = await supabase
       .from('read_articles')
@@ -975,7 +1109,7 @@ app.post('/make-server-053bcd80/users/:userId/read', requireAuth, async (c) => {
           readArticles: []
         }
         
-        return c.json({ progress: transformedProgress, newAchievements: [] })
+        return c.json({ progress: transformedProgress, newAchievements: [], pointsEarned: 0 })
       }
       
       console.log('Error marking article as read:', readError)
@@ -1007,7 +1141,7 @@ app.post('/make-server-053bcd80/users/:userId/read', requireAuth, async (c) => {
     }
     
     // Update progress
-    let newPoints = progress.points + 10 // 10 points per article
+    let newPoints = progress.points + pointsForReading // RSS articles: 5 points, Regular articles: 10 points
     let newStreak = progress.current_streak
     let newLongestStreak = progress.longest_streak
     
@@ -1153,7 +1287,11 @@ app.post('/make-server-053bcd80/users/:userId/read', requireAuth, async (c) => {
       readArticles: []
     }
     
-    return c.json({ progress: transformedProgress, newAchievements })
+    return c.json({ 
+      progress: transformedProgress, 
+      newAchievements,
+      pointsEarned: pointsForReading  // Pass back the points earned (5 for RSS, 10 for regular)
+    })
   } catch (error) {
     console.log('Error updating user progress:', error)
     return c.json({ error: 'Failed to update user progress', details: error.message }, 500)
@@ -7265,6 +7403,479 @@ app.post('/make-server-053bcd80/purchase-swag-item', async (c) => {
   } catch (error: any) {
     console.error('Error in purchase-swag-item endpoint:', error)
     return c.json({ error: 'Internal server error', details: error.message }, 500)
+  }
+})
+
+// ============================================================================
+// RSS FEED MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Subscribe to a new RSS feed (Admin only)
+app.post('/make-server-053bcd80/rss-feeds', requireAuth, requireAdmin, async (c) => {
+  try {
+    const { feedUrl } = await c.req.json()
+    const userId = c.get('userId')
+
+    if (!feedUrl) {
+      return c.json({ error: 'Feed URL is required' }, 400)
+    }
+
+    console.log(`📡 Subscribing to RSS feed: ${feedUrl}`)
+
+    // Parse the feed to validate it
+    const { feed, articles } = await parseRSSFeed(feedUrl)
+
+    // Generate feed ID
+    const feedId = generateFeedId(feedUrl)
+
+    // Check if feed already exists
+    const { data: existingFeed } = await supabase
+      .from('rss_feeds')
+      .select('id')
+      .eq('id', feedId)
+      .single()
+
+    if (existingFeed) {
+      return c.json({ error: 'Feed already subscribed' }, 400)
+    }
+
+    // Create feed subscription in database
+    const { data: newFeed, error: feedError } = await supabase
+      .from('rss_feeds')
+      .insert({
+        id: feedId,
+        url: feedUrl,
+        title: feed.title || 'Untitled Feed',
+        description: feed.description || null,
+        link: feed.link || null,
+        is_active: true,
+        added_by_user_id: userId || null
+      })
+      .select()
+      .single()
+
+    if (feedError) {
+      console.error('Error creating RSS feed:', feedError)
+      return c.json({ error: 'Failed to create feed', details: feedError.message }, 500)
+    }
+
+    // Store fetched articles
+    const articlesToInsert = []
+    for (const article of articles.slice(0, 10)) { // Store first 10 articles as preview
+      const articleId = generateArticleId(feedId, article.link!)
+      articlesToInsert.push({
+        id: articleId,
+        feed_id: feedId,
+        feed_title: newFeed.title,
+        feed_url: feedUrl,
+        title: article.title!,
+        link: article.link!,
+        description: article.description || null,
+        content: article.content || null,
+        author: article.author || null,
+        published_at: article.publishedAt || null,
+        image_url: article.imageUrl || null,
+        category: article.category || null,
+        site_domain: article.siteDomain || null,
+        site_title: article.siteTitle || null,
+        site_favicon: article.siteFavicon || null,
+        site_image: article.siteImage || null,
+        status: 'pending'
+      })
+    }
+
+    // Bulk upsert articles (handles duplicates gracefully)
+    const { data: savedArticles, error: articlesError } = await supabase
+      .from('rss_articles')
+      .upsert(articlesToInsert, { onConflict: 'id' })
+      .select()
+
+    if (articlesError) {
+      console.error('Error saving RSS articles:', articlesError)
+      // Don't fail if articles can't be saved, feed is already created
+    }
+
+    console.log(`✅ Subscribed to feed: ${newFeed.title} (${savedArticles?.length || 0} articles fetched)`)
+
+    return c.json({
+      feed: newFeed,
+      articlesPreview: savedArticles || []
+    })
+  } catch (error: any) {
+    console.error('Error subscribing to RSS feed:', error)
+    return c.json({ error: 'Failed to subscribe to RSS feed', details: error.message }, 500)
+  }
+})
+
+// Get all subscribed RSS feeds (Admin only)
+app.get('/make-server-053bcd80/rss-feeds', requireAuth, requireAdmin, async (c) => {
+  try {
+    const { data: feeds, error } = await supabase
+      .from('rss_feeds')
+      .select('*')
+      .order('added_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching RSS feeds:', error)
+      return c.json({ error: 'Failed to fetch RSS feeds', details: error.message }, 500)
+    }
+
+    return c.json({ feeds })
+  } catch (error: any) {
+    console.error('Error fetching RSS feeds:', error)
+    return c.json({ error: 'Failed to fetch RSS feeds', details: error.message }, 500)
+  }
+})
+
+// Preview RSS feed without subscribing
+app.post('/make-server-053bcd80/rss-feeds/preview', requireAuth, async (c) => {
+  try {
+    const { feedUrl } = await c.req.json()
+
+    if (!feedUrl) {
+      return c.json({ error: 'Feed URL is required' }, 400)
+    }
+
+    console.log(`🔍 Previewing RSS feed: ${feedUrl}`)
+
+    // Parse the feed
+    const { feed, articles } = await parseRSSFeed(feedUrl)
+
+    return c.json({
+      feed: {
+        title: feed.title,
+        description: feed.description,
+        link: feed.link,
+        url: feedUrl
+      },
+      articles: articles.slice(0, 5) // Return first 5 as preview
+    })
+  } catch (error: any) {
+    console.error('Error previewing RSS feed:', error)
+    return c.json({ error: 'Failed to preview RSS feed', details: error.message }, 400)
+  }
+})
+
+// Manually fetch articles from a feed (Admin only)
+app.post('/make-server-053bcd80/rss-feeds/:feedId/fetch', requireAuth, requireAdmin, async (c) => {
+  try {
+    const feedId = c.req.param('feedId')
+    
+    const { data: feed, error: feedError } = await supabase
+      .from('rss_feeds')
+      .select('*')
+      .eq('id', feedId)
+      .single()
+
+    if (feedError || !feed) {
+      return c.json({ error: 'Feed not found' }, 404)
+    }
+
+    console.log(`🔄 Fetching articles from feed: ${feed.title}`)
+
+    // Parse the feed
+    const { articles } = await parseRSSFeed(feed.url)
+
+    // Get existing article links to avoid duplicates
+    const { data: existingArticles } = await supabase
+      .from('rss_articles')
+      .select('link')
+      .eq('feed_id', feedId)
+
+    const existingLinks = new Set(existingArticles?.map(a => a.link) || [])
+
+    // Prepare new articles
+    const newArticlesToInsert = []
+    for (const article of articles) {
+      // Skip if already exists
+      if (existingLinks.has(article.link!)) {
+        continue
+      }
+
+      const articleId = generateArticleId(feedId, article.link!)
+      newArticlesToInsert.push({
+        id: articleId,
+        feed_id: feedId,
+        feed_title: feed.title,
+        feed_url: feed.url,
+        title: article.title!,
+        link: article.link!,
+        description: article.description || null,
+        content: article.content || null,
+        author: article.author || null,
+        published_at: article.publishedAt || null,
+        image_url: article.imageUrl || null,
+        category: article.category || null,
+        site_domain: article.siteDomain || null,
+        site_title: article.siteTitle || null,
+        site_favicon: article.siteFavicon || null,
+        site_image: article.siteImage || null,
+        status: 'pending'
+      })
+    }
+
+    // Bulk upsert new articles (handles duplicates gracefully)
+    let newArticles = []
+    if (newArticlesToInsert.length > 0) {
+      const { data, error: insertError } = await supabase
+        .from('rss_articles')
+        .upsert(newArticlesToInsert, { onConflict: 'id' })
+        .select()
+
+      if (insertError) {
+        console.error('Error inserting RSS articles:', insertError)
+      } else {
+        newArticles = data || []
+      }
+    }
+
+    // Update feed's last fetched time
+    await supabase
+      .from('rss_feeds')
+      .update({ last_fetched_at: new Date().toISOString() })
+      .eq('id', feedId)
+
+    console.log(`✅ Fetched ${newArticles.length} new articles from ${feed.title}`)
+
+    return c.json({
+      feed,
+      newArticlesCount: newArticles.length,
+      newArticles
+    })
+  } catch (error: any) {
+    console.error('Error fetching RSS articles:', error)
+    return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+  }
+})
+
+// Get pending RSS articles (Admin only)
+app.get('/make-server-053bcd80/rss-articles/pending', requireAuth, requireAdmin, async (c) => {
+  try {
+    const { data: articles, error } = await supabase
+      .from('rss_articles')
+      .select('*')
+      .eq('status', 'pending')
+      .order('fetched_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching pending RSS articles:', error)
+      return c.json({ error: 'Failed to fetch pending articles', details: error.message }, 500)
+    }
+
+    return c.json({ articles })
+  } catch (error: any) {
+    console.error('Error fetching pending RSS articles:', error)
+    return c.json({ error: 'Failed to fetch pending articles', details: error.message }, 500)
+  }
+})
+
+// Get published RSS articles (Admin only)
+app.get('/make-server-053bcd80/rss-articles/published', requireAuth, requireAdmin, async (c) => {
+  try {
+    const { data: articles, error } = await supabase
+      .from('rss_articles')
+      .select('*')
+      .eq('status', 'published')
+      .order('published_to_magazine_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching published RSS articles:', error)
+      return c.json({ error: 'Failed to fetch published articles', details: error.message }, 500)
+    }
+
+    return c.json({ articles })
+  } catch (error: any) {
+    console.error('Error fetching published RSS articles:', error)
+    return c.json({ error: 'Failed to fetch published articles', details: error.message }, 500)
+  }
+})
+
+// Publish RSS article to magazine (Admin only)
+app.post('/make-server-053bcd80/rss-articles/:articleId/publish', requireAuth, requireAdmin, async (c) => {
+  try {
+    const articleId = c.req.param('articleId')
+    const { category } = await c.req.json()
+
+    // Get RSS article from database
+    const { data: rssArticle, error: fetchError } = await supabase
+      .from('rss_articles')
+      .select('*')
+      .eq('id', articleId)
+      .single()
+    
+    if (fetchError || !rssArticle) {
+      return c.json({ error: 'RSS article not found' }, 404)
+    }
+
+    // If already published, check if magazine article exists and return it
+    if (rssArticle.status === 'published') {
+      if (rssArticle.magazine_article_id) {
+        // Get the existing magazine article
+        const { data: existingMagazineArticle } = await supabase
+          .from('articles')
+          .select('*')
+          .eq('id', rssArticle.magazine_article_id)
+          .single()
+        
+        if (existingMagazineArticle) {
+          console.log(`ℹ️ Article already published to magazine: ${existingMagazineArticle.id}`)
+          return c.json({
+            rssArticle,
+            magazineArticle: existingMagazineArticle,
+            message: 'Article was already published'
+          })
+        }
+      }
+      // If status is published but no magazine article exists, continue to create one
+      console.log(`⚠️ Article marked as published but no magazine article found. Creating magazine article...`)
+    }
+
+    console.log(`📰 Publishing RSS article to magazine: ${rssArticle.title}`)
+
+
+    // Calculate reading time based on content length (average 200 words per minute)
+    const wordCount = (rssArticle.content || rssArticle.description || '').split(/\s+/).length
+    const readingTime = Math.max(1, Math.ceil(wordCount / 200))
+    
+    // Create magazine article in the articles table
+    const { data: magazineArticle, error: insertError } = await supabase
+      .from('articles')
+      .insert({
+        title: rssArticle.title,
+        excerpt: rssArticle.description || rssArticle.content?.substring(0, 200) || '',
+        content: rssArticle.content || rssArticle.description || '',
+        category: category || rssArticle.category || 'Eco Innovation',
+        cover_image: rssArticle.image_url || null,
+        reading_time: readingTime,
+        author_id: Deno.env.get('ADMIN_USER_ID'), // Use admin as author for RSS articles
+        source: 'rss', // Mark as RSS article for +5 points
+        source_url: rssArticle.link, // Store original article URL
+        author: rssArticle.author || rssArticle.feed_title // Use RSS author or feed title
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('Error creating magazine article:', insertError)
+      return c.json({ error: 'Failed to create magazine article', details: insertError.message }, 500)
+    }
+
+    // Update RSS article status and link to magazine article
+    const { error: updateError } = await supabase
+      .from('rss_articles')
+      .update({
+        status: 'published',
+        magazine_article_id: magazineArticle.id
+      })
+      .eq('id', articleId)
+
+    if (updateError) {
+      console.error('Error updating RSS article:', updateError)
+      // Don't fail the request, article is already published
+    }
+
+    console.log(`✅ Published RSS article to magazine: ${magazineArticle.id}`)
+
+    return c.json({
+      rssArticle: { ...rssArticle, status: 'published', magazine_article_id: magazineArticle.id },
+      magazineArticle
+    })
+  } catch (error: any) {
+    console.error('Error publishing RSS article:', error)
+    return c.json({ error: 'Failed to publish article', details: error.message }, 500)
+  }
+})
+
+// Reject RSS article (Admin only)
+app.post('/make-server-053bcd80/rss-articles/:articleId/reject', requireAuth, requireAdmin, async (c) => {
+  try {
+    const articleId = c.req.param('articleId')
+
+    const { data: rssArticle, error: updateError } = await supabase
+      .from('rss_articles')
+      .update({ status: 'rejected' })
+      .eq('id', articleId)
+      .select()
+      .single()
+
+    if (updateError || !rssArticle) {
+      return c.json({ error: 'RSS article not found' }, 404)
+    }
+
+    return c.json({ rssArticle })
+  } catch (error: any) {
+    console.error('Error rejecting RSS article:', error)
+    return c.json({ error: 'Failed to reject article', details: error.message }, 500)
+  }
+})
+
+// Delete RSS feed subscription (Admin only)
+app.delete('/make-server-053bcd80/rss-feeds/:feedId', requireAuth, requireAdmin, async (c) => {
+  try {
+    const feedId = c.req.param('feedId')
+
+    // Get feed to check it exists and for logging
+    const { data: feed, error: fetchError } = await supabase
+      .from('rss_feeds')
+      .select('*')
+      .eq('id', feedId)
+      .single()
+
+    if (fetchError || !feed) {
+      return c.json({ error: 'Feed not found' }, 404)
+    }
+
+    // Delete feed (CASCADE will also delete associated articles)
+    const { error: deleteError } = await supabase
+      .from('rss_feeds')
+      .delete()
+      .eq('id', feedId)
+
+    if (deleteError) {
+      console.error('Error deleting RSS feed:', deleteError)
+      return c.json({ error: 'Failed to delete feed', details: deleteError.message }, 500)
+    }
+
+    console.log(`🗑️ Deleted RSS feed: ${feed.title}`)
+
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('Error deleting RSS feed:', error)
+    return c.json({ error: 'Failed to delete feed', details: error.message }, 500)
+  }
+})
+
+// Track external RSS article read - Award +5 points
+app.post('/make-server-053bcd80/external-article-read', requireAuth, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const { articleId } = await c.req.json()
+
+    console.log(`📰 User ${userId} read external article: ${articleId}`)
+
+    // Get user progress
+    const userProgress = await kv.get<any>(`user_progress_${userId}`) || {
+      totalPoints: 0,
+      articlesRead: 0,
+      articlesMatched: 0
+    }
+
+    // Award +5 points for reading external RSS article
+    userProgress.totalPoints = (userProgress.totalPoints || 0) + 5
+
+    // Save updated progress
+    await kv.set(`user_progress_${userId}`, userProgress)
+
+    console.log(`✅ Awarded +5 points for external article read. New total: ${userProgress.totalPoints}`)
+
+    return c.json({
+      success: true,
+      pointsEarned: 5,
+      totalPoints: userProgress.totalPoints
+    })
+  } catch (error: any) {
+    console.error('Error tracking external article read:', error)
+    return c.json({ error: 'Failed to track article read', details: error.message }, 500)
   }
 })
 

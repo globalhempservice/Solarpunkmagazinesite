@@ -1,0 +1,165 @@
+              {/* Author Info Box - Shows for both LinkedIn and RSS articles */}
+              {(article.author || article.authorImage || (article.source === 'rss' && (article.siteDomain || article.siteImage))) && (
+                <Card className="relative overflow-hidden border-0 shadow-lg">
+                    {/* Gradient Background - Different for RSS vs LinkedIn */}
+                    <div className={`absolute inset-0 ${
+                      article.source === 'rss'
+                        ? 'bg-gradient-to-br from-purple-500/10 via-teal-500/5 to-cyan-500/10'
+                        : 'bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-blue-500/10'
+                    }`} />
+                    
+                    {/* Floating particles */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      <div className={`absolute top-4 right-4 w-20 h-20 rounded-full blur-2xl animate-pulse ${
+                        article.source === 'rss' ? 'bg-purple-400/10' : 'bg-blue-400/10'
+                      }`} style={{ animationDuration: '3s' }} />
+                      <div className={`absolute bottom-4 left-4 w-24 h-24 rounded-full blur-2xl animate-pulse ${
+                        article.source === 'rss' ? 'bg-teal-400/10' : 'bg-cyan-400/10'
+                      }`} style={{ animationDuration: '4s', animationDelay: '1s' }} />
+                    </div>
+                    
+                    <CardContent className="relative p-4 md:p-6">
+                      {/* Header with Icon and Label */}
+                      <div className="flex items-center gap-2 mb-4">
+                        {article.source === 'rss' ? (
+                          <>
+                            <div className="p-2 bg-gradient-to-br from-purple-500/20 to-teal-500/20 rounded-lg">
+                              <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Website Source
+                            </span>
+                            
+                            {/* Website Badge - Desktop Only */}
+                            <Badge className="hidden md:flex bg-gradient-to-r from-purple-600 to-teal-600 text-white border-0 px-3 py-1.5 shadow-lg ml-auto">
+                              <Globe className="w-3 h-3 mr-1" />
+                              Website
+                            </Badge>
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-2 bg-blue-500/20 rounded-lg">
+                              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                              </svg>
+                            </div>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              LinkedIn Author
+                            </span>
+                            
+                            {/* LinkedIn Badge - Desktop Only */}
+                            <Badge className="hidden md:flex bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg ml-auto">
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                              </svg>
+                              LinkedIn
+                            </Badge>
+                          </>
+                        )}
+                      </div>
+                      
+                      {/* Author Content - Responsive Layout */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        {/* Author Avatar */}
+                        <div className="relative group mx-auto sm:mx-0">
+                          <div className={`absolute -inset-1 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity ${
+                            article.source === 'rss'
+                              ? 'bg-gradient-to-br from-purple-500 to-teal-500'
+                              : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                          }`} />
+                          <div className={`relative w-20 h-20 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-3 bg-muted flex-shrink-0 ${
+                            article.source === 'rss'
+                              ? 'border-purple-500/30'
+                              : 'border-blue-500/30'
+                          }`}>
+                            {/* For RSS: Try siteImage, then siteFavicon, then Globe icon */}
+                            {article.source === 'rss' ? (
+                              article.siteImage || article.siteFavicon ? (
+                                <img 
+                                  src={article.siteImage || article.siteFavicon} 
+                                  alt={article.siteTitle || article.siteDomain || 'Website'} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Fallback to Globe icon if image fails to load
+                                    e.currentTarget.style.display = 'none'
+                                    const parent = e.currentTarget.parentElement
+                                    if (parent) {
+                                      parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-teal-600"><svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>'
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-teal-600">
+                                  <Globe className="w-10 h-10 text-white" />
+                                </div>
+                              )
+                            ) : (
+                              /* For LinkedIn: Use authorImage or initials */
+                              article.authorImage ? (
+                                <img 
+                                  src={article.authorImage} 
+                                  alt={article.author || 'Author'} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-2xl font-bold">
+                                  {article.author?.charAt(0).toUpperCase() || 'A'}
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Author Info */}
+                        <div className="flex-1 min-w-0 text-center sm:text-left w-full sm:w-auto">
+                          <h3 className="font-bold text-base sm:text-lg md:text-xl text-foreground mb-1">
+                            {article.source === 'rss' 
+                              ? (article.siteTitle || article.siteDomain || article.author || 'Website')
+                              : (article.author || 'LinkedIn Author')
+                            }
+                          </h3>
+                          {article.source === 'rss' && article.siteDomain && (
+                            <p className="text-xs sm:text-sm text-muted-foreground mb-2">
+                              {article.siteDomain}
+                            </p>
+                          )}
+                          {article.source !== 'rss' && article.authorTitle && (
+                            <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {article.authorTitle}
+                            </p>
+                          )}
+                          {article.publishDate && (
+                            <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">
+                                {new Date(article.publishDate).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Badge - Mobile Only */}
+                          {article.source === 'rss' ? (
+                            <Badge className="md:hidden inline-flex mt-3 bg-gradient-to-r from-purple-600 to-teal-600 text-white border-0 px-3 py-1.5 shadow-lg">
+                              <Globe className="w-3 h-3 mr-1" />
+                              Website
+                            </Badge>
+                          ) : (
+                            <Badge className="md:hidden inline-flex mt-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-3 py-1.5 shadow-lg">
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                              </svg>
+                              LinkedIn
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+              )}

@@ -7,6 +7,25 @@ import * as articleSecurity from './article_security.tsx'
 import * as kv from './kv_store.tsx'
 import { parseRSSFeed, generateFeedId, generateArticleId, RSSFeed, RSSArticle } from './rss_parser.tsx'
 
+// Helper function to extract site metadata from URL
+function extractSiteMetadata(url: string) {
+  try {
+    const urlObj = new URL(url)
+    const domain = urlObj.hostname.replace('www.', '')
+    // Capitalize first letter of domain for title
+    const title = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1)
+    return {
+      siteDomain: domain,
+      siteTitle: title
+    }
+  } catch {
+    return {
+      siteDomain: undefined,
+      siteTitle: undefined
+    }
+  }
+}
+
 const app = new Hono()
 
 // Middleware
@@ -244,7 +263,7 @@ app.get('/make-server-053bcd80/articles', async (c) => {
     if (rssArticleIds.length > 0) {
       const { data: rssArticlesData } = await supabase
         .from('rss_articles')
-        .select('link, feed_title, feed_url, site_domain, site_title, site_favicon, site_image')
+        .select('link, feed_title, feed_url')
         .in('link', rssArticleIds)
       
       if (rssArticlesData) {
@@ -255,11 +274,11 @@ app.get('/make-server-053bcd80/articles', async (c) => {
             if (rssData) {
               article.feedTitle = rssData.feed_title
               article.feedUrl = rssData.feed_url
-              article.siteDomain = rssData.site_domain
-              article.siteTitle = rssData.site_title
-              article.siteFavicon = rssData.site_favicon
-              article.siteImage = rssData.site_image
             }
+            // Extract site metadata from URL as fallback
+            const siteMetadata = extractSiteMetadata(article.sourceUrl)
+            article.siteDomain = siteMetadata.siteDomain
+            article.siteTitle = siteMetadata.siteTitle
           }
         })
       }
@@ -389,18 +408,19 @@ app.get('/make-server-053bcd80/articles/:id', async (c) => {
     if (transformedArticle.source === 'rss' && transformedArticle.sourceUrl && !transformedArticle.feedTitle) {
       const { data: rssArticleData } = await supabase
         .from('rss_articles')
-        .select('feed_title, feed_url, site_domain, site_title, site_favicon, site_image')
+        .select('feed_title, feed_url')
         .eq('link', transformedArticle.sourceUrl)
         .single()
       
       if (rssArticleData) {
         transformedArticle.feedTitle = rssArticleData.feed_title
         transformedArticle.feedUrl = rssArticleData.feed_url
-        transformedArticle.siteDomain = rssArticleData.site_domain
-        transformedArticle.siteTitle = rssArticleData.site_title
-        transformedArticle.siteFavicon = rssArticleData.site_favicon
-        transformedArticle.siteImage = rssArticleData.site_image
       }
+      
+      // Extract site metadata from URL as fallback
+      const siteMetadata = extractSiteMetadata(transformedArticle.sourceUrl)
+      transformedArticle.siteDomain = siteMetadata.siteDomain
+      transformedArticle.siteTitle = siteMetadata.siteTitle
     }
     
     return c.json({ article: transformedArticle })
@@ -1260,13 +1280,25 @@ app.post('/make-server-053bcd80/users/:userId/read', requireAuth, async (c) => {
         .update({ points: newPoints })
         .eq('user_id', userId)
       
-      // Get achievement details
-      const { data: achievementDetails } = await supabase
-        .from('achievements')
-        .select('*')
-        .in('id', achievementsToGrant)
+      // Build achievement details manually
+      const achievementData: Record<string, any> = {
+        'first-read': { name: 'First Steps', description: 'Read your first article', points: 10 },
+        'reader-10': { name: 'Curious Mind', description: 'Read 10 articles', points: 50 },
+        'reader-25': { name: 'Knowledge Seeker', description: 'Read 25 articles', points: 150 },
+        'reader-50': { name: 'Voracious Reader', description: 'Read 50 articles', points: 500 },
+        'streak-3': { name: 'Hot Start', description: 'Read for 3 consecutive days', points: 30 },
+        'streak-7': { name: 'Weekly Warrior', description: 'Read for 7 consecutive days', points: 100 },
+        'streak-30': { name: 'Monthly Legend', description: 'Read for 30 consecutive days', points: 1000 }
+      }
       
-      newAchievements.push(...(achievementDetails || []))
+      achievementsToGrant.forEach(aid => {
+        if (achievementData[aid]) {
+          newAchievements.push({
+            achievement_id: aid,
+            ...achievementData[aid]
+          })
+        }
+      })
     }
     
     // Get updated progress
@@ -2701,6 +2733,35 @@ app.post('/make-server-053bcd80/track-share', async (c) => {
     }
     
     const userId = user.id
+    const { articleId } = await c.req.json()
+    
+    if (!articleId) {
+      return c.json({ error: 'Article ID required' }, 400)
+    }
+    
+    // Get today's date for tracking
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    
+    // Check how many times user has shared this article today
+    const { data: shareRecord } = await supabase
+      .from('article_shares')
+      .select('share_count')
+      .eq('user_id', userId)
+      .eq('article_id', articleId)
+      .eq('share_date', today)
+      .single()
+    
+    const shareCount = shareRecord?.share_count || 0
+    
+    // Limit to 3 shares per article per day
+    if (shareCount >= 3) {
+      return c.json({ 
+        success: false, 
+        error: 'Share limit reached',
+        message: 'You can share each article up to 3 times per day',
+        pointsEarned: 0
+      })
+    }
     
     // Get current progress
     const { data: progress } = await supabase
@@ -2725,13 +2786,146 @@ app.post('/make-server-053bcd80/track-share', async (c) => {
       })
       .eq('user_id', userId)
     
-    console.log(`User ${userId} shared an article (total: ${newShares})`)
+    // Update or insert share tracking for this article today using UPSERT
+    await supabase
+      .from('article_shares')
+      .upsert({
+        user_id: userId,
+        article_id: articleId,
+        share_date: today,
+        share_count: shareCount + 1,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,article_id,share_date'
+      })
+    
+    console.log(`User ${userId} shared article ${articleId} (${shareCount + 1}/3 today, total: ${newShares})`)
+    
+    // Check for new sharing achievements
+    const newAchievements = []
+    
+    // Get existing achievements
+    const { data: existingAchievements } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId)
+    
+    const achievementIds = (existingAchievements || []).map((a: any) => a.achievement_id)
+    
+    // Check achievement conditions
+    const achievementsToGrant: string[] = []
+    let bonusPoints = 0
+    
+    if (newShares >= 1 && !achievementIds.includes('first-share')) {
+      achievementsToGrant.push('first-share')
+      bonusPoints += 15
+    }
+    
+    if (newShares >= 10 && !achievementIds.includes('sharer-10')) {
+      achievementsToGrant.push('sharer-10')
+      bonusPoints += 100
+    }
+    
+    if (newShares >= 25 && !achievementIds.includes('sharer-25')) {
+      achievementsToGrant.push('sharer-25')
+      bonusPoints += 250
+    }
+    
+    if (newShares >= 50 && !achievementIds.includes('sharer-50')) {
+      achievementsToGrant.push('sharer-50')
+      bonusPoints += 600
+    }
+    
+    // Grant new achievements
+    if (achievementsToGrant.length > 0) {
+      const achievementRecords = achievementsToGrant.map(aid => ({
+        user_id: userId,
+        achievement_id: aid
+      }))
+      
+      await supabase
+        .from('user_achievements')
+        .insert(achievementRecords)
+      
+      // Update points with bonus
+      await supabase
+        .from('user_progress')
+        .update({ points: newPoints + bonusPoints })
+        .eq('user_id', userId)
+      
+      // Build achievement details
+      const achievementData: Record<string, any> = {
+        'first-share': { name: 'Generous Soul', description: 'Share your first article', points: 15 },
+        'sharer-10': { name: 'Knowledge Spreader', description: 'Share 10 articles', points: 100 },
+        'sharer-25': { name: 'Community Champion', description: 'Share 25 articles', points: 250 },
+        'sharer-50': { name: 'Influence Master', description: 'Share 50 articles', points: 600 }
+      }
+      
+      achievementsToGrant.forEach(aid => {
+        if (achievementData[aid]) {
+          newAchievements.push({
+            achievement_id: aid,
+            ...achievementData[aid]
+          })
+        }
+      })
+    }
+    
+    // Get updated progress to return
+    const { data: updatedProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    // Get user achievements
+    const { data: userAchievements } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId)
+    
+    // Get read articles
+    const { data: readArticles } = await supabase
+      .from('read_articles')
+      .select('article_id')
+      .eq('user_id', userId)
+    
+    // Get NADA points from wallet
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('nada_points')
+      .eq('user_id', userId)
+      .single()
+    
+    // Transform to camelCase for frontend
+    const transformedProgress = {
+      userId: updatedProgress.user_id,
+      totalArticlesRead: updatedProgress.total_articles_read,
+      points: updatedProgress.points,
+      nadaPoints: wallet?.nada_points || 0,
+      currentStreak: updatedProgress.current_streak,
+      longestStreak: updatedProgress.longest_streak,
+      lastReadDate: updatedProgress.last_read_date,
+      nickname: updatedProgress.nickname,
+      homeButtonTheme: updatedProgress.home_button_theme,
+      selectedTheme: updatedProgress.selected_theme,
+      selectedBadge: updatedProgress.selected_badge,
+      profileBannerUrl: updatedProgress.profile_banner_url,
+      prioritySupport: updatedProgress.priority_support || false,
+      marketUnlocked: updatedProgress.market_unlocked || false,
+      articlesShared: updatedProgress.articles_shared || 0,
+      achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
+      readArticles: (readArticles || []).map((ra: any) => ra.article_id)
+    }
     
     return c.json({ 
       success: true, 
       articlesShared: newShares,
-      pointsEarned: 5,
-      totalPoints: newPoints
+      pointsEarned: 5 + bonusPoints,
+      totalPoints: newPoints + bonusPoints,
+      sharesRemaining: 3 - (shareCount + 1),
+      progress: transformedProgress,
+      newAchievements
     })
   } catch (error) {
     console.error('Error tracking share:', error)
@@ -5520,24 +5714,62 @@ app.get('/make-server-053bcd80/admin/rankings', requireAdmin, async (c) => {
         const user = users?.find(u => u.id === progress.user_id)
         const achievements = allAchievements?.filter(a => a.user_id === progress.user_id).map(a => a.achievement_id) || []
         
+        // Calculate Rank Score - A composite score that doesn't fluctuate with spending
+        // Similar to XP but optimized for ranking competition
+        let rankScore = 0
+        
+        // Articles read: 100 points each (reading is core activity)
+        rankScore += (progress.total_articles_read || 0) * 100
+        
+        // Achievements: 200 points each (significant accomplishments)
+        rankScore += achievements.length * 200
+        
+        // Longest streak: 50 points per day (consistency bonus)
+        rankScore += (progress.longest_streak || 0) * 50
+        
+        // Current streak bonus: 30 points per day (active engagement)
+        rankScore += (progress.current_streak || 0) * 30
+        
+        // Spendable points: 1 point each (earned currency still matters)
+        rankScore += (progress.points || 0) * 1
+        
+        // Articles created bonus: 300 points each (content creators get extra credit)
+        const articlesCreated = progress.articles_created || 0
+        rankScore += articlesCreated * 300
+        
+        // Articles shared bonus: 50 points each (community engagement)
+        const articlesShared = progress.articles_shared || 0
+        rankScore += articlesShared * 50
+        
+        // Elite achievement bonuses
+        if (achievements.includes('completionist')) rankScore += 10000
+        if (achievements.length >= 30) rankScore += 5000
+        if (achievements.length >= 20) rankScore += 2000
+        if (progress.longest_streak >= 100) rankScore += 5000
+        if (progress.longest_streak >= 30) rankScore += 1000
+        if (articlesCreated >= 25) rankScore += 3000
+        
         return {
           userId: progress.user_id,
           email: user?.email || 'Unknown',
           nickname: progress.nickname || user?.email?.split('@')[0] || 'Anonymous',
           points: progress.points || 0,
+          rankScore: rankScore,
           totalArticlesRead: progress.total_articles_read || 0,
           currentStreak: progress.current_streak || 0,
           longestStreak: progress.longest_streak || 0,
+          articlesCreated: articlesCreated,
+          articlesShared: articlesShared,
           achievements: achievements
         }
       })
-      .sort((a, b) => b.points - a.points)
+      .sort((a, b) => b.rankScore - a.rankScore) // Sort by rank score, not just points
       .map((user, index) => ({
         rank: index + 1,
         ...user
       }))
     
-    console.log('Rankings generated:', rankings.length, 'users')
+    console.log('Rankings generated:', rankings.length, 'users (sorted by rank score)')
     
     return c.json({ rankings })
   } catch (error: any) {
@@ -7476,10 +7708,6 @@ app.post('/make-server-053bcd80/rss-feeds', requireAuth, requireAdmin, async (c)
         published_at: article.publishedAt || null,
         image_url: article.imageUrl || null,
         category: article.category || null,
-        site_domain: article.siteDomain || null,
-        site_title: article.siteTitle || null,
-        site_favicon: article.siteFavicon || null,
-        site_image: article.siteImage || null,
         status: 'pending'
       })
     }
@@ -7606,10 +7834,6 @@ app.post('/make-server-053bcd80/rss-feeds/:feedId/fetch', requireAuth, requireAd
         published_at: article.publishedAt || null,
         image_url: article.imageUrl || null,
         category: article.category || null,
-        site_domain: article.siteDomain || null,
-        site_title: article.siteTitle || null,
-        site_favicon: article.siteFavicon || null,
-        site_image: article.siteImage || null,
         status: 'pending'
       })
     }

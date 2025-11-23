@@ -64,6 +64,70 @@ export function HomeCards({
 }: HomeCardsProps) {
   const [isMarketUnlocking, setIsMarketUnlocking] = useState(false)
 
+  // Calculate user level using same XP logic as UserDashboard
+  const calculateXP = () => {
+    if (!userProgress) return 0
+    
+    let xp = 0
+    
+    // Articles read: 50 XP each
+    xp += userProgress.totalArticlesRead * 50
+    
+    // Achievements unlocked: 100 XP each
+    xp += (userProgress.achievements?.length || 0) * 100
+    
+    // Longest streak: 30 XP per day
+    xp += userProgress.longestStreak * 30
+    
+    // Articles shared: 20 XP each
+    const shareAchievements = ['first-share', 'sharer-10', 'sharer-25', 'sharer-50']
+    const hasShares = shareAchievements.some(id => userProgress.achievements?.includes(id))
+    if (hasShares) {
+      if (userProgress.achievements.includes('sharer-50')) xp += 50 * 20
+      else if (userProgress.achievements.includes('sharer-25')) xp += 25 * 20
+      else if (userProgress.achievements.includes('sharer-10')) xp += 10 * 20
+      else if (userProgress.achievements.includes('first-share')) xp += 1 * 20
+    }
+    
+    // Articles created: 150 XP each
+    const creatorAchievements = ['first-article', 'creator-5', 'creator-10', 'creator-25']
+    const hasCreated = creatorAchievements.some(id => userProgress.achievements?.includes(id))
+    if (hasCreated) {
+      if (userProgress.achievements.includes('creator-25')) xp += 25 * 150
+      else if (userProgress.achievements.includes('creator-10')) xp += 10 * 150
+      else if (userProgress.achievements.includes('creator-5')) xp += 5 * 150
+      else if (userProgress.achievements.includes('first-article')) xp += 1 * 150
+    }
+    
+    // Secret bonuses
+    if (userProgress.currentStreak === userProgress.longestStreak && userProgress.currentStreak >= 7) {
+      xp += userProgress.currentStreak * 10
+    }
+    
+    if (userProgress.achievements?.length >= 30) xp += 1000
+    else if (userProgress.achievements?.length >= 20) xp += 500
+    else if (userProgress.achievements?.length >= 10) xp += 200
+    
+    if (userProgress.achievements?.includes('completionist')) xp += 5000
+    
+    return xp
+  }
+  
+  const calculateLevelFromXP = (xp: number) => {
+    let level = 1
+    let xpNeeded = 0
+    
+    while (xpNeeded <= xp) {
+      level++
+      xpNeeded += level * level * 50
+    }
+    
+    return level - 1
+  }
+  
+  const totalXP = calculateXP()
+  const userLevel = Math.max(1, calculateLevelFromXP(totalXP))
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
       {/* 1. BROWSE ARTICLES - Big Neon Button */}
@@ -146,7 +210,7 @@ export function HomeCards({
           
           {/* Stat badge */}
           <Badge className="bg-white/30 backdrop-blur-sm text-white border-2 border-white/40 shadow-lg px-4 py-1 text-sm font-black">
-            LEVEL {Math.floor((userProgress?.points || 0) / 100) + 1}
+            LEVEL {userLevel}
           </Badge>
           
           {/* Description with stats - Using SVG icons */}

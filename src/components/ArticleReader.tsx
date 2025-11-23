@@ -42,6 +42,7 @@ import { isFeatureUnlocked, FEATURE_UNLOCKS } from "../utils/featureUnlocks"
 import { FeatureUnlockModal } from "./FeatureUnlockModal"
 import { ClaimPointsButton } from "./ClaimPointsButton"
 import { projectId } from "../utils/supabase/info"
+import { toast } from 'sonner@2.0.3'
 
 interface MediaItem {
   type: 'youtube' | 'audio' | 'image' | 'pdf'
@@ -206,7 +207,17 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
           onProgressUpdate(data.progress)
         }
 
-        console.log('✅ Points claimed successfully!', `Earned: ${data.pointsEarned} points`)
+        // Show achievement notifications if any were unlocked
+        if (data.newAchievements && data.newAchievements.length > 0) {
+          data.newAchievements.forEach((achievement: any) => {
+            toast.success(`🎉 Achievement Unlocked: ${achievement.name || achievement.achievement_id}!`, {
+              description: achievement.description ? `${achievement.description} (+${achievement.points} pts)` : `You earned ${achievement.points} bonus points!`,
+              duration: 6000
+            })
+          })
+        }
+
+        console.log('✅ Points claimed successfully!', `Earned: ${data.pointsEarned} points`, data.newAchievements ? `Unlocked ${data.newAchievements.length} achievements!` : '')
       } else {
         const error = await response.json()
         console.error('Failed to claim points:', error)
@@ -553,67 +564,77 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
           )}
           
           {/* Separate Share Card - Top */}
-          <Card className={`relative overflow-hidden border-2 bg-gradient-to-br shadow-lg ${
-            !isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
-              ? 'border-amber-500/50 from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-70'
-              : 'border-purple-500/30 from-purple-500/10 via-pink-500/5 to-fuchsia-500/10'
-          }`}>
-            {/* Subtle shimmer */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-            
-            <CardContent className="relative p-5 md:p-6">
-              <div className="flex items-center gap-4">
-                {/* Clickable Icon or Locked State */}
-                {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
-                  <ShareButton article={article} accessToken={accessToken}>
-                    <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                      <Share2 className="w-6 h-6 text-white" />
-                    </button>
-                  </ShareButton>
-                ) : (
-                  <button 
-                    onClick={() => setShowUnlockModal(true)}
-                    className="group relative p-3 bg-gradient-to-br from-gray-400 to-gray-500 rounded-xl shadow-lg cursor-pointer"
-                  >
+          {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
+            <ShareButton 
+              article={article} 
+              accessToken={accessToken}
+              onProgressUpdate={(progress) => {
+                // Update user progress when share points are earned
+                if (progress && onProgressUpdate) {
+                  onProgressUpdate(progress)
+                }
+              }}
+            >
+              <button className="w-full text-left">
+                <Card className="relative overflow-hidden border-2 border-purple-500/30 bg-gradient-to-br from-purple-600 via-pink-600 to-fuchsia-600 shadow-lg cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl">
+                  {/* Subtle shimmer */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                  
+                  <CardContent className="relative p-5 md:p-6">
+                    <div className="flex items-center gap-4">
+                      {/* Icon */}
+                      <div className="p-3 rounded-xl shadow-lg bg-white/20 backdrop-blur-sm">
+                        <Share2 className="w-6 h-6 text-white" />
+                      </div>
+                      
+                      {/* Text Content */}
+                      <div className="flex-1">
+                        <h3 className="font-bold text-white text-lg">
+                          Share to Inspire
+                        </h3>
+                      </div>
+                      
+                      {/* Bonus Badge */}
+                      <Badge className="text-white border-0 px-4 py-2 shadow-lg bg-white/20 backdrop-blur-sm">
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                        +5 pts
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              </button>
+            </ShareButton>
+          ) : (
+            <Card className="relative overflow-hidden border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-amber-500/20 shadow-lg opacity-70 cursor-pointer transition-all hover:scale-[1.02]" onClick={() => setShowUnlockModal(true)}>
+              {/* Subtle shimmer */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+              
+              <CardContent className="relative p-5 md:p-6">
+                <div className="flex items-center gap-4">
+                  {/* Icon */}
+                  <div className="p-3 rounded-xl shadow-lg bg-gradient-to-br from-gray-400 to-gray-500">
                     <Lock className="w-6 h-6 text-white" />
-                  </button>
-                )}
-                
-                {/* Text Content */}
-                <div className="flex-1">
-                  <h3 className="font-bold text-foreground text-lg">
-                    {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
-                      ? 'Share to Inspire'
-                      : 'Unlock Sharing'}
-                  </h3>
-                  {!isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) && (
+                  </div>
+                  
+                  {/* Text Content */}
+                  <div className="flex-1">
+                    <h3 className="font-bold text-foreground text-lg">
+                      Unlock Sharing
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Read {FEATURE_UNLOCKS['article-sharing'].requiredArticles - (userProgress?.totalArticlesRead || 0)} more articles
                     </p>
-                  )}
+                  </div>
+                  
+                  {/* Bonus Badge */}
+                  <Badge className="text-white border-0 px-4 py-2 shadow-lg bg-gradient-to-r from-gray-400 to-gray-500">
+                    <Lock className="w-3.5 h-3.5 mr-1.5" />
+                    Locked
+                  </Badge>
                 </div>
-                
-                {/* Bonus Badge */}
-                <Badge className={`text-white border-0 px-4 py-2 shadow-lg ${
-                  isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                    : 'bg-gradient-to-r from-gray-400 to-gray-500'
-                }`}>
-                  {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                      +5 pts
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-3.5 h-3.5 mr-1.5" />
-                      Locked
-                    </>
-                  )}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Article Content */}
           <Card className="border-2 border-border/50 bg-card/50 backdrop-blur-sm shadow-xl">
@@ -1151,67 +1172,77 @@ export function ArticleReader({ article, onBack, allArticles = [], userProgress,
             )}
 
             {/* Share Card - Bottom (identical to top) */}
-            <Card className={`relative overflow-hidden border-2 bg-gradient-to-br shadow-lg ${
-              !isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
-                ? 'border-amber-500/50 from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-70'
-                : 'border-purple-500/30 from-purple-500/10 via-pink-500/5 to-fuchsia-500/10'
-            }`}>
-              {/* Subtle shimmer */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-              
-              <CardContent className="relative p-5 md:p-6">
-                <div className="flex items-center gap-4">
-                  {/* Clickable Icon or Locked State */}
-                  {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
-                    <ShareButton article={article} accessToken={accessToken}>
-                      <button className="group relative p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                        <Share2 className="w-6 h-6 text-white" />
-                      </button>
-                    </ShareButton>
-                  ) : (
-                    <button 
-                      onClick={() => setShowUnlockModal(true)}
-                      className="group relative p-3 bg-gradient-to-br from-gray-400 to-gray-500 rounded-xl shadow-lg cursor-pointer"
-                    >
+            {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
+              <ShareButton 
+                article={article} 
+                accessToken={accessToken}
+                onProgressUpdate={(progress) => {
+                  // Update user progress when share points are earned
+                  if (progress && onProgressUpdate) {
+                    onProgressUpdate(progress)
+                  }
+                }}
+              >
+                <button className="w-full text-left">
+                  <Card className="relative overflow-hidden border-2 border-purple-500/30 bg-gradient-to-br from-purple-600 via-pink-600 to-fuchsia-600 shadow-lg cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl">
+                    {/* Subtle shimmer */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                    
+                    <CardContent className="relative p-5 md:p-6">
+                      <div className="flex items-center gap-4">
+                        {/* Icon */}
+                        <div className="p-3 rounded-xl shadow-lg bg-white/20 backdrop-blur-sm">
+                          <Share2 className="w-6 h-6 text-white" />
+                        </div>
+                        
+                        {/* Text Content */}
+                        <div className="flex-1">
+                          <h3 className="font-bold text-white text-lg">
+                            Share to Inspire
+                          </h3>
+                        </div>
+                        
+                        {/* Bonus Badge */}
+                        <Badge className="text-white border-0 px-4 py-2 shadow-lg bg-white/20 backdrop-blur-sm">
+                          <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                          +5 pts
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </button>
+              </ShareButton>
+            ) : (
+              <Card className="relative overflow-hidden border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-amber-500/20 shadow-lg opacity-70 cursor-pointer transition-all hover:scale-[1.02]" onClick={() => setShowUnlockModal(true)}>
+                {/* Subtle shimmer */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                
+                <CardContent className="relative p-5 md:p-6">
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div className="p-3 rounded-xl shadow-lg bg-gradient-to-br from-gray-400 to-gray-500">
                       <Lock className="w-6 h-6 text-white" />
-                    </button>
-                  )}
-                  
-                  {/* Text Content */}
-                  <div className="flex-1">
-                    <h3 className="font-bold text-foreground text-lg">
-                      {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
-                        ? 'Share to Inspire'
-                        : 'Unlock Sharing'}
-                    </h3>
-                    {!isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) && (
+                    </div>
+                    
+                    {/* Text Content */}
+                    <div className="flex-1">
+                      <h3 className="font-bold text-foreground text-lg">
+                        Unlock Sharing
+                      </h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         Read {FEATURE_UNLOCKS['article-sharing'].requiredArticles - (userProgress?.totalArticlesRead || 0)} more articles
                       </p>
-                    )}
+                    </div>
+                    
+                    {/* Bonus Badge */}
+                    <Badge className="text-white border-0 px-4 py-2 shadow-lg bg-gradient-to-r from-gray-400 to-gray-500">
+                      <Lock className="w-3.5 h-3.5 mr-1.5" />
+                      Locked
+                    </Badge>
                   </div>
-                  
-                  {/* Bonus Badge */}
-                  <Badge className={`text-white border-0 px-4 py-2 shadow-lg ${
-                    isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0)
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                      : 'bg-gradient-to-r from-gray-400 to-gray-500'
-                  }`}>
-                    {isFeatureUnlocked('article-sharing', userProgress?.totalArticlesRead || 0) ? (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                        +5 pts
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-3.5 h-3.5 mr-1.5" />
-                        Locked
-                      </>
-                    )}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
         

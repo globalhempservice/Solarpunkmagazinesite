@@ -76,52 +76,52 @@ export function SubmitIdeaModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-start sm:items-center justify-center p-4 pb-24 sm:pb-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="relative w-full max-w-2xl"
+        className="relative w-full max-w-2xl my-8 sm:my-0"
       >
         {/* Close Button */}
         <button
           onClick={handleClose}
           disabled={submitting}
-          className="absolute -top-4 -right-4 z-10 p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors text-white disabled:opacity-50"
+          className="sticky top-4 sm:absolute sm:-top-4 sm:-right-4 z-10 ml-auto mr-0 sm:ml-0 sm:mr-0 mb-4 sm:mb-0 flex p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors text-white disabled:opacity-50"
         >
           <X className="w-6 h-6" />
         </button>
 
-        <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-cyan-600 to-teal-600 p-12 shadow-2xl border-4 border-white/20">
+        <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-cyan-600 to-teal-600 p-6 sm:p-12 shadow-2xl border-4 border-white/20">
           {!submitted ? (
             <>
               {/* Header */}
-              <div className="text-center mb-8">
-                <div className="flex justify-center mb-6">
+              <div className="text-center mb-6 sm:mb-8">
+                <div className="flex justify-center mb-4 sm:mb-6">
                   <div className="relative">
                     <div className="absolute -inset-4 bg-white/30 rounded-full blur-2xl" />
-                    <div className="relative bg-white/20 backdrop-blur-md rounded-full p-6">
-                      <Lightbulb className="w-16 h-16 text-white" />
+                    <div className="relative bg-white/20 backdrop-blur-md rounded-full p-4 sm:p-6">
+                      <Lightbulb className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
                     </div>
                   </div>
                 </div>
 
-                <h2 className="text-5xl font-black text-white mb-4">
+                <h2 className="text-3xl sm:text-5xl font-black text-white mb-3 sm:mb-4">
                   Submit Your Idea
                 </h2>
-                <p className="text-xl text-white/90">
+                <p className="text-base sm:text-xl text-white/90">
                   Share your vision for DEWII and help shape its future
                 </p>
               </div>
 
               {/* Input Field */}
-              <div className="mb-8">
+              <div className="mb-6 sm:mb-8">
                 <textarea
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
                   placeholder="Describe your feature idea in detail... What problem does it solve? How would it work?"
                   disabled={submitting}
-                  className="w-full h-48 px-6 py-4 bg-white/10 backdrop-blur-md border-2 border-white/30 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:border-white/60 transition-colors resize-none text-lg disabled:opacity-50"
+                  className="w-full h-40 sm:h-48 px-4 sm:px-6 py-3 sm:py-4 bg-white/10 backdrop-blur-md border-2 border-white/30 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:border-white/60 transition-colors resize-none text-base sm:text-lg disabled:opacity-50"
                   maxLength={500}
                 />
                 <div className="flex justify-between items-center mt-2 px-2">
@@ -164,20 +164,20 @@ export function SubmitIdeaModal({
             </>
           ) : (
             /* Success State */
-            <div className="text-center py-12">
-              <div className="flex justify-center mb-6">
+            <div className="text-center py-8 sm:py-12">
+              <div className="flex justify-center mb-4 sm:mb-6">
                 <div className="relative">
                   <div className="absolute -inset-4 bg-white/30 rounded-full blur-2xl animate-pulse" />
-                  <div className="relative bg-white/20 backdrop-blur-md rounded-full p-6">
-                    <Sparkles className="w-16 h-16 text-white" />
+                  <div className="relative bg-white/20 backdrop-blur-md rounded-full p-4 sm:p-6">
+                    <Sparkles className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
                   </div>
                 </div>
               </div>
 
-              <h2 className="text-5xl font-black text-white mb-4">
+              <h2 className="text-3xl sm:text-5xl font-black text-white mb-3 sm:mb-4">
                 Idea Submitted! 🎉
               </h2>
-              <p className="text-xl text-white/90 max-w-md mx-auto">
+              <p className="text-base sm:text-xl text-white/90 max-w-md mx-auto px-4">
                 Thank you for contributing! Your idea will be reviewed and may earn you rewards if implemented.
               </p>
             </div>

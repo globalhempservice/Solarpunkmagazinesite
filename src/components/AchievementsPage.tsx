@@ -7,6 +7,7 @@ import { Button } from "./ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs"
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 import { toast } from 'sonner@2.0.3'
+import { AchievementCelebration } from './AchievementCelebration'
 
 interface UserProgress {
   userId: string
@@ -423,40 +424,20 @@ const rarityConfig = {
 export function AchievementsPage({ progress, onBack, onProgressUpdate, accessToken }: AchievementsPageProps) {
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'reading' | 'streak' | 'social' | 'creation' | 'explorer' | 'special'>('all')
   const [hoveredAchievement, setHoveredAchievement] = useState<string | null>(null)
-  const [isClaiming, setIsClaiming] = useState(false)
   const [currentProgress, setCurrentProgress] = useState(progress)
-  const [claimableCount, setClaimableCount] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [isSynced, setIsSynced] = useState(false)
+  const [celebrationData, setCelebrationData] = useState<{ achievements: any[], totalPoints: number } | null>(null)
 
   // Sync local state when progress prop changes
   useEffect(() => {
     setCurrentProgress(progress)
   }, [progress])
 
-  // Calculate claimable achievements count
-  useEffect(() => {
-    const checkClaimable = async () => {
-      try {
-        const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/check-claimable-achievements`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setClaimableCount(data.claimableCount || 0)
-        }
-      } catch (error) {
-        console.error('Error checking claimable achievements:', error)
-      }
-    }
-
-    checkClaimable()
-  }, [accessToken, currentProgress])
-
-  const handleClaimAchievements = async () => {
-    setIsClaiming(true)
+  // Sync/backfill achievements based on current progress
+  const handleSyncAchievements = async () => {
+    setIsSyncing(true)
+    setIsSynced(false)
     try {
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/claim-achievements`, {
         method: 'POST',
@@ -468,7 +449,7 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
 
       const data = await response.json()
       
-      console.log('Claim achievements response:', response.status, data)
+      console.log('Sync achievements response:', response.status, data)
 
       if (response.ok) {
         if (data.claimedCount > 0) {
@@ -480,36 +461,31 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
             onProgressUpdate(data.progress)
           }
 
-          // Show success toasts for each new achievement
-          data.newAchievements.forEach((achievement: any) => {
-            toast.success(`🎉 Achievement Unlocked: ${achievement.name}!`, {
-              description: `${achievement.description} (+${achievement.points} pts)`,
-              duration: 5000
-            })
+          // Show epic center-screen celebration!
+          setCelebrationData({
+            achievements: data.newAchievements,
+            totalPoints: data.pointsAdded
           })
-
-          toast.success(`Claimed ${data.claimedCount} achievement${data.claimedCount > 1 ? 's' : ''}!`, {
-            description: `Check out your new rewards below!`,
-            duration: 3000
-          })
+          
+          // Reset synced state since we found new achievements
+          setIsSynced(false)
         } else {
-          toast.info('No new achievements to claim', {
-            description: 'Keep reading to unlock more!'
-          })
+          // No new achievements - show synced state
+          setIsSynced(true)
         }
       } else {
-        console.error('Failed to claim achievements:', data)
-        toast.error('Failed to claim achievements', {
+        console.error('Failed to sync achievements:', data)
+        toast.error('Failed to sync achievements', {
           description: data.error || 'Please try again'
         })
       }
     } catch (error) {
-      console.error('Error claiming achievements:', error)
+      console.error('Error syncing achievements:', error)
       toast.error('Something went wrong', {
         description: 'Check console for details'
       })
     } finally {
-      setIsClaiming(false)
+      setIsSyncing(false)
     }
   }
 
@@ -549,111 +525,239 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-24">
-      {/* Hero Section - Focused on Achievements */}
-      <div className="relative overflow-hidden rounded-2xl">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-amber-500/10" />
-        
-        <div className="relative backdrop-blur-xl bg-card/90 border-2 border-purple-500/20 rounded-2xl p-6 shadow-xl">
-          {/* Top Section - Icon & Title */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative">
-              {/* Glow */}
-              <div className="absolute -inset-2 bg-gradient-to-br from-amber-400 to-purple-500 rounded-2xl blur-xl opacity-40" />
-              
-              {/* Icon */}
-              <div className="relative bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-2xl p-4 shadow-lg">
-                <Trophy className="w-10 h-10 text-white drop-shadow-lg" />
-              </div>
-            </div>
-            
-            <div>
-              <h1 className="text-3xl font-black bg-gradient-to-r from-amber-500 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Achievement Gallery
-              </h1>
-              <p className="text-sm text-muted-foreground">Track your reading journey</p>
-            </div>
+      {/* Solarpunk Hero Header */}
+      <div className="relative overflow-hidden rounded-3xl">
+        {/* Multi-layer animated backgrounds */}
+        <div className="absolute inset-0">
+          {/* Base gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-500/20 to-cyan-500/20" />
+          
+          {/* Organic flowing shapes */}
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-amber-500/40 to-orange-500/40 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-br from-purple-500/40 to-pink-500/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s', animationDuration: '4s' }} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-gradient-to-br from-green-500/40 to-emerald-500/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s', animationDuration: '5s' }} />
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-md rounded-xl p-3 border border-purple-500/20 flex items-center justify-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
-                <Medal className="w-4 h-4 text-white" />
-              </div>
-              <div className="text-2xl font-bold text-foreground">
-                {unlockedAchievements.length}<span className="text-sm text-muted-foreground">/{totalAchievements}</span>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-amber-500/10 to-yellow-500/10 backdrop-blur-md rounded-xl p-3 border border-amber-500/20 flex items-center justify-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-lg">
-                <TrendingUp className="w-4 h-4 text-white" />
-              </div>
-              <div className="text-2xl font-bold text-foreground">
-                {Math.round(completionPercent)}<span className="text-sm text-muted-foreground">%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Overall Progress Bar */}
-          <div className="pt-4 border-t border-border/50">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="text-muted-foreground font-medium">Overall Progress</span>
-              <span className="font-bold text-foreground">{unlockedAchievements.length} of {totalAchievements}</span>
-            </div>
-            
-            <div className="relative h-3 bg-muted/50 rounded-full overflow-hidden border border-border/30">
-              {/* Progress fill */}
-              <div 
-                className="relative h-full bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 transition-all duration-1000 ease-out rounded-full shadow-lg"
-                style={{ width: `${completionPercent}%` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer" />
-              </div>
-            </div>
-          </div>
+          {/* Halftone comic dots pattern */}
+          <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: `radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)`,
+            backgroundSize: '24px 24px'
+          }} />
         </div>
-      </div>
 
-      {/* Claim Achievements Button - Smart Version */}
-      <div className="flex justify-center">
-        <button
-          onClick={handleClaimAchievements}
-          disabled={isClaiming || claimableCount === 0}
-          className={`group relative overflow-hidden px-8 py-4 font-black rounded-2xl transition-all duration-200 ${
-            claimableCount === 0 
-              ? 'bg-muted/50 text-muted-foreground border-2 border-border/50 cursor-not-allowed'
-              : 'bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 hover:from-amber-500 hover:via-purple-600 hover:to-pink-600 text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-x-[2px] active:translate-y-[2px]'
-          }`}
-        >
-          {claimableCount > 0 && (
-            <>
-              {/* Halftone pattern overlay */}
-              <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none"
-                style={{
-                  backgroundImage: `radial-gradient(circle, black 1px, transparent 1px)`,
-                  backgroundSize: '4px 4px'
-                }}
-              />
+        <div className="relative backdrop-blur-2xl bg-gradient-to-br from-card/95 via-card/90 to-card/95 border-4 border-gradient rounded-3xl p-8 shadow-2xl">
+          {/* Comic-style border effect */}
+          <div className="absolute inset-0 rounded-3xl"
+            style={{
+              boxShadow: '8px 8px 0px 0px rgba(var(--foreground), 0.1), 16px 16px 0px 0px rgba(var(--foreground), 0.05)'
+            }}
+          />
+
+          {/* Top section with enhanced visuals */}
+          <div className="relative flex flex-col md:flex-row items-center gap-6 mb-6">
+            {/* Trophy Icon - Levitating with glow */}
+            <div className="relative group">
+              {/* Outer rotating ring */}
+              <div className="absolute -inset-6 rounded-full border-4 border-dashed border-amber-500/30 animate-spin-slow" />
+              <div className="absolute -inset-4 rounded-full border-2 border-purple-500/20 animate-ping" style={{ animationDuration: '3s' }} />
+              
+              {/* Main glow */}
+              <div className="absolute -inset-3 bg-gradient-to-br from-amber-400/40 via-purple-500/40 to-pink-500/40 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition-all duration-500 animate-pulse" />
+              
+              {/* Icon container */}
+              <div className="relative bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-3xl p-6 shadow-2xl border-4 border-white/20 transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                {/* Inner shine */}
+                <div className="absolute inset-2 bg-gradient-to-br from-white/30 to-transparent rounded-2xl" />
+                <Trophy className="relative w-14 h-14 text-white drop-shadow-2xl animate-float" />
+                
+                {/* Sparkles */}
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-2 h-2 bg-yellow-300 rounded-full animate-sparkle"
+                    style={{
+                      left: `${20 + Math.random() * 60}%`,
+                      top: `${20 + Math.random() * 60}%`,
+                      animationDelay: `${i * 0.3}s`
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Title Section */}
+            <div className="flex-1 text-center md:text-left">
+              {/* Main title with comic effect */}
+              <div className="relative mb-2">
+                {/* Shadow layers for depth */}
+                <h1 className="absolute top-1 left-1 text-4xl md:text-5xl font-black text-black/20 blur-sm">
+                  Achievement Gallery
+                </h1>
+                <h1 className="relative text-4xl md:text-5xl font-black bg-gradient-to-r from-amber-500 via-purple-600 to-pink-600 bg-clip-text text-transparent drop-shadow-lg">
+                  Achievement Gallery
+                </h1>
+                
+                {/* Comic action lines */}
+                <div className="absolute -right-8 top-1/2 -translate-y-1/2 hidden md:block">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-px bg-gradient-to-r from-amber-500/50 to-transparent mb-2"
+                      style={{ width: `${60 - i * 15}px` }}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              <p className="text-lg text-muted-foreground font-medium flex items-center justify-center md:justify-start gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Track your solarpunk reading journey
+                <Sparkles className="w-4 h-4 text-purple-500" />
+              </p>
+            </div>
+
+            {/* Points display */}
+            <div className="relative">
+              <div className="absolute -inset-2 bg-gradient-to-br from-orange-500/30 to-amber-500/30 rounded-2xl blur-xl" />
+              <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl px-6 py-4 border-4 border-white/30 shadow-2xl">
+                <div className="text-center">
+                  <div className="text-sm font-bold text-white/80 uppercase tracking-wider mb-1">Total Points</div>
+                  <div className="text-3xl font-black text-white drop-shadow-lg">{currentProgress.points}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Enhanced Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {/* Unlocked Count */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-opacity" />
+              <div className="relative bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-md rounded-2xl p-4 border-2 border-purple-500/30 hover:border-purple-500/50 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg">
+                    <Medal className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-3xl font-black text-foreground">
+                      {unlockedAchievements.length}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-medium">Unlocked</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Completion % */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-opacity" />
+              <div className="relative bg-gradient-to-br from-amber-500/20 to-yellow-500/20 backdrop-blur-md rounded-2xl p-4 border-2 border-amber-500/30 hover:border-amber-500/50 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-xl shadow-lg">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-3xl font-black text-foreground">
+                      {Math.round(completionPercent)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground font-medium">Complete</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Streak */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-opacity" />
+              <div className="relative bg-gradient-to-br from-orange-500/20 to-red-500/20 backdrop-blur-md rounded-2xl p-4 border-2 border-orange-500/30 hover:border-orange-500/50 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg">
+                    <Flame className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-3xl font-black text-foreground">
+                      {currentProgress.currentStreak}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-medium">Day Streak</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Achievements */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-opacity" />
+              <div className="relative bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-md rounded-2xl p-4 border-2 border-emerald-500/30 hover:border-emerald-500/50 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg">
+                    <Trophy className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-3xl font-black text-foreground">
+                      {totalAchievements}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-medium">Total</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sync Achievements Button */}
+          <div className="relative pt-6 border-t-2 border-gradient">
+            <Button
+              onClick={handleSyncAchievements}
+              disabled={isSyncing || isSynced}
+              className={`w-full group relative overflow-hidden ${
+                isSynced 
+                  ? 'bg-muted text-muted-foreground cursor-default border-2 border-border/50' 
+                  : 'bg-gradient-to-r from-cyan-600 via-emerald-600 to-teal-600 hover:from-cyan-500 hover:via-emerald-500 hover:to-teal-500 text-white border-2 border-white/30 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-x-[2px] active:translate-y-[2px]'
+              } disabled:opacity-50 disabled:cursor-not-allowed font-black py-6 rounded-2xl transition-all duration-200`}
+            >
+              {/* Animated background pattern */}
+              {!isSynced && (
+                <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none"
+                  style={{
+                    backgroundImage: `radial-gradient(circle, black 1px, transparent 1px)`,
+                    backgroundSize: '4px 4px'
+                  }}
+                />
+              )}
               
               {/* Neon glow */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-            </>
-          )}
-          
-          <div className="relative flex items-center gap-2">
-            <Gift className="w-5 h-5" />
-            <span>
-              {isClaiming 
-                ? 'Checking...' 
-                : claimableCount === 0 
-                  ? 'No Achievements to Claim Yet'
-                  : `Claim ${claimableCount} Achievement${claimableCount > 1 ? 's' : ''}`
+              {!isSyncing && !isSynced && (
+                <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-teal-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+              )}
+              
+              <div className="relative flex items-center justify-center gap-3">
+                {isSyncing ? (
+                  <>
+                    <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="text-lg">Syncing Past Achievements...</span>
+                  </>
+                ) : isSynced ? (
+                  <>
+                    <Trophy className="w-5 h-5" />
+                    <span className="text-lg">All Achievements Synced ✓</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    <span className="text-lg">Sync Past Achievements</span>
+                    <Zap className="w-5 h-5" />
+                  </>
+                )}
+              </div>
+            </Button>
+            <p className="text-center text-xs text-muted-foreground mt-2 italic">
+              {isSynced 
+                ? '✨ You have all the achievements you\'ve earned!' 
+                : '💡 Already shared articles or completed actions? Click to get credit for past achievements!'
               }
-            </span>
+            </p>
           </div>
-        </button>
+        </div>
       </div>
 
       {/* Unlocked Achievements */}
@@ -1002,6 +1106,15 @@ export function AchievementsPage({ progress, onBack, onProgressUpdate, accessTok
           100% { transform: scale(1.5); opacity: 0; }
         }
       `}</style>
+
+      {/* Achievement Celebration Modal */}
+      {celebrationData && (
+        <AchievementCelebration
+          achievements={celebrationData.achievements}
+          totalPoints={celebrationData.totalPoints}
+          onClose={() => setCelebrationData(null)}
+        />
+      )}
     </div>
   )
 }

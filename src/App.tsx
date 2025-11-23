@@ -38,6 +38,7 @@ import { Input } from './components/ui/input'
 import { Button } from './components/ui/button'
 import { Badge } from './components/ui/badge'
 import { toast } from 'sonner@2.0.3'
+import { Toaster } from './components/ui/sonner'
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -830,6 +831,9 @@ export default function App() {
             }}
           />
         )}
+        
+        {/* Toaster for notifications */}
+        <Toaster />
       </>
     )
   }
@@ -1225,6 +1229,9 @@ export default function App() {
           currentProgress={userProgress?.totalArticlesRead || 0}
         />
       )}
+      
+      {/* Toaster for notifications */}
+      <Toaster />
     </div>
   )
 }

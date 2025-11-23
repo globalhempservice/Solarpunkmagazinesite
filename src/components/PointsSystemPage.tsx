@@ -25,6 +25,13 @@ const pointsCategories = [
         description: 'Complete an article to earn points and expand your knowledge'
       },
       { 
+        action: 'Read an RSS Article', 
+        points: 5, 
+        frequency: 'Per article',
+        icon: BookOpen,
+        description: 'RSS/feed articles earn less points (curated content vs original)'
+      },
+      { 
         action: 'Reading Streak (3 days)', 
         points: 30, 
         frequency: 'Achievement',
@@ -391,7 +398,12 @@ export function PointsSystemPage({ onBack }: PointsSystemPageProps) {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p className="flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5">•</span>
-                  <span><strong>Reading Points:</strong> You earn 10 points each time you read a NEW article. Re-reading doesn't award additional points.</span>
+                  <span><strong>Reading Points:</strong> You earn 10 points for regular articles and 5 points for RSS articles each time you read a NEW article. Re-reading doesn't award additional points.</span>
+                </p>
+                
+                <p className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span><strong>RSS vs Regular:</strong> RSS/feed articles are curated from external sources, so they earn half points (5 instead of 10) compared to original community content.</span>
                 </p>
                 
                 <p className="flex items-start gap-2">
@@ -411,7 +423,7 @@ export function PointsSystemPage({ onBack }: PointsSystemPageProps) {
                 
                 <p className="flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5">•</span>
-                  <span><strong>Level System:</strong> Your level increases every 100 points. Higher levels unlock special titles and recognition.</span>
+                  <span><strong>XP & Level System:</strong> Your level is calculated from permanent XP earned through reading, achievements, streaks, and creating content. Spending points doesn't affect your level - it only increases!</span>
                 </p>
               </div>
             </div>

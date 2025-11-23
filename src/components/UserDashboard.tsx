@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle, BarChart3 } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle, BarChart3, BookOpen, Compass, Sun, Wand2, Atom, Gem } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
@@ -133,13 +133,96 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
   const [passwordChangeError, setPasswordChangeError] = useState('')
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false)
   
-  // Calculate user level based on points
-  const level = Math.floor(progress.points / 100) + 1
-  const pointsToNextLevel = ((level) * 100) - progress.points
-  const levelProgress = ((progress.points % 100) / 100) * 100
+  // Calculate user level based on XP from activities (NOT spendable points!)
+  // XP is earned from permanent achievements and activities
+  const calculateXP = () => {
+    let xp = 0
+    
+    // Articles read: 50 XP each
+    xp += progress.totalArticlesRead * 50
+    
+    // Achievements unlocked: 100 XP each (independent of their point value)
+    xp += progress.achievements.length * 100
+    
+    // Longest streak: 30 XP per day
+    xp += progress.longestStreak * 30
+    
+    // Articles shared: 20 XP each (if we track this)
+    // We'll extract this from shareCount achievement progress
+    const shareAchievements = ['first-share', 'sharer-10', 'sharer-25', 'sharer-50']
+    const hasShares = shareAchievements.some(id => progress.achievements.includes(id))
+    if (hasShares) {
+      // Estimate based on achievements
+      if (progress.achievements.includes('sharer-50')) xp += 50 * 20
+      else if (progress.achievements.includes('sharer-25')) xp += 25 * 20
+      else if (progress.achievements.includes('sharer-10')) xp += 10 * 20
+      else if (progress.achievements.includes('first-share')) xp += 1 * 20
+    }
+    
+    // Articles created: 150 XP each (premium activity!)
+    const creatorAchievements = ['first-article', 'creator-5', 'creator-10', 'creator-25']
+    const hasCreated = creatorAchievements.some(id => progress.achievements.includes(id))
+    if (hasCreated) {
+      // Estimate based on achievements
+      if (progress.achievements.includes('creator-25')) xp += 25 * 150
+      else if (progress.achievements.includes('creator-10')) xp += 10 * 150
+      else if (progress.achievements.includes('creator-5')) xp += 5 * 150
+      else if (progress.achievements.includes('first-article')) xp += 1 * 150
+    }
+    
+    // Secret bonuses 🎁
+    // Streak consistency bonus: Extra XP if current streak matches longest
+    if (progress.currentStreak === progress.longestStreak && progress.currentStreak >= 7) {
+      xp += progress.currentStreak * 10 // Consistency bonus!
+    }
+    
+    // Completionist bonus: Massive XP if you have lots of achievements
+    if (progress.achievements.length >= 30) xp += 1000 // Elite player
+    else if (progress.achievements.length >= 20) xp += 500
+    else if (progress.achievements.length >= 10) xp += 200
+    
+    // Early adopter secret bonus (if they have certain special achievements)
+    if (progress.achievements.includes('completionist')) xp += 5000
+    
+    return xp
+  }
+  
+  // Calculate level from XP using a curve (gets harder as you level up)
+  const calculateLevelFromXP = (xp: number) => {
+    // Exponential curve: each level requires more XP
+    // Level 1: 0 XP
+    // Level 2: 100 XP
+    // Level 3: 300 XP
+    // Level 4: 600 XP
+    // Level 5: 1000 XP
+    // Formula: XP needed = (level * level * 50)
+    
+    let level = 1
+    let xpNeeded = 0
+    
+    while (xpNeeded <= xp) {
+      level++
+      xpNeeded += level * level * 50
+    }
+    
+    return level - 1
+  }
+  
+  const totalXP = calculateXP()
+  const level = Math.max(1, calculateLevelFromXP(totalXP))
+  
+  // Calculate XP to next level
+  const xpForCurrentLevel = Array.from({ length: level }, (_, i) => (i + 1) * (i + 1) * 50).reduce((a, b) => a + b, 0)
+  const xpForNextLevel = xpForCurrentLevel + ((level + 1) * (level + 1) * 50)
+  const xpToNextLevel = xpForNextLevel - totalXP
+  const levelProgress = ((totalXP - xpForCurrentLevel) / ((level + 1) * (level + 1) * 50)) * 100
 
   // Get level title
   const getLevelTitle = (lvl: number) => {
+    if (lvl >= 50) return '💎 Cosmic Visionary'
+    if (lvl >= 40) return '🌌 Quantum Scholar'
+    if (lvl >= 30) return '🔮 Mythic Sage'
+    if (lvl >= 25) return '⚡ Solar Champion'
     if (lvl >= 20) return '🌟 Legendary Scholar'
     if (lvl >= 15) return '👑 Master Reader'
     if (lvl >= 10) return '⚡ Expert Explorer'
@@ -147,69 +230,142 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
     return '✨ Knowledge Seeker'
   }
 
-  // Calculate next milestone
-  const nextMilestone = progress.totalArticlesRead < 10 ? 10 : 
-                        progress.totalArticlesRead < 25 ? 25 : 
-                        progress.totalArticlesRead < 50 ? 50 : 100
-  
-  const progressToNext = Math.min((progress.totalArticlesRead / nextMilestone) * 100, 100)
-
-  // Get unlocked and locked achievements
-  const unlockedAchievements = progress.achievements
-    .map(id => ({ id, ...achievementData[id] }))
-    .filter(a => a.name)
-
-  const nextToUnlock = lockedAchievements
-    .filter(la => !progress.achievements.includes(la.id))
-    .map(la => {
-      const achievement = achievementData[la.id]
-      let progressPercent = 0
-      let progressText = ''
-      
-      if (la.requiredReads !== undefined) {
-        progressPercent = Math.min((progress.totalArticlesRead / la.requiredReads) * 100, 100)
-        progressText = `${progress.totalArticlesRead}/${la.requiredReads} articles`
-      } else if (la.requiredStreak !== undefined) {
-        progressPercent = Math.min((progress.currentStreak / la.requiredStreak) * 100, 100)
-        progressText = `${progress.currentStreak}/${la.requiredStreak} days`
-      }
-      
+  // Get level avatar configuration (icon, colors, sparkle color)
+  const getLevelConfig = (lvl: number) => {
+    if (lvl >= 50) {
       return {
-        id: la.id,
-        ...achievement,
-        progressPercent,
-        progressText
+        icon: Gem,
+        bgGradient: 'from-violet-400 via-purple-500 to-fuchsia-600',
+        glowColor: 'from-violet-400 via-purple-500 to-fuchsia-500',
+        blurColor: 'from-violet-400 to-fuchsia-600',
+        borderColor: 'border-violet-500/30',
+        sparkleColor: 'text-violet-500',
+        progressGradient: 'from-violet-400 via-purple-500 to-fuchsia-500',
+        progressShadow: 'shadow-violet-500/50',
+        particleColor: 'bg-violet-400/30'
       }
-    })
-    .sort((a, b) => b.progressPercent - a.progressPercent)
-    .slice(0, 3)
-
-  const getRarityStyles = (rarity: string) => {
-    switch (rarity) {
-      case 'legendary':
-        return 'from-amber-400 via-yellow-300 to-amber-500 shadow-amber-500/50'
-      case 'epic':
-        return 'from-purple-400 via-pink-400 to-purple-500 shadow-purple-500/50'
-      case 'rare':
-        return 'from-blue-400 via-cyan-400 to-blue-500 shadow-blue-500/50'
-      default:
-        return 'from-emerald-400 via-teal-400 to-emerald-500 shadow-emerald-500/50'
+    }
+    if (lvl >= 40) {
+      return {
+        icon: Atom,
+        bgGradient: 'from-cyan-400 via-blue-500 to-indigo-600',
+        glowColor: 'from-cyan-400 via-blue-500 to-indigo-500',
+        blurColor: 'from-cyan-400 to-indigo-600',
+        borderColor: 'border-cyan-500/30',
+        sparkleColor: 'text-cyan-500',
+        progressGradient: 'from-cyan-400 via-blue-500 to-indigo-500',
+        progressShadow: 'shadow-cyan-500/50',
+        particleColor: 'bg-cyan-400/30'
+      }
+    }
+    if (lvl >= 30) {
+      return {
+        icon: Wand2,
+        bgGradient: 'from-fuchsia-400 via-pink-500 to-purple-600',
+        glowColor: 'from-fuchsia-400 via-pink-500 to-purple-500',
+        blurColor: 'from-fuchsia-400 to-purple-600',
+        borderColor: 'border-fuchsia-500/30',
+        sparkleColor: 'text-fuchsia-500',
+        progressGradient: 'from-fuchsia-400 via-pink-500 to-purple-500',
+        progressShadow: 'shadow-fuchsia-500/50',
+        particleColor: 'bg-fuchsia-400/30'
+      }
+    }
+    if (lvl >= 25) {
+      return {
+        icon: Sun,
+        bgGradient: 'from-orange-400 via-yellow-500 to-amber-600',
+        glowColor: 'from-orange-400 via-yellow-500 to-amber-500',
+        blurColor: 'from-orange-400 to-amber-600',
+        borderColor: 'border-orange-500/30',
+        sparkleColor: 'text-orange-500',
+        progressGradient: 'from-orange-400 via-yellow-500 to-amber-500',
+        progressShadow: 'shadow-orange-500/50',
+        particleColor: 'bg-orange-400/30'
+      }
+    }
+    if (lvl >= 20) {
+      return {
+        icon: Crown,
+        bgGradient: 'from-amber-400 via-orange-500 to-red-500',
+        glowColor: 'from-amber-400 via-orange-500 to-red-500',
+        blurColor: 'from-amber-400 to-orange-600',
+        borderColor: 'border-amber-500/30',
+        sparkleColor: 'text-amber-500',
+        progressGradient: 'from-amber-400 via-orange-500 to-red-500',
+        progressShadow: 'shadow-orange-500/50',
+        particleColor: 'bg-amber-400/30'
+      }
+    }
+    if (lvl >= 15) {
+      return {
+        icon: Medal,
+        bgGradient: 'from-violet-400 via-purple-500 to-indigo-600',
+        glowColor: 'from-violet-400 via-purple-500 to-indigo-500',
+        blurColor: 'from-violet-400 to-indigo-600',
+        borderColor: 'border-violet-500/30',
+        sparkleColor: 'text-violet-500',
+        progressGradient: 'from-violet-400 via-purple-500 to-indigo-500',
+        progressShadow: 'shadow-violet-500/50',
+        particleColor: 'bg-violet-400/30'
+      }
+    }
+    if (lvl >= 10) {
+      return {
+        icon: Compass,
+        bgGradient: 'from-indigo-400 via-purple-500 to-violet-600',
+        glowColor: 'from-indigo-400 via-purple-500 to-violet-500',
+        blurColor: 'from-indigo-400 to-violet-600',
+        borderColor: 'border-indigo-500/30',
+        sparkleColor: 'text-indigo-500',
+        progressGradient: 'from-indigo-400 via-purple-500 to-violet-500',
+        progressShadow: 'shadow-indigo-500/50',
+        particleColor: 'bg-indigo-400/30'
+      }
+    }
+    if (lvl >= 5) {
+      return {
+        icon: BookOpen,
+        bgGradient: 'from-blue-400 via-cyan-500 to-sky-600',
+        glowColor: 'from-blue-400 via-cyan-500 to-sky-500',
+        blurColor: 'from-blue-400 to-sky-600',
+        borderColor: 'border-blue-500/30',
+        sparkleColor: 'text-blue-500',
+        progressGradient: 'from-blue-400 via-cyan-500 to-sky-500',
+        progressShadow: 'shadow-blue-500/50',
+        particleColor: 'bg-blue-400/30'
+      }
+    }
+    // Level 1-4: Knowledge Seeker
+    return {
+      icon: Book,
+      bgGradient: 'from-emerald-400 via-green-500 to-teal-600',
+      glowColor: 'from-emerald-400 via-green-500 to-teal-500',
+      blurColor: 'from-emerald-400 to-teal-600',
+      borderColor: 'border-emerald-500/30',
+      sparkleColor: 'text-emerald-500',
+      progressGradient: 'from-emerald-400 via-green-500 to-teal-500',
+      progressShadow: 'shadow-emerald-500/50',
+      particleColor: 'bg-emerald-400/30'
     }
   }
+
+  const levelConfig = getLevelConfig(level)
+  const LevelIcon = levelConfig.icon
 
   return (
     <div className="space-y-8">
       {/* ULTRA HERO LEVEL CARD */}
       <div className="relative overflow-hidden rounded-3xl">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-red-500/20 animate-gradient-xy" />
+        {/* Animated gradient background - Dynamic based on level */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${levelConfig.glowColor.replace('from-', 'from-').replace(' via-', '/20 via-').replace(' to-', '/20 to-')}/20 animate-gradient-xy`} />
         
-        {/* Floating particles effect */}
+        {/* Floating particles effect - Dynamic color */}
         <div className="absolute inset-0 overflow-hidden">
           {[...Array(20)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-2 h-2 bg-amber-400/30 rounded-full animate-float"
+              className={`absolute w-2 h-2 ${levelConfig.particleColor} rounded-full animate-float`}
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
@@ -220,45 +376,48 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
           ))}
         </div>
 
-        <div className="relative backdrop-blur-xl bg-card/80 border-2 border-amber-500/30 rounded-3xl p-8 shadow-2xl">
-          <div className="flex items-center justify-between gap-6 flex-wrap">
-            {/* Left: Level Badge with Stars Below */}
-            <div className="flex items-center gap-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="relative group">
-                  {/* Rotating glow ring */}
-                  <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-full blur-2xl opacity-50 group-hover:opacity-75 animate-spin-slow" />
-                  
-                  {/* Main badge */}
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-600 blur-xl opacity-75 animate-pulse" />
-                    <div className="relative bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl p-6 transform group-hover:scale-110 transition-transform duration-300">
-                      <Crown className="w-14 h-14 text-white drop-shadow-lg" />
-                    </div>
-                    
-                    {/* Level number badge */}
-                    <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-primary to-primary/70 text-primary-foreground rounded-2xl w-12 h-12 flex items-center justify-center font-bold text-lg border-4 border-card shadow-xl transform group-hover:scale-110 transition-transform">
-                      {level}
-                    </div>
-                  </div>
-                </div>
+        <div className={`relative backdrop-blur-xl bg-card/80 ${levelConfig.borderColor} rounded-3xl p-8 shadow-2xl`}>
+          <div className="flex items-center gap-6 flex-wrap">
+            {/* Dynamic Avatar with Level Badge */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative group">
+                {/* Rotating glow ring - Dynamic colors */}
+                <div className={`absolute -inset-4 bg-gradient-to-r ${levelConfig.glowColor} rounded-full blur-2xl opacity-50 group-hover:opacity-75 animate-spin-slow`} />
                 
-                {/* Three sparkles below the badge */}
-                <div className="flex gap-1">
-                  {[...Array(3)].map((_, i) => (
-                    <Sparkles key={i} className="w-5 h-5 text-amber-500 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
-                  ))}
+                {/* Main badge - Dynamic colors */}
+                <div className="relative">
+                  <div className={`absolute inset-0 bg-gradient-to-br ${levelConfig.blurColor} blur-xl opacity-75 animate-pulse`} />
+                  <div className={`relative bg-gradient-to-br ${levelConfig.bgGradient} rounded-3xl p-6 transform group-hover:scale-110 transition-transform duration-300`}>
+                    <LevelIcon className="w-14 h-14 text-white drop-shadow-lg" />
+                  </div>
+                  
+                  {/* Level number badge */}
+                  <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-primary to-primary/70 text-primary-foreground rounded-2xl w-12 h-12 flex items-center justify-center font-bold text-lg border-4 border-card shadow-xl transform group-hover:scale-110 transition-transform">
+                    {level}
+                  </div>
                 </div>
               </div>
               
-              {/* Points Display - Now next to the level badge */}
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-yellow-500/5 rounded-2xl blur-md group-hover:blur-lg transition-all" />
-                <div className="relative bg-muted/50 backdrop-blur-sm rounded-2xl px-6 py-4 border-2 border-amber-500/20 group-hover:border-amber-500/40 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <Zap className="w-8 h-8 text-amber-500 fill-amber-500 animate-pulse" />
-                    <div className="text-3xl font-bold bg-gradient-to-r from-amber-500 to-yellow-500 bg-clip-text text-transparent">
-                      {progress.points}
+              {/* Three sparkles below the badge - Dynamic color */}
+              <div className="flex gap-1">
+                {[...Array(3)].map((_, i) => (
+                  <Sparkles key={i} className={`w-5 h-5 ${levelConfig.sparkleColor} animate-pulse`} style={{ animationDelay: `${i * 0.2}s` }} />
+                ))}
+              </div>
+            </div>
+            
+            {/* XP Display and Progress Info */}
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* XP Counter Pill */}
+                <div className="relative group/xp">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-md" />
+                  <div className="relative bg-gradient-to-r from-purple-600/10 to-pink-600/10 backdrop-blur-sm rounded-xl px-5 py-2.5 border-2 border-purple-500/30 group-hover/xp:border-purple-500/50 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <Rocket className="w-5 h-5 text-purple-500" />
+                      <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        {totalXP.toLocaleString()} XP
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -266,16 +425,16 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
             </div>
           </div>
 
-          {/* Level Progress Bar */}
+          {/* Level Progress Bar - Clean with no labels, Dynamic colors */}
           <div className="mt-6 pt-6 border-t border-border/50">
             <div className="relative h-3 bg-muted/50 rounded-full overflow-hidden border border-border/50">
               {/* Animated background shimmer */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
               
-              {/* Progress fill with neon glow */}
+              {/* Progress fill with neon glow - Dynamic gradient */}
               <div 
-                className="relative h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 transition-all duration-1000 ease-out rounded-full shadow-lg shadow-orange-500/50"
-                style={{ width: `${levelProgress}%` }}
+                className={`relative h-full bg-gradient-to-r ${levelConfig.progressGradient} transition-all duration-1000 ease-out rounded-full shadow-lg ${levelConfig.progressShadow}`}
+                style={{ width: `${Math.max(0, Math.min(100, levelProgress))}%` }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
               </div>

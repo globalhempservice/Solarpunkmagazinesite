@@ -262,6 +262,18 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
                   className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full blur-xl"
                 />
                 <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-500 animate-ping" />
+                
+                {/* Floating +Points text */}
+                <motion.div
+                  initial={{ y: 0, opacity: 1, scale: 0.5 }}
+                  animate={{ y: -40, opacity: 0, scale: 1.2 }}
+                  transition={{ duration: 1.5, ease: "easeOut" }}
+                  className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none"
+                >
+                  <span className="text-lg font-bold text-amber-500 drop-shadow-lg whitespace-nowrap">
+                    +{pointsGained}
+                  </span>
+                </motion.div>
               </>
             )}
           </motion.button>

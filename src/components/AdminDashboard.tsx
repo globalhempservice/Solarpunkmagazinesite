@@ -38,7 +38,12 @@ import {
   Package,
   Palette,
   Leaf,
-  Sprout
+  Sprout,
+  LayoutGrid,
+  Layers,
+  Star,
+  PenTool,
+  Share2
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -79,9 +84,12 @@ interface Ranking {
   email: string
   nickname: string
   points: number
+  rankScore: number
   totalArticlesRead: number
   currentStreak: number
   longestStreak: number
+  articlesCreated: number
+  articlesShared: number
   achievements: string[]
 }
 
@@ -206,6 +214,8 @@ interface AdminDashboardProps {
 }
 
 type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss'
+type ViewMode = 'classic' | 'feature'
+type FeatureTab = 'content' | 'swipe' | 'users' | 'gamification' | 'security' | 'analytics'
 
 export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, onNavigateToSwagAdmin }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -220,6 +230,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
   const [loading, setLoading] = useState(true)
   const [refreshingWallets, setRefreshingWallets] = useState(false)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [viewMode, setViewMode] = useState<ViewMode>('classic')
+  const [featureTab, setFeatureTab] = useState<FeatureTab>('analytics')
 
   useEffect(() => {
     fetchAdminData()
@@ -462,12 +474,33 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           </div>
           <p className="text-muted-foreground mt-1">Manage your magazine platform</p>
         </div>
-        <Button onClick={onBack} variant="outline">
-          Exit Admin
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setViewMode(viewMode === 'classic' ? 'feature' : 'classic')}
+            variant={viewMode === 'classic' ? 'outline' : 'default'}
+            className="flex items-center gap-2"
+          >
+            {viewMode === 'classic' ? (
+              <>
+                <Layers className="w-4 h-4" />
+                Feature View
+              </>
+            ) : (
+              <>
+                <LayoutGrid className="w-4 h-4" />
+                Classic View
+              </>
+            )}
+          </Button>
+          <Button onClick={onBack} variant="outline">
+            Exit Admin
+          </Button>
+        </div>
       </div>
 
-      {/* Tabs */}
+      {/* CLASSIC VIEW TABS */}
+      {viewMode === 'classic' && (
+        <>
       <div className="flex gap-2 border-b overflow-x-auto">
         {[
           { id: 'overview', label: 'Overview' },
@@ -1261,9 +1294,17 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
       {/* Rankings Tab */}
       {activeTab === 'rankings' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">User Rankings</h2>
-            <p className="text-sm text-muted-foreground">Top performers</p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">User Rankings</h2>
+              <Badge variant="outline" className="gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Composite Rank Score
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Ranked by composite score: reads (100 pts), achievements (200 pts), streaks (50/30 pts), created (300 pts), shared (50 pts), + spendable points
+            </p>
           </div>
 
           <div className="space-y-3">
@@ -1273,8 +1314,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                 ranking.rank === 2 ? 'bg-gray-400/10 border-gray-400/20' :
                 ranking.rank === 3 ? 'bg-orange-600/10 border-orange-600/20' : ''
               }`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                <div className="flex items-start gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0 ${
                     ranking.rank === 1 ? 'bg-yellow-500 text-white' :
                     ranking.rank === 2 ? 'bg-gray-400 text-white' :
                     ranking.rank === 3 ? 'bg-orange-600 text-white' :
@@ -1287,7 +1328,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <p className="font-medium truncate">{ranking.nickname}</p>
                       {ranking.achievements.length > 0 && (
                         <Badge variant="secondary" className="text-xs">
@@ -1295,24 +1336,38 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                           {ranking.achievements.length}
                         </Badge>
                       )}
+                      <Badge variant="outline" className="text-xs font-bold bg-primary/5 border-primary/20">
+                        <Star className="w-3 h-3 mr-1" />
+                        {ranking.rankScore.toLocaleString()} score
+                      </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{ranking.email}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1 font-bold text-orange-500">
-                        <Zap className="w-3 h-3" />
-                        {ranking.points} pts
+                    <p className="text-xs text-muted-foreground truncate mb-2">{ranking.email}</p>
+                    
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Zap className="w-3 h-3 text-orange-500" />
+                        <span className="font-semibold text-orange-500">{ranking.points}</span> pts
                       </span>
-                      <span className="flex items-center gap-1">
-                        <BookOpen className="w-3 h-3" />
-                        {ranking.totalArticlesRead} read
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <BookOpen className="w-3 h-3 text-blue-500" />
+                        <span className="font-semibold text-blue-500">{ranking.totalArticlesRead}</span> read
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Target className="w-3 h-3" />
-                        {ranking.currentStreak} streak
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Target className="w-3 h-3 text-red-500" />
+                        <span className="font-semibold text-red-500">{ranking.currentStreak}</span> now
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Award className="w-3 h-3" />
-                        {ranking.longestStreak} best
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Award className="w-3 h-3 text-purple-500" />
+                        <span className="font-semibold text-purple-500">{ranking.longestStreak}</span> best
+                      </span>
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <PenTool className="w-3 h-3 text-green-500" />
+                        <span className="font-semibold text-green-500">{ranking.articlesCreated}</span> created
+                      </span>
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Share2 className="w-3 h-3 text-pink-500" />
+                        <span className="font-semibold text-pink-500">{ranking.articlesShared}</span> shared
                       </span>
                     </div>
                   </div>
@@ -1688,7 +1743,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                   </div>
                   <div className="flex-1">
                     <p className="text-2xl font-black text-emerald-500">
-                      {marketAnalytics.totalNadaSpent.toLocaleString()}
+                      {(marketAnalytics.totalNadaSpent || 0).toLocaleString()}
                     </p>
                     <p className="text-xs text-muted-foreground font-medium">Total NADA Spent</p>
                   </div>
@@ -1703,7 +1758,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                   </div>
                   <div className="flex-1">
                     <p className="text-2xl font-black text-purple-500">
-                      {marketAnalytics.totalPurchases}
+                      {marketAnalytics.totalPurchases || 0}
                     </p>
                     <p className="text-xs text-muted-foreground font-medium">Total Purchases</p>
                   </div>
@@ -1718,7 +1773,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                   </div>
                   <div className="flex-1">
                     <p className="text-2xl font-black text-blue-500">
-                      {marketAnalytics.uniqueBuyers}
+                      {marketAnalytics.uniqueBuyers || 0}
                     </p>
                     <p className="text-xs text-muted-foreground font-medium">Unique Buyers</p>
                   </div>
@@ -1734,13 +1789,13 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                   <div className="flex-1">
                     <div className="flex items-baseline gap-2 mb-1">
                       <span className="text-sm font-bold text-emerald-500">
-                        {marketAnalytics.categoryBreakdown.themes}T
+                        {marketAnalytics.categoryBreakdown?.themes || 0}T
                       </span>
                       <span className="text-sm font-bold text-purple-500">
-                        {marketAnalytics.categoryBreakdown.badges}B
+                        {marketAnalytics.categoryBreakdown?.badges || 0}B
                       </span>
                       <span className="text-sm font-bold text-blue-500">
-                        {marketAnalytics.categoryBreakdown.merch}M
+                        {marketAnalytics.categoryBreakdown?.merch || 0}M
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground font-medium">Themes • Badges • Merch</p>
@@ -1944,6 +1999,792 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           accessToken={accessToken}
           serverUrl={serverUrl}
         />
+      )}
+      </>
+      )}
+
+      {/* FEATURE VIEW MODE */}
+      {viewMode === 'feature' && (
+        <div className="space-y-6">
+          {/* Feature Tabs */}
+          <div className="flex gap-2 border-b overflow-x-auto">
+            {[
+              { id: 'analytics', label: '📊 Analytics', icon: Activity },
+              { id: 'content', label: '📰 Content', icon: FileText },
+              { id: 'swipe', label: '💫 Swipe', icon: Heart },
+              { id: 'users', label: '👥 Users', icon: Users },
+              { id: 'gamification', label: '🎮 Gamification', icon: Zap },
+              { id: 'security', label: '🔒 Security', icon: Shield }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setFeatureTab(tab.id as FeatureTab)}
+                className={`px-4 py-2 font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
+                  featureTab === tab.id
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Analytics Tab */}
+          {featureTab === 'analytics' && stats && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">📊 Platform Analytics</h2>
+                <Badge variant="outline" className="text-xs">
+                  Live Data
+                </Badge>
+              </div>
+
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="p-6 border-2 border-blue-500/20 bg-blue-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Users className="w-5 h-5 text-blue-500" />
+                    <h3 className="font-bold">Total Users</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-500">{stats.totalUsers}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Active community</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-emerald-500/20 bg-emerald-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <FileText className="w-5 h-5 text-emerald-500" />
+                    <h3 className="font-bold">Total Articles</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-emerald-500">{stats.totalArticles}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    +{stats.articlesLast24h} today
+                  </p>
+                </Card>
+
+                <Card className="p-6 border-2 border-purple-500/20 bg-purple-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Eye className="w-5 h-5 text-purple-500" />
+                    <h3 className="font-bold">Total Views</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-purple-500">{stats.totalViews.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Content engagement</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-orange-500/20 bg-orange-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Zap className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-bold">Total Points</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-orange-500">{stats.totalPoints.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {stats.totalArticlesRead} reads
+                  </p>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-yellow-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('rankings')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Trophy className="w-6 h-6 text-amber-500" />
+                      <h3 className="font-bold">Top Rankings</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">View user leaderboards</p>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-pink-500/30 bg-gradient-to-br from-pink-500/10 to-rose-500/10 hover:shadow-xl transition-all"
+                    onClick={() => setFeatureTab('swipe')}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Heart className="w-6 h-6 text-pink-500" />
+                      <h3 className="font-bold">Swipe Analytics</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Content performance</p>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('views')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Eye className="w-6 h-6 text-emerald-500" />
+                      <h3 className="font-bold">Views Deep Dive</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Detailed analytics</p>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Market Analytics if available */}
+              {marketAnalytics && (
+                <Card className="p-6 border-2 border-purple-500/20">
+                  <h3 className="font-bold mb-4">💰 Community Market</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total NADA Spent</p>
+                      <p className="text-2xl font-bold text-purple-500">
+                        {(marketAnalytics.totalSpent || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Items Sold</p>
+                      <p className="text-2xl font-bold text-emerald-500">
+                        {marketAnalytics.totalSales || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Active Buyers</p>
+                      <p className="text-2xl font-bold text-blue-500">
+                        {marketAnalytics.uniqueBuyers || 0}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Content Tab */}
+          {featureTab === 'content' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">📰 Content Management</h2>
+                <Badge variant="outline" className="text-xs">
+                  {articles.length} Articles
+                </Badge>
+              </div>
+
+              {/* Content Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-6 border-2 border-emerald-500/20 bg-emerald-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <FileText className="w-5 h-5 text-emerald-500" />
+                    <h3 className="font-bold">Total Articles</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-emerald-500">{stats?.totalArticles}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Published content</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-blue-500/20 bg-blue-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <TrendingUp className="w-5 h-5 text-blue-500" />
+                    <h3 className="font-bold">Last 24 Hours</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-500">{stats?.articlesLast24h}</p>
+                  <p className="text-sm text-muted-foreground mt-1">New articles today</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-purple-500/20 bg-purple-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Calendar className="w-5 h-5 text-purple-500" />
+                    <h3 className="font-bold">Last 7 Days</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-purple-500">{stats?.articlesLast7d}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Weekly publications</p>
+                </Card>
+              </div>
+
+              {/* RSS & Views Tabs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-red-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('rss')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Activity className="w-6 h-6 text-orange-500" />
+                      <h3 className="font-bold">RSS Feed Manager</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Manage content sources</p>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('articles')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Edit className="w-6 h-6 text-emerald-500" />
+                      <h3 className="font-bold">Article Management</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Edit & delete articles</p>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Quick Article List */}
+              <Card className="p-6">
+                <h3 className="font-bold mb-4">Recent Articles</h3>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {articles.slice(0, 10).map(article => (
+                    <div
+                      key={article.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        setViewMode('classic')
+                        setActiveTab('articles')
+                      }}
+                    >
+                      {article.coverImage && (
+                        <img
+                          src={article.coverImage}
+                          alt={article.title}
+                          className="w-16 h-16 object-cover rounded"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold truncate">{article.title}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{new Date(article.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{article.views} views</span>
+                          {article.isRss && (
+                            <>
+                              <span>•</span>
+                              <Badge variant="outline" className="text-xs">RSS</Badge>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Swipe Tab */}
+          {featureTab === 'swipe' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">💫 Swipe Mode Analytics</h2>
+                <Badge variant="outline" className="text-xs">
+                  {swipeStats.length} Articles
+                </Badge>
+              </div>
+
+              {/* Swipe Stats Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-6 border-2 border-green-500/20 bg-green-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Heart className="w-5 h-5 text-green-500" />
+                    <h3 className="font-bold">Total Likes</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-green-500">
+                    {swipeStats.reduce((sum, s) => sum + s.likes, 0).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Positive engagement</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-red-500/20 bg-red-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <X className="w-5 h-5 text-red-500" />
+                    <h3 className="font-bold">Total Skips</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-red-500">
+                    {swipeStats.reduce((sum, s) => sum + s.skips, 0).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Passed content</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-orange-500/20 bg-orange-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <TrendingUp className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-bold">Avg Match Rate</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-orange-500">
+                    {swipeStats.length > 0 
+                      ? Math.round(swipeStats.reduce((sum, s) => sum + s.likeRate, 0) / swipeStats.length)
+                      : 0}%
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Overall performance</p>
+                </Card>
+              </div>
+
+              {/* Top Performing Articles */}
+              <Card className="p-6">
+                <h3 className="font-bold mb-4">🏆 Top Performing Articles</h3>
+                <div className="space-y-3">
+                  {swipeStats
+                    .sort((a, b) => b.likeRate - a.likeRate)
+                    .slice(0, 10)
+                    .map((stat, index) => (
+                      <div
+                        key={stat.articleId}
+                        className={`p-4 rounded-lg border-2 ${
+                          stat.likeRate >= 80 ? 'bg-green-500/10 border-green-500/20' :
+                          stat.likeRate >= 60 ? 'bg-blue-500/10 border-blue-500/20' :
+                          stat.likeRate >= 40 ? 'bg-orange-500/10 border-orange-500/20' :
+                          'bg-red-500/10 border-red-500/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          {stat.coverImage && (
+                            <img
+                              src={stat.coverImage}
+                              alt={stat.title}
+                              className="w-20 h-20 object-cover rounded"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <p className="font-bold truncate">{stat.title}</p>
+                              {index < 3 && (
+                                <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30">
+                                  #{index + 1}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="flex items-center gap-1 text-green-500">
+                                <Heart className="w-4 h-4" />
+                                {stat.likes}
+                              </span>
+                              <span className="flex items-center gap-1 text-red-500">
+                                <X className="w-4 h-4" />
+                                {stat.skips}
+                              </span>
+                              <span className="flex items-center gap-1 text-orange-500 font-bold">
+                                <TrendingUp className="w-4 h-4" />
+                                {Math.round(stat.likeRate)}%
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {stat.category}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </Card>
+
+              {/* View Full Stats Button */}
+              <Button
+                onClick={() => {
+                  setViewMode('classic')
+                  setActiveTab('swipeStats')
+                }}
+                className="w-full"
+                variant="outline"
+              >
+                View Full Swipe Statistics
+              </Button>
+            </div>
+          )}
+
+          {/* Users Tab */}
+          {featureTab === 'users' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">👥 User Management</h2>
+                <Badge variant="outline" className="text-xs">
+                  {users.length} Users
+                </Badge>
+              </div>
+
+              {/* User Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-6 border-2 border-blue-500/20 bg-blue-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Users className="w-5 h-5 text-blue-500" />
+                    <h3 className="font-bold">Total Users</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-500">{users.length}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Registered members</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-red-500/20 bg-red-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Ban className="w-5 h-5 text-red-500" />
+                    <h3 className="font-bold">Banned Users</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-red-500">
+                    {users.filter(u => u.banned).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Moderation actions</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-emerald-500/20 bg-emerald-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Trophy className="w-5 h-5 text-emerald-500" />
+                    <h3 className="font-bold">Active Members</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-emerald-500">
+                    {users.filter(u => u.points > 0).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">With activity</p>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-yellow-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('rankings')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Trophy className="w-6 h-6 text-amber-500" />
+                      <h3 className="font-bold">View Rankings</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">See leaderboards</p>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('users')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Users className="w-6 h-6 text-blue-500" />
+                      <h3 className="font-bold">Full User Management</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Manage & moderate</p>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Top Users */}
+              <Card className="p-6">
+                <h3 className="font-bold mb-4">🏆 Top Users by Points</h3>
+                <div className="space-y-3">
+                  {users
+                    .sort((a, b) => b.points - a.points)
+                    .slice(0, 10)
+                    .map((user, index) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-bold">{user.nickname || user.email}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{user.totalArticlesRead} reads</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Flame className="w-3 h-3 text-orange-500" />
+                                {user.currentStreak} day streak
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-orange-500">{user.points} pts</p>
+                          <p className="text-xs text-muted-foreground">
+                            {user.achievements.length} achievements
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Gamification Tab */}
+          {featureTab === 'gamification' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">🎮 Gamification System</h2>
+                <Badge variant="outline" className="text-xs">
+                  Engagement Metrics
+                </Badge>
+              </div>
+
+              {/* Gamification Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="p-6 border-2 border-orange-500/20 bg-orange-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Zap className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-bold">Total Points</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-orange-500">{stats?.totalPoints.toLocaleString()}</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-purple-500/20 bg-purple-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <BookOpen className="w-5 h-5 text-purple-500" />
+                    <h3 className="font-bold">Articles Read</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-purple-500">{stats?.totalArticlesRead.toLocaleString()}</p>
+                </Card>
+
+                <Card className="p-6 border-2 border-green-500/20 bg-green-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Trophy className="w-5 h-5 text-green-500" />
+                    <h3 className="font-bold">Total Achievements</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-green-500">
+                    {users.reduce((sum, u) => sum + u.achievements.length, 0)}
+                  </p>
+                </Card>
+
+                <Card className="p-6 border-2 border-red-500/20 bg-red-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Flame className="w-5 h-5 text-red-500" />
+                    <h3 className="font-bold">Longest Streak</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-red-500">
+                    {Math.max(...users.map(u => u.longestStreak))} days
+                  </p>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('gamification')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Award className="w-6 h-6 text-purple-500" />
+                      <h3 className="font-bold">Full Gamification Dashboard</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Detailed analytics</p>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('wallets')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Coins className="w-6 h-6 text-emerald-500" />
+                      <h3 className="font-bold">NADA Wallets</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Financial overview</p>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Top Streaks */}
+              <Card className="p-6">
+                <h3 className="font-bold mb-4">🔥 Streak Leaderboard</h3>
+                <div className="space-y-3">
+                  {users
+                    .sort((a, b) => b.currentStreak - a.currentStreak)
+                    .slice(0, 10)
+                    .map((user, index) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between p-3 rounded-lg border"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Flame className={`w-5 h-5 ${
+                            user.currentStreak >= 7 ? 'text-red-500' :
+                            user.currentStreak >= 3 ? 'text-orange-500' :
+                            'text-yellow-500'
+                          }`} />
+                          <div>
+                            <p className="font-bold">{user.nickname || user.email}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Longest: {user.longestStreak} days
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-red-500">{user.currentStreak} days</p>
+                          <p className="text-xs text-muted-foreground">{user.points} pts</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Security Tab */}
+          {featureTab === 'security' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">🔒 Security & Monitoring</h2>
+                <Badge variant="outline" className="text-xs">
+                  Admin Tools
+                </Badge>
+              </div>
+
+              {/* Security Modules */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-red-500/30 bg-gradient-to-br from-red-500/10 to-orange-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('security')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <Shield className="w-8 h-8 text-red-500" />
+                      <h3 className="font-bold">Security Audit</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      View audit logs & fraud detection
+                    </p>
+                    <Badge variant="outline" className="text-xs">
+                      Full Access
+                    </Badge>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    className="p-6 cursor-pointer border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:shadow-xl transition-all"
+                    onClick={() => {
+                      setViewMode('classic')
+                      setActiveTab('bot')
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <Bot className="w-8 h-8 text-purple-500" />
+                      <h3 className="font-bold">Monitoring Bot</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Automated system monitoring
+                    </p>
+                    <Badge variant="outline" className="text-xs">
+                      Active
+                    </Badge>
+                  </Card>
+                </motion.div>
+
+                <Card className="p-6 border-2 border-blue-500/20 bg-blue-500/5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <AlertTriangle className="w-8 h-8 text-blue-500" />
+                    <h3 className="font-bold">Ban Status</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-500 mb-2">
+                    {users.filter(u => u.banned).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Currently banned users
+                  </p>
+                </Card>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="p-6">
+                  <h3 className="font-bold mb-4">System Health</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Users</span>
+                      <Badge variant="outline" className="bg-green-500/10 text-green-500">
+                        {users.length}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Active Users (with points)</span>
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-500">
+                        {users.filter(u => u.points > 0).length}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Banned Users</span>
+                      <Badge variant="outline" className="bg-red-500/10 text-red-500">
+                        {users.filter(u => u.banned).length}
+                      </Badge>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <h3 className="font-bold mb-4">Recent Bans</h3>
+                  <div className="space-y-2">
+                    {users
+                      .filter(u => u.banned)
+                      .slice(0, 5)
+                      .map(user => (
+                        <div key={user.id} className="flex items-center gap-2 p-2 rounded bg-red-500/10">
+                          <Ban className="w-4 h-4 text-red-500" />
+                          <span className="text-sm truncate">{user.email}</span>
+                        </div>
+                      ))}
+                    {users.filter(u => u.banned).length === 0 && (
+                      <p className="text-sm text-muted-foreground">No banned users</p>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </motion.div>
   )

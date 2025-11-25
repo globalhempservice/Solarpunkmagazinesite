@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ArticleCard } from './ArticleCard'
 import { Skeleton } from './ui/skeleton'
-import { ChevronLeft, ChevronRight, Sun, Lightbulb, Users, Sprout, Eye, Wind, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sun, Lightbulb, Users, Sprout, Eye, Wind, Sparkles, Grid3x3 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 
 interface Article {
@@ -35,6 +35,12 @@ interface BrowsePageProps {
 
 // Category definitions with icons
 const categories = [
+  { 
+    name: 'All Articles', 
+    icon: Grid3x3, 
+    color: 'from-indigo-500 to-purple-500',
+    description: 'Browse everything'
+  },
   { 
     name: 'Renewable Energy', 
     icon: Sun, 
@@ -130,17 +136,22 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
       return
     }
 
-    // Get articles from selected category
-    const categoryArticles = articles.filter(a => a.category === currentCategory.name)
+    // Check if "All Articles" view is selected
+    const isAllArticlesView = currentCategory.name === 'All Articles'
+    
+    // Get articles: either all or filtered by category
+    const relevantArticles = isAllArticlesView 
+      ? articles 
+      : articles.filter(a => a.category === currentCategory.name)
     
     // Sort by date (latest first) - assuming createdAt is in ISO format
-    const sortedByDate = [...categoryArticles].sort((a, b) => {
+    const sortedByDate = [...relevantArticles].sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()
       return dateB - dateA // Latest first
     })
     
-    // Take all articles from this category
+    // Display the sorted articles
     setDisplayedArticles(sortedByDate)
 
     // Show articles after brief delay

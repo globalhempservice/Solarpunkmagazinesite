@@ -190,12 +190,17 @@ export function AccountSettings({
         clearTimeout(nicknameTimerRef.current)
       }
     }
-  }, [nickname, initialNickname, selectedTheme, onUpdateProfile])
+  }, [nickname]) // FIXED: Only depend on nickname changes
 
   // Auto-save theme immediately when changed
   useEffect(() => {
+    // Skip on initial mount
+    if (selectedTheme === initialTheme) {
+      return
+    }
+    
     const saveTheme = async () => {
-      if (onUpdateProfile && selectedTheme !== initialTheme) {
+      if (onUpdateProfile) {
         setIsSaving(true)
         try {
           console.log('Attempting to save theme:', selectedTheme, 'with nickname:', nickname || initialNickname || '')
@@ -212,12 +217,17 @@ export function AccountSettings({
     }
 
     saveTheme()
-  }, [selectedTheme])
+  }, [selectedTheme]) // FIXED: Only depend on theme changes
 
   // Auto-save marketing newsletter preference immediately when changed
   useEffect(() => {
+    // Skip on initial mount
+    if (marketingNewsletter === initialMarketingOptIn) {
+      return
+    }
+    
     const saveMarketingPreference = async () => {
-      if (onUpdateMarketingPreference && marketingNewsletter !== initialMarketingOptIn) {
+      if (onUpdateMarketingPreference) {
         setIsSaving(true)
         try {
           console.log('Attempting to save marketing preference:', marketingNewsletter)
@@ -235,12 +245,17 @@ export function AccountSettings({
     }
 
     saveMarketingPreference()
-  }, [marketingNewsletter])
+  }, [marketingNewsletter]) // FIXED: Only depend on preference changes
 
   // Auto-save market newsletter preference immediately when changed
   useEffect(() => {
+    // Skip on initial mount
+    if (marketNewsletter === initialMarketNewsletterOptIn) {
+      return
+    }
+    
     const saveMarketNewsletterPreference = async () => {
-      if (onUpdateMarketNewsletterPreference && marketNewsletter !== initialMarketNewsletterOptIn) {
+      if (onUpdateMarketNewsletterPreference) {
         setIsSaving(true)
         try {
           console.log('Attempting to save market newsletter preference:', marketNewsletter)
@@ -258,7 +273,7 @@ export function AccountSettings({
     }
 
     saveMarketNewsletterPreference()
-  }, [marketNewsletter])
+  }, [marketNewsletter]) // FIXED: Only depend on preference changes
 
   const getLevelTitle = (lvl: number) => {
     if (lvl >= 20) return '🌟 Legendary Scholar'

@@ -3,6 +3,9 @@ import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
+import { Building2 } from 'lucide-react'
+import { CompanyManager } from './CompanyManager'
+import { CompanyManagerWrapper } from './CompanyManagerWrapper'
 
 interface MarketProfilePanelProps {
   isOpen: boolean
@@ -81,6 +84,8 @@ export function MarketProfilePanel({
   const [isLoading, setIsLoading] = useState(true)
   const [equipingBadgeId, setEquipingBadgeId] = useState<string | null>(null)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [activeTab, setActiveTab] = useState<'badges' | 'companies'>('badges')
+  const [showCompanyManager, setShowCompanyManager] = useState(false)
 
   useEffect(() => {
     if (isOpen && userId && accessToken) {

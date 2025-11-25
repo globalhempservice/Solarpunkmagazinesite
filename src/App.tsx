@@ -1,36 +1,33 @@
-import { useState, useEffect, useRef } from 'react'
-import { CommunityMarketLoader } from './components/CommunityMarketLoader'
-import { FeatureUnlockModal } from './components/FeatureUnlockModal'
-import { LoadingScreen } from './components/LoadingScreen'
-
+import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
-import { isFeatureUnlocked, FEATURE_UNLOCKS } from './utils/featureUnlocks'
 import { ReadingSecurityTracker } from './utils/readingSecurityTracker'
+import { CommunityMarketLoader } from './components/CommunityMarketLoader'
 import { AuthForm } from './components/AuthForm'
 import { Header } from './components/Header'
 import { ArticleCard } from './components/ArticleCard'
-import { ArticleReader } from './components/ArticleReader'
-import { UserDashboard } from './components/UserDashboard'
 import { ArticleEditor } from './components/ArticleEditor'
-import { LinkedInImporter } from './components/LinkedInImporter'
-import { AdminPanel } from './components/AdminPanel'
+import { UserDashboard } from './components/UserDashboard'
+import { ArticleReader } from './components/ArticleReader'
 import { AdminDashboard } from './components/AdminDashboard'
-import { SwagShopAdmin } from './components/SwagShopAdmin'
-import { BottomNavbar } from './components/BottomNavbar'
-import { StreakBanner } from './components/StreakBanner'
 import { ReadingHistory } from './components/ReadingHistory'
-import { SwipeMode } from './components/SwipeMode'
+import { LinkedInImporter } from './components/LinkedInImporter'
 import { MatchedArticles } from './components/MatchedArticles'
 import { AchievementsPage } from './components/AchievementsPage'
 import { BrowsePage } from './components/BrowsePage'
+import { SwipeMode } from './components/SwipeMode'
 import { AccountSettings } from './components/AccountSettings'
 import { PointsSystemPage } from './components/PointsSystemPage'
 import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
+import { FeatureUnlockModal } from './components/FeatureUnlockModal'
+import { BottomNavbar } from './components/BottomNavbar'
+import { LoadingScreen } from './components/LoadingScreen'
+import { SwagShopAdmin } from './components/SwagShopAdmin'
 import { ComicLockOverlay } from './components/ComicLockOverlay'
 import { ReadingAnalytics } from './components/ReadingAnalytics'
 import { HomeCards } from './components/HomeCards'
+import { ServerErrorBanner } from './components/ServerErrorBanner'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Skeleton } from './components/ui/skeleton'
 import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen, Loader } from 'lucide-react'
@@ -39,6 +36,43 @@ import { Button } from './components/ui/button'
 import { Badge } from './components/ui/badge'
 import { toast } from 'sonner@2.0.3'
 import { Toaster } from './components/ui/sonner'
+
+interface Article {
+  id: string
+  title: string
+  content: string
+  excerpt: string
+  category: string
+  coverImage?: string
+  readingTime: number
+  views?: number
+  authorId: string
+  authorName?: string
+  createdAt: string
+  source?: string
+  feedId?: string
+  linkedinPostUrl?: string
+}
+
+interface UserProgress {
+  userId: string
+  totalArticlesRead: number
+  points: number
+  xp: number
+  level: number
+  currentStreak: number
+  longestStreak: number
+  achievements: string[]
+  readArticles: string[]
+  lastReadDate: string | null
+  nickname?: string
+  homeButtonTheme?: string
+  selectedTheme?: string
+  marketingOptIn?: boolean
+  marketNewsletterOptIn?: boolean
+  nadaPoints?: number
+  marketUnlocked?: boolean
+}
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -65,9 +99,9 @@ export default function App() {
   const [isWalletOpen, setIsWalletOpen] = useState(false)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(true)
   const [browseCategoryIndex, setBrowseCategoryIndex] = useState(() => {
-    // Load from localStorage on init
-    const saved = localStorage.getItem('browseCategoryIndex')
-    return saved ? parseInt(saved, 10) : 0
+    // Always start with "All Articles" (index 0) as the default view
+    // User can navigate to other categories, and we'll remember their selection
+    return 0
   })
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
 
@@ -290,10 +324,10 @@ export default function App() {
   }, [userProgress?.selectedTheme])
 
   const fetchArticles = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      console.log('Fetching articles from:', `${serverUrl}/articles`)
-      const response = await fetch(`${serverUrl}/articles`, {
+      console.log('Fetching articles from server...')
+      const response = await fetch(`${serverUrl}/articles?category=${selectedCategory}`, {
         headers: {
           'Authorization': `Bearer ${publicAnonKey}`
         }
@@ -310,6 +344,14 @@ export default function App() {
       setArticles(data.articles || [])
     } catch (error: any) {
       console.error('Error fetching articles:', error)
+      
+      // Check if it's a network/deployment error
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        console.error('🚨 SERVER NOT DEPLOYED - Please deploy the edge function:')
+        console.error('   supabase functions deploy make-server-053bcd80')
+        console.error('   OR deploy via Supabase Dashboard → Edge Functions')
+      }
+      
       // Removed toast notification - errors shown in console only
     } finally {
       setLoading(false)
@@ -336,6 +378,13 @@ export default function App() {
       setUserProgress(data.progress)
     } catch (error: any) {
       console.error('Error fetching user progress:', error)
+      
+      // Check if it's a network/deployment error
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        console.error('🚨 SERVER NOT DEPLOYED - Please deploy the edge function:')
+        console.error('   supabase functions deploy make-server-053bcd80')
+        console.error('   OR deploy via Supabase Dashboard → Edge Functions')
+      }
     }
   }
 
@@ -841,7 +890,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hide Header when in Community Market - Market has its own navigation */}
-      {currentView !== 'community-market' && (
+      {currentView !== 'community-market' && currentView !== 'reading-analytics' && (
         <Header
           currentView={currentView}
           onNavigate={setCurrentView}
@@ -921,9 +970,9 @@ export default function App() {
         />
       )}
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' ? 'p-0' : 'py-8 pb-32'}>
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' ? 'p-0 pt-0' : 'py-8 pb-32'}>
         {/* Content with its own container for padding */}
-        <div className={currentView === 'browse' || currentView === 'community-market' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
+        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
             <div className="space-y-6">
@@ -1202,7 +1251,7 @@ export default function App() {
       </main>
 
       {/* Hide BottomNavbar when in Community Market - Market has its own navigation */}
-      {currentView !== 'community-market' && (
+      {currentView !== 'community-market' && currentView !== 'reading-analytics' && (
         <BottomNavbar
           currentView={currentView}
           onNavigate={setCurrentView}

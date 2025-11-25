@@ -78,7 +78,7 @@ export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: A
             bg-gradient-to-br ${categoryColor || 'from-emerald-500/95 via-teal-500/95 to-green-600/95'}
             opacity-0 group-hover:opacity-100
             transition-all duration-500
-            flex flex-col items-center justify-center gap-6 p-8
+            flex flex-col items-center justify-center gap-2 sm:gap-4 md:gap-6 p-3 sm:p-6 md:p-8
             backdrop-blur-sm
           `}>
             {/* Halftone on overlay too */}
@@ -90,11 +90,11 @@ export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: A
             {/* Category Icon - Large and centered */}
             {categoryIcon && (
               <div className="relative">
-                <div className="absolute inset-0 blur-2xl opacity-50 bg-white rounded-full" />
-                <div className="relative p-6 bg-white/20 rounded-full border-4 border-white/40 shadow-[0_8px_0_rgba(0,0,0,0.2)]">
+                <div className="absolute inset-0 blur-xl sm:blur-2xl opacity-50 bg-white rounded-full" />
+                <div className="relative p-3 sm:p-4 md:p-6 bg-white/20 rounded-full border-2 sm:border-3 md:border-4 border-white/40 shadow-[0_4px_0_rgba(0,0,0,0.2)] sm:shadow-[0_6px_0_rgba(0,0,0,0.2)] md:shadow-[0_8px_0_rgba(0,0,0,0.2)]">
                   {(() => {
                     const Icon = categoryIcon
-                    return <Icon className="w-12 h-12 text-white drop-shadow-2xl" strokeWidth={2.5} />
+                    return <Icon className="w-6 h-6 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white drop-shadow-2xl" strokeWidth={2.5} />
                   })()}
                 </div>
               </div>
@@ -102,9 +102,8 @@ export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: A
             
             {/* Category Name */}
             <div className="relative text-center">
-              <h3 className="font-black text-white drop-shadow-2xl tracking-wide" style={{
-                textShadow: '2px 2px 0 rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.5)',
-                fontSize: '1.5rem'
+              <h3 className="font-black text-white drop-shadow-2xl tracking-wide text-base sm:text-xl md:text-2xl" style={{
+                textShadow: '2px 2px 0 rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.5)'
               }}>
                 {article.category}
               </h3>
@@ -112,44 +111,41 @@ export function ArticleCard({ article, onClick, categoryIcon, categoryColor }: A
             
             {/* Points Badge - Attractive and prominent */}
             <div className="relative">
-              <div className="absolute inset-0 blur-xl opacity-60 bg-amber-400 rounded-full animate-pulse" />
-              <div className="relative flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full border-4 border-white/50 shadow-[0_6px_0_rgba(0,0,0,0.25)]">
-                <Zap className="w-6 h-6 text-amber-900 drop-shadow-lg" strokeWidth={3} fill="currentColor" />
+              <div className="absolute inset-0 blur-lg sm:blur-xl opacity-60 bg-amber-400 rounded-full animate-pulse" />
+              <div className="relative flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-3 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full border-2 sm:border-3 md:border-4 border-white/50 shadow-[0_3px_0_rgba(0,0,0,0.25)] sm:shadow-[0_4px_0_rgba(0,0,0,0.25)] md:shadow-[0_6px_0_rgba(0,0,0,0.25)]">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-amber-900 drop-shadow-lg" strokeWidth={3} fill="currentColor" />
                 <div className="flex flex-col items-center">
-                  <span className="font-black text-amber-900 drop-shadow-lg" style={{
+                  <span className="font-black text-amber-900 drop-shadow-lg text-sm sm:text-base md:text-xl" style={{
                     textShadow: '1px 1px 0 rgba(255,255,255,0.5)',
-                    fontSize: '1.25rem',
                     lineHeight: 1
                   }}>
                     +{pointsToEarn} POINTS
                   </span>
                 </div>
-                <Zap className="w-6 h-6 text-amber-900 drop-shadow-lg" strokeWidth={3} fill="currentColor" />
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-amber-900 drop-shadow-lg" strokeWidth={3} fill="currentColor" />
               </div>
             </div>
             
             {/* READ Button - Big and inviting */}
-            <div className="relative mt-2">
-              <div className="absolute inset-0 blur-xl opacity-60 bg-white rounded-2xl" />
-              <button className="relative px-12 py-4 bg-white rounded-2xl border-4 border-white/60 shadow-[0_8px_0_rgba(0,0,0,0.3)] hover:shadow-[0_10px_0_rgba(0,0,0,0.35)] active:shadow-[0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-200 group/btn">
-                <div className="flex items-center gap-3">
-                  <BookOpen className={`w-6 h-6 bg-gradient-to-r ${categoryColor || 'from-emerald-600 to-teal-600'} bg-clip-text text-transparent drop-shadow-lg group-hover/btn:scale-110 transition-transform`} strokeWidth={3} />
-                  <span className={`font-black bg-gradient-to-r ${categoryColor || 'from-emerald-600 to-teal-600'} bg-clip-text text-transparent drop-shadow-lg tracking-wider`} style={{
-                    fontSize: '1.5rem'
-                  }}>
+            <div className="relative mt-1 sm:mt-2">
+              <div className="absolute inset-0 blur-lg sm:blur-xl opacity-60 bg-white rounded-xl sm:rounded-2xl" />
+              <button className="relative px-6 sm:px-10 md:px-12 py-2 sm:py-3 md:py-4 bg-white rounded-xl sm:rounded-2xl border-2 sm:border-3 md:border-4 border-white/60 shadow-[0_4px_0_rgba(0,0,0,0.3)] sm:shadow-[0_6px_0_rgba(0,0,0,0.3)] md:shadow-[0_8px_0_rgba(0,0,0,0.3)] hover:shadow-[0_5px_0_rgba(0,0,0,0.35)] md:hover:shadow-[0_10px_0_rgba(0,0,0,0.35)] active:shadow-[0_2px_0_rgba(0,0,0,0.3)] md:active:shadow-[0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-200 group/btn">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <BookOpen className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 bg-gradient-to-r ${categoryColor || 'from-emerald-600 to-teal-600'} bg-clip-text text-transparent drop-shadow-lg group-hover/btn:scale-110 transition-transform`} strokeWidth={3} />
+                  <span className={`font-black bg-gradient-to-r ${categoryColor || 'from-emerald-600 to-teal-600'} bg-clip-text text-transparent drop-shadow-lg tracking-wider text-base sm:text-xl md:text-2xl`}>
                     READ NOW
                   </span>
-                  <BookOpen className={`w-6 h-6 bg-gradient-to-r ${categoryColor || 'from-emerald-600 to-teal-600'} bg-clip-text text-transparent drop-shadow-lg group-hover/btn:scale-110 transition-transform`} strokeWidth={3} />
+                  <BookOpen className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 bg-gradient-to-r ${categoryColor || 'from-emerald-600 to-teal-600'} bg-clip-text text-transparent drop-shadow-lg group-hover/btn:scale-110 transition-transform`} strokeWidth={3} />
                 </div>
               </button>
             </div>
             
             {/* Reading time hint */}
-            <div className="relative flex items-center gap-2 px-4 py-2 bg-black/20 rounded-full border-2 border-white/20">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-2 bg-black/20 rounded-full border border-white/20 sm:border-2">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="font-black text-white text-sm drop-shadow-lg">{article.readingTime} MIN READ</span>
+              <span className="font-black text-white text-xs sm:text-sm drop-shadow-lg">{article.readingTime} MIN READ</span>
             </div>
           </div>
           

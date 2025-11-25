@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DEWII Server Connection Test</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #0a0a0a;
+      color: #00ff00;
+    }
+    h1 {
+      color: #00ffff;
+      text-align: center;
+    }
+    .test-section {
+      background: #1a1a1a;
+      border: 2px solid #00ff00;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .result {
+      margin: 10px 0;
+      padding: 10px;
+      background: #0a0a0a;
+      border-left: 4px solid #00ff00;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .error {
+      border-left-color: #ff0000;
+      color: #ff6666;
+    }
+    .success {
+      border-left-color: #00ff00;
+      color: #00ff00;
+    }
+    button {
+      background: #00ff00;
+      color: #0a0a0a;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #00ffff;
+    }
+    .info {
+      color: #ffff00;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 DEWII Server Diagnostic Tool</h1>
+  
+  <div class="test-section">
+    <h2>📡 Server Configuration</h2>
+    <div class="info">
+      <strong>Project ID:</strong> dhsqlszauibxintwziib<br>
+      <strong>Server URL:</strong> https://dhsqlszauibxintwziib.supabase.co/functions/v1/make-server-053bcd80
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>🔍 Connection Tests</h2>
+    <button onclick="testHealthCheck()">1. Test Health Check</button>
+    <button onclick="testArticles()">2. Test Articles Endpoint</button>
+    <button onclick="testCORS()">3. Test CORS</button>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <div id="results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>📋 Troubleshooting Steps</h2>
+    <ol style="color: #ffffff;">
+      <li>Check Supabase Dashboard → Edge Functions → make-server-053bcd80</li>
+      <li>Verify function status shows "Active" with green indicator</li>
+      <li>Check function logs for errors</li>
+      <li>Verify environment variables are set:
+        <ul>
+          <li>SUPABASE_URL</li>
+          <li>SUPABASE_ANON_KEY</li>
+          <li>SUPABASE_SERVICE_ROLE_KEY</li>
+          <li>ADMIN_USER_ID</li>
+        </ul>
+      </li>
+      <li>Try redeploying: <code>supabase functions deploy make-server-053bcd80</code></li>
+    </ol>
+  </div>
+
+  <script>
+    const projectId = 'dhsqlszauibxintwziib';
+    const publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRoc3Fsc3phdWlieGludHd6aWliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4NTM4NzcsImV4cCI6MjA3ODQyOTg3N30.3xwxgMi6TBR72knrt-xNt5lKWjzB587G32L7B9gwKf0';
+    const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`;
+    
+    function addResult(message, isError = false) {
+      const resultsDiv = document.getElementById('results');
+      const resultDiv = document.createElement('div');
+      resultDiv.className = `result ${isError ? 'error' : 'success'}`;
+      resultDiv.textContent = message;
+      resultsDiv.appendChild(resultDiv);
+    }
+    
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+    
+    async function testHealthCheck() {
+      clearResults();
+      addResult('🔍 Testing health check endpoint...');
+      
+      try {
+        const response = await fetch(`${serverUrl}/health`, {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        addResult(`✅ Health check PASSED!\n${JSON.stringify(data, null, 2)}`);
+      } catch (error) {
+        addResult(`❌ Health check FAILED!\nError: ${error.message}\n\nThis means the server is not responding. Check:\n1. Function is deployed\n2. Function is active in Supabase dashboard\n3. No startup errors in logs`, true);
+      }
+    }
+    
+    async function testArticles() {
+      clearResults();
+      addResult('🔍 Testing articles endpoint...');
+      
+      try {
+        const response = await fetch(`${serverUrl}/articles?limit=1`, {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+        }
+        
+        const data = await response.json();
+        addResult(`✅ Articles endpoint PASSED!\nFound ${data.articles?.length || 0} articles`);
+      } catch (error) {
+        addResult(`❌ Articles endpoint FAILED!\nError: ${error.message}`, true);
+      }
+    }
+    
+    async function testCORS() {
+      clearResults();
+      addResult('🔍 Testing CORS configuration...');
+      
+      try {
+        const response = await fetch(`${serverUrl}/health`, {
+          method: 'OPTIONS'
+        });
+        
+        const corsHeaders = {
+          'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+          'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
+          'access-control-allow-headers': response.headers.get('access-control-allow-headers')
+        };
+        
+        addResult(`✅ CORS check completed!\nHeaders:\n${JSON.stringify(corsHeaders, null, 2)}`);
+      } catch (error) {
+        addResult(`❌ CORS test FAILED!\nError: ${error.message}`, true);
+      }
+    }
+    
+    async function runAllTests() {
+      clearResults();
+      addResult('🚀 Running all diagnostic tests...\n');
+      
+      await testHealthCheck();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await testArticles();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await testCORS();
+      
+      addResult('\n✅ All tests completed!');
+    }
+  </script>
+</body>
+</html>

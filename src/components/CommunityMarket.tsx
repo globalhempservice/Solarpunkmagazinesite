@@ -8,6 +8,12 @@ import { NadaWalletPanel } from './NadaWalletPanel'
 import { SwagShop } from './SwagShop'
 import { MarketSettings } from './MarketSettings'
 import { MarketProfilePanel } from './MarketProfilePanel'
+import { Building2 } from 'lucide-react'
+import { CompanyManagerWrapper } from './CompanyManagerWrapper'
+import { CompaniesList } from './CompaniesList'
+import { CompanyDetailPage } from './CompanyDetailPage'
+import { WorldMapBrowser } from './WorldMapBrowser'
+import { WorldMapBrowser3D } from './WorldMapBrowser3D'
 
 // Circular Forum Icon (like community discussion circles)
 function CircularForumIcon({ className = "w-6 h-6" }: { className?: string }) {
@@ -91,6 +97,13 @@ export default function CommunityMarket({
   const [showSwagShop, setShowSwagShop] = useState(false)
   const [showMarketSettings, setShowMarketSettings] = useState(false)
   const [showProfilePanel, setShowProfilePanel] = useState(false)
+  const [showCompanyManager, setShowCompanyManager] = useState(false)
+  const [showCompaniesList, setShowCompaniesList] = useState(false)
+  const [showWorldMap, setShowWorldMap] = useState(false)
+  const [showManageOrganization, setShowManageOrganization] = useState(false)
+  const [showAddOrganization, setShowAddOrganization] = useState(false)
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
+  const [previousView, setPreviousView] = useState<'list' | 'map' | null>(null)
   const [selectedMarketTheme, setSelectedMarketTheme] = useState('default')
   
   // User's personal market stats
@@ -683,6 +696,43 @@ export default function CommunityMarket({
               </Button>
             </div>
           </div>
+
+          {/* Card 4 - Company Pages */}
+          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-emerald-400/40 hover:border-emerald-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(16,185,129,0.3)] hover:shadow-[0_30px_80px_rgba(16,185,129,0.5)] md:col-span-2 lg:col-span-1">
+            {/* Organic texture pattern */}
+            <div className="absolute inset-0 opacity-30" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='20' y='10' width='20' height='30' fill='%2310b981' fill-opacity='0.3'/%3E%3Crect x='15' y='15' width='30' height='35' fill='%2310b981' fill-opacity='0.2'/%3E%3C/svg%3E")`,
+              backgroundSize: '40px 40px'
+            }} />
+            
+            {/* Gradient background with depth */}
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/80 via-green-900/70 to-teal-900/80" />
+            
+            {/* Depth layers */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-emerald-500/10 to-green-500/10" />
+            
+            {/* Outer glow */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
+            
+            <div className="relative p-8 space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-2xl shadow-emerald-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                <Building2 className="w-8 h-8 text-white" strokeWidth={2.5} />
+              </div>
+              
+              <div>
+                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Company Pages</h3>
+                <p className="text-emerald-100/80 leading-relaxed">Create and manage your company page. Earn association badges and showcase your hemp business.</p>
+              </div>
+              
+              <Button 
+                className="w-full bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
+                onClick={() => setShowWorldMap(true)}
+              >
+                Explore World Map
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -771,6 +821,136 @@ export default function CommunityMarket({
         userEmail={userEmail}
         nadaPoints={nadaPoints}
       />
+
+      {/* Company Manager Wrapper */}
+      {showCompanyManager && userId && accessToken && (
+        <CompanyManagerWrapper
+          userId={userId}
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+          onClose={() => setShowCompanyManager(false)}
+        />
+      )}
+
+      {/* World Map Browser - Full Screen */}
+      {showWorldMap && !selectedCompanyId && !showManageOrganization && !showAddOrganization && (
+        <div className="fixed inset-0 z-[9998]">
+          <WorldMapBrowser3D
+            serverUrl={serverUrl}
+            userId={userId || undefined}
+            accessToken={accessToken || undefined}
+            onClose={() => setShowWorldMap(false)}
+            onViewCompany={(companyId) => {
+              setSelectedCompanyId(companyId)
+              setPreviousView('map')
+              setShowWorldMap(false)
+            }}
+            onManageOrganization={() => {
+              setShowManageOrganization(true)
+            }}
+            onAddOrganization={() => {
+              setShowAddOrganization(true)
+            }}
+          />
+        </div>
+      )}
+
+      {/* Manage Organization Panel - Full Screen */}
+      {showManageOrganization && userId && accessToken && (
+        <div className="fixed inset-0 z-[9999]">
+          {(() => {
+            const { ManageOrganization } = require('./ManageOrganization')
+            return (
+              <ManageOrganization
+                userId={userId}
+                accessToken={accessToken}
+                serverUrl={serverUrl}
+                onClose={() => {
+                  setShowManageOrganization(false)
+                  setShowWorldMap(true) // Return to world map
+                }}
+              />
+            )
+          })()}
+        </div>
+      )}
+
+      {/* Add Organization Panel - Full Screen */}
+      {showAddOrganization && userId && accessToken && (
+        <div className="fixed inset-0 z-[9999]">
+          {(() => {
+            const { AddOrganization } = require('./AddOrganization')
+            return (
+              <AddOrganization
+                userId={userId}
+                accessToken={accessToken}
+                serverUrl={serverUrl}
+                onClose={() => {
+                  setShowAddOrganization(false)
+                  setShowWorldMap(true) // Return to world map
+                }}
+                onSuccess={() => {
+                  // Refresh the world map to show the new organization
+                  console.log('Organization added successfully!')
+                }}
+              />
+            )
+          })()}
+        </div>
+      )}
+
+      {/* Companies List - Full Screen Panel */}
+      {showCompaniesList && !selectedCompanyId && (
+        <div className="fixed inset-0 z-[9998] bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950 overflow-y-auto">
+          <div className="container mx-auto px-4 py-8">
+            <CompaniesList
+              serverUrl={serverUrl}
+              userId={userId || undefined}
+              accessToken={accessToken || undefined}
+              onOpenManager={() => {
+                setShowCompaniesList(false)
+                setShowCompanyManager(true)
+              }}
+              onViewCompany={(companyId) => {
+                setSelectedCompanyId(companyId)
+                setPreviousView('list')
+              }}
+            />
+            <Button
+              onClick={() => setShowCompaniesList(false)}
+              variant="ghost"
+              className="mt-6 gap-2 text-emerald-100 hover:text-emerald-50"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Market
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Company Detail Page - Full Screen */}
+      {selectedCompanyId && (
+        <div className="fixed inset-0 z-[9998] bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950 overflow-y-auto">
+          <div className="min-h-screen">
+            <CompanyDetailPage
+              companyId={selectedCompanyId}
+              serverUrl={serverUrl}
+              userId={userId || undefined}
+              accessToken={accessToken || undefined}
+              onClose={() => {
+                setSelectedCompanyId(null)
+                // Return to previous view instead of always going to list
+                if (previousView === 'map') {
+                  setShowWorldMap(true)
+                } else if (previousView === 'list') {
+                  setShowCompaniesList(true)
+                }
+                setPreviousView(null)
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navbar */}
       <nav className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-none">

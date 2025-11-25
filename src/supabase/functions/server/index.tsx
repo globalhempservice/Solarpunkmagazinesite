@@ -1,11 +1,11 @@
 import { Hono } from 'npm:hono'
 import { cors } from 'npm:hono/cors'
-import { logger } from 'npm:hono/logger'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import * as walletSecurity from './wallet_security.tsx'
 import * as articleSecurity from './article_security.tsx'
 import * as kv from './kv_store.tsx'
 import { parseRSSFeed, generateFeedId, generateArticleId, RSSFeed, RSSArticle } from './rss_parser.tsx'
+import { setupCompanyRoutes } from './company_routes.tsx'
 
 // Helper function to extract site metadata from URL
 function extractSiteMetadata(url: string) {
@@ -28,9 +28,17 @@ function extractSiteMetadata(url: string) {
 
 const app = new Hono()
 
-// Middleware
-app.use('*', cors())
-app.use('*', logger(console.log))
+// Middleware - CORS with explicit configuration
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 86400,
+  credentials: false,
+}))
+// Logger disabled to prevent console output from polluting HTTP responses
+// app.use('*', logger(console.log))
 
 // Initialize Supabase client with SERVICE_ROLE_KEY for server operations
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -48,7 +56,6 @@ async function initStorage() {
   const mediaBucketExists = buckets?.some(bucket => bucket.name === mediaBucketName)
   if (!mediaBucketExists) {
     await supabase.storage.createBucket(mediaBucketName, { public: false })
-    console.log('✅ Created media bucket:', mediaBucketName)
   }
   
   // PDF/Documents bucket
@@ -56,14 +63,11 @@ async function initStorage() {
   const pdfBucketExists = buckets?.some(bucket => bucket.name === pdfBucketName)
   if (!pdfBucketExists) {
     await supabase.storage.createBucket(pdfBucketName, { public: false })
-    console.log('✅ Created documents bucket:', pdfBucketName)
   }
 }
 
 // Check security tables status
 async function checkSecurityTables() {
-  console.log('🔒 Checking security tables...')
-  
   try {
     // Check if tables exist by trying to query them
     const { error: tokenTableError } = await supabase
@@ -75,65 +79,28 @@ async function checkSecurityTables() {
       .from('wallet_audit_logs')
       .select('id')
       .limit(1)
-    
-    const needsTokenTable = tokenTableError?.message?.includes('does not exist')
-    const needsAuditTable = auditTableError?.message?.includes('does not exist')
-    
-    if (needsTokenTable || needsAuditTable) {
-      console.log('')
-      console.log('⚠️  SECURITY TABLES MISSING ⚠️')
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      if (needsTokenTable) {
-        console.log('❌ Missing: read_session_tokens')
-      }
-      if (needsAuditTable) {
-        console.log('❌ Missing: wallet_audit_logs')
-      }
-      console.log('')
-      console.log('📋 TO FIX:')
-      console.log('1. Open Supabase Dashboard → SQL Editor')
-      console.log('2. Copy the SQL from /SECURITY_TABLES_SETUP.sql')
-      console.log('3. Run the SQL to create the tables')
-      console.log('4. Refresh the monitoring bot to verify')
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('')
-    } else {
-      console.log('✅ All security tables exist and are accessible')
-    }
   } catch (error) {
-    console.error('⚠️ Error checking security tables:', error)
+    // Silently fail - tables will be created when needed
   }
 }
 
-initStorage()
-checkSecurityTables()
+// Initialize async (don't await, let it run in background)
+initStorage().catch(() => {})
+checkSecurityTables().catch(() => {})
 
 // Auth middleware
 async function requireAuth(c: any, next: any) {
   const authHeader = c.req.header('Authorization')
-  console.log('=== AUTH MIDDLEWARE ===')
-  console.log('Authorization header:', authHeader ? 'present' : 'missing')
-  
   const accessToken = authHeader?.split(' ')[1]
   
   if (!accessToken) {
-    console.log('ERROR: No access token provided')
     return c.json({ error: 'Unauthorized', details: 'No access token provided' }, 401)
   }
-  
-  console.log('Access token (first 30 chars):', accessToken.substring(0, 30) + '...')
-  console.log('Access token length:', accessToken.length)
   
   // Use the auth client to validate the user token
   const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
   
   if (error) {
-    console.log('ERROR: Auth validation failed')
-    console.log('Error code:', error.code)
-    console.log('Error message:', error.message)
-    console.log('Error status:', error.status)
-    console.log('Full error:', JSON.stringify(error, null, 2))
-    
     // Check if token is expired
     if (error.message?.includes('expired') || error.status === 401) {
       return c.json({ 
@@ -152,12 +119,9 @@ async function requireAuth(c: any, next: any) {
   }
   
   if (!user) {
-    console.log('ERROR: No user found for token')
     return c.json({ error: 'Unauthorized', details: 'User not found' }, 401)
   }
   
-  console.log('✅ Auth successful for user:', user.id)
-  console.log('User email:', user.email)
   c.set('userId', user.id)
   c.set('user', user)
   await next()
@@ -169,7 +133,6 @@ async function requireAdmin(c: any, next: any) {
   const accessToken = authHeader?.split(' ')[1]
   
   if (!accessToken) {
-    console.log('❌ ADMIN MIDDLEWARE: No access token provided')
     return c.json({ error: 'Unauthorized', details: 'No access token provided' }, 401)
   }
   
@@ -177,7 +140,6 @@ async function requireAdmin(c: any, next: any) {
   const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
   
   if (error || !user) {
-    console.log('❌ ADMIN MIDDLEWARE: Auth validation failed')
     return c.json({ error: 'Unauthorized', details: 'Invalid token' }, 401)
   }
   
@@ -185,16 +147,16 @@ async function requireAdmin(c: any, next: any) {
   const adminUserId = Deno.env.get('ADMIN_USER_ID')
   
   if (user.id !== adminUserId) {
-    console.log('🚫 ADMIN MIDDLEWARE: Access denied for user:', user.id)
-    console.log('🚫 User is not admin. Admin ID:', adminUserId)
     return c.json({ error: 'Forbidden', details: 'Admin access required' }, 403)
   }
   
-  console.log('✅ ADMIN MIDDLEWARE: Admin access granted for user:', user.id)
   c.set('userId', user.id)
   c.set('user', user)
   await next()
 }
+
+// Setup company routes
+setupCompanyRoutes(app, requireAuth, requireAdmin)
 
 // ===== ARTICLE ROUTES =====
 
@@ -8101,6 +8063,17 @@ app.post('/make-server-053bcd80/external-article-read', requireAuth, async (c) =
     console.error('Error tracking external article read:', error)
     return c.json({ error: 'Failed to track article read', details: error.message }, 500)
   }
+})
+
+// Health check endpoint
+app.get('/make-server-053bcd80/health', (c) => {
+  console.log('✅ Health check called')
+  return c.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    service: 'DEWII Magazine Server',
+    version: '1.0.1' // Bumped version - logger middleware disabled
+  })
 })
 
 Deno.serve(app.fetch)

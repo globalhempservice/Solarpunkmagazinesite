@@ -333,13 +333,6 @@ export function PlaceholderArt({
       {/* Dark overlay for text contrast */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-10" />
       
-      {/* Subtle category label */}
-      <div className="absolute bottom-3 left-3 z-20">
-        <div className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
-          <span className="text-xs font-semibold text-white capitalize">{category}</span>
-        </div>
-      </div>
-      
       {/* CSS animations */}
       <style>{`
         @keyframes float-pattern-0 {

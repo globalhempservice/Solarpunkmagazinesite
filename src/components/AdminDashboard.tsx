@@ -52,6 +52,7 @@ import { SecurityAudit } from './SecurityAudit'
 import { AdminNadaTracker } from './AdminNadaTracker'
 import { MonitoringBot } from './MonitoringBot'
 import { RSSFeedManager } from './RSSFeedManager'
+import { CompaniesAdminTab } from './CompaniesAdminTab'
 
 interface DashboardStats {
   totalUsers: number
@@ -213,7 +214,7 @@ interface AdminDashboardProps {
   onNavigateToSwagAdmin?: () => void
 }
 
-type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss'
+type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss' | 'companies'
 type ViewMode = 'classic' | 'feature'
 type FeatureTab = 'content' | 'swipe' | 'users' | 'gamification' | 'security' | 'analytics'
 
@@ -506,6 +507,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           { id: 'overview', label: 'Overview' },
           { id: 'users', label: 'Users' },
           { id: 'articles', label: 'Articles' },
+          { id: 'companies', label: '🏢 Companies' },
           { id: 'rankings', label: 'Rankings' },
           { id: 'gamification', label: 'Gamification' },
           { id: 'swipeStats', label: 'Swipe Stats' },
@@ -1996,6 +1998,14 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
       {/* RSS Feed Manager Tab */}
       {activeTab === 'rss' && (
         <RSSFeedManager
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+        />
+      )}
+
+      {/* Companies Tab */}
+      {activeTab === 'companies' && (
+        <CompaniesAdminTab
           accessToken={accessToken}
           serverUrl={serverUrl}
         />

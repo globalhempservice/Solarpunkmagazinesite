@@ -475,6 +475,11 @@ function ProductForm({ companyId, product, accessToken, serverUrl, onSuccess, on
         ? `${serverUrl}/make-server-053bcd80/swag-products/${product.id}`
         : `${serverUrl}/make-server-053bcd80/swag-products`
 
+      console.log('🔗 Constructed URL:', url)
+      console.log('🏢 Server URL:', serverUrl)
+      console.log('📝 Product ID:', product?.id)
+      console.log('📋 Method:', product ? 'PUT' : 'POST')
+
       const requestBody = {
         company_id: companyId,
         name: formData.name,

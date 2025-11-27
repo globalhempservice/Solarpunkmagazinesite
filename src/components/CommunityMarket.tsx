@@ -1,18 +1,15 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Store, Zap, TrendingUp, X, ChevronRight, Leaf, Sparkles, Settings, User } from 'lucide-react'
+import { ArrowLeft, Store, Zap, TrendingUp, X, ChevronRight, Leaf, Sparkles, Settings, User, BookOpen, Building2 } from 'lucide-react'
 import { Button } from './ui/button'
 import { VotingModal } from './VotingModal'
 import { SubmitIdeaModal } from './SubmitIdeaModal'
 import { Badge } from './ui/badge'
 import { NadaWalletPanel } from './NadaWalletPanel'
-import { SwagShop } from './SwagShop'
 import { MarketSettings } from './MarketSettings'
 import { MarketProfilePanel } from './MarketProfilePanel'
-import { Building2 } from 'lucide-react'
-import { CompanyManagerWrapper } from './CompanyManagerWrapper'
-import { CompaniesList } from './CompaniesList'
-import { CompanyDetailPage } from './CompanyDetailPage'
-import { WorldMapBrowser } from './WorldMapBrowser'
+import { BudCharacter } from './BudCharacter'
+import { BudModal } from './BudModal'
+import { BrandLogo } from './BrandLogo'
 import { WorldMapBrowser3D } from './WorldMapBrowser3D'
 
 // Circular Forum Icon (like community discussion circles)
@@ -72,10 +69,13 @@ interface CommunityMarketProps {
   accessToken: string | null
   serverUrl: string
   onBack: () => void
+  onNavigateToBrowse?: () => void
   onFeatureUnlock?: (featureId: any) => void
   userEmail?: string | null
   nadaPoints: number
   onNadaUpdate: (newBalance: number) => void
+  onNavigateToSwagShop?: () => void
+  onNavigateToSwagMarketplace?: () => void
 }
 
 export default function CommunityMarket({
@@ -83,10 +83,13 @@ export default function CommunityMarket({
   accessToken,
   serverUrl,
   onBack,
+  onNavigateToBrowse,
   onFeatureUnlock,
   userEmail,
   nadaPoints,
-  onNadaUpdate
+  onNadaUpdate,
+  onNavigateToSwagShop,
+  onNavigateToSwagMarketplace
 }: CommunityMarketProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showTutorial, setShowTutorial] = useState(true)
@@ -94,17 +97,21 @@ export default function CommunityMarket({
   const [showVotingModal, setShowVotingModal] = useState(false)
   const [showSubmitIdeaModal, setShowSubmitIdeaModal] = useState(false)
   const [showNadaWallet, setShowNadaWallet] = useState(false)
-  const [showSwagShop, setShowSwagShop] = useState(false)
   const [showMarketSettings, setShowMarketSettings] = useState(false)
   const [showProfilePanel, setShowProfilePanel] = useState(false)
-  const [showCompanyManager, setShowCompanyManager] = useState(false)
-  const [showCompaniesList, setShowCompaniesList] = useState(false)
+  const [selectedMarketTheme, setSelectedMarketTheme] = useState('default')
+  
+  // World Map and Company states
   const [showWorldMap, setShowWorldMap] = useState(false)
   const [showManageOrganization, setShowManageOrganization] = useState(false)
   const [showAddOrganization, setShowAddOrganization] = useState(false)
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
   const [previousView, setPreviousView] = useState<'list' | 'map' | null>(null)
-  const [selectedMarketTheme, setSelectedMarketTheme] = useState('default')
+  
+  // BUD helper modals
+  const [showSwagMarketInfo, setShowSwagMarketInfo] = useState(false)
+  const [showHempAtlasInfo, setShowHempAtlasInfo] = useState(false)
+  const [showMagazineInfo, setShowMagazineInfo] = useState(false)
   
   // User's personal market stats
   const [userStats, setUserStats] = useState({
@@ -454,46 +461,70 @@ export default function CommunityMarket({
       </div>
 
       {/* Custom Market Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl bg-emerald-950/40 border-b border-emerald-500/20 shadow-lg shadow-emerald-950/50">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* EXIT Pill Button */}
-            <button
-              onClick={onBack}
-              className="flex items-center gap-1.5 sm:gap-2 text-emerald-100/90 hover:text-emerald-50 transition-all px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 hover:border-emerald-400/50 shadow-lg"
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="text-sm sm:text-base font-medium">EXIT</span>
-            </button>
+      <div className="sticky top-0 z-50">
+        {/* Gradient blur mask */}
+        <div 
+          className="absolute inset-0 backdrop-blur-2xl"
+          style={{
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
+          }}
+        />
+        
+        <div className="h-20 flex items-center justify-center relative px-4">
+          {/* Empty Left Space for symmetry */}
+          <div className="absolute left-4 flex items-center gap-2">
+          </div>
+          
+          {/* CENTER: DEWII Logo Button */}
+          <button
+            onClick={() => {
+              // Cycle through market themes
+              const themes = ['default', 'solarpunk', 'midnight', 'golden']
+              const currentIndex = themes.indexOf(selectedMarketTheme)
+              const nextIndex = (currentIndex + 1) % themes.length
+              const nextTheme = themes[nextIndex]
+              setSelectedMarketTheme(nextTheme)
+              
+              // Save theme to server
+              if (userId && accessToken) {
+                fetch(`${serverUrl}/user-theme`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                  },
+                  body: JSON.stringify({ theme: nextTheme })
+                }).catch(err => console.error('Failed to save theme:', err))
+              }
+            }}
+            className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50 active:scale-95 z-10"
+            aria-label="Change theme"
+          >
+            {/* Animated glow background */}
+            <div className="absolute -inset-6 bg-gradient-to-r from-emerald-400 via-teal-400 to-green-400 rounded-full blur-2xl opacity-0 group-hover:opacity-30 transition-all duration-500" />
             
-            {/* Hemp'in Pink Action Button */}
-            <button
-              onClick={() => setShowSubmitIdeaModal(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-bold text-sm sm:text-base bg-gradient-to-r from-pink-500 via-pink-600 to-fuchsia-600 hover:from-pink-600 hover:via-pink-700 hover:to-fuchsia-700 text-white shadow-lg shadow-pink-500/50 hover:shadow-pink-500/70 transition-all hover:scale-105 active:scale-95"
-            >
-              <CircularForumIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden xs:inline">Submit Idea</span>
-              <span className="xs:hidden">Idea</span>
-            </button>
-            
-            {/* NADA Counter */}
+            {/* Outer ring - matching Me button style */}
+            <div className="relative rounded-full p-1.5 transition-all group-hover:scale-110 bg-gradient-to-br from-muted/50 to-muted group-hover:from-muted group-hover:to-muted/80">
+              {/* Inner circle */}
+              <div className="rounded-full p-4 sm:p-5 bg-background">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                  <BrandLogo size="sm" showAnimation={true} theme="default" />
+                </div>
+              </div>
+            </div>
+          </button>
+          
+          {/* NADA Counter - Right Side */}
+          <div className="absolute right-4 flex items-center gap-2">
             <button onClick={() => setShowNadaWallet(true)}>
               <Badge
                 variant="secondary"
-                className="gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-400/30 text-violet-300 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+                className="gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-400/30 text-violet-300 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
               >
                 <NadaRippleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-violet-300" />
                 <span className="font-bold">{nadaPoints}</span>
               </Badge>
-            </button>
-
-            {/* Market Settings Icon */}
-            <button
-              onClick={() => setShowMarketSettings(true)}
-              className="p-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 hover:border-emerald-400/50 transition-all hover:scale-105 active:scale-95 shadow-md"
-              title="Market Settings"
-            >
-              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-300" />
             </button>
           </div>
         </div>
@@ -501,236 +532,265 @@ export default function CommunityMarket({
 
       {/* Main Content - Cards & Stats are the hero */}
       <div className="relative z-10 container mx-auto px-4 py-8 sm:py-12">
-        {/* Stats Section - MOVED TO TOP with Hemp Aesthetic */}
-        <div className="max-w-6xl mx-auto mb-12">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-            {/* Active Proposals Stat */}
-            <div className="group relative overflow-hidden rounded-3xl backdrop-blur-xl border-2 border-emerald-400/30 hover:border-emerald-400/60 transition-all duration-500 hover:scale-105 hover:-translate-y-2 shadow-[0_8px_32px_rgba(16,185,129,0.2)] hover:shadow-[0_16px_48px_rgba(16,185,129,0.4)]">
-              {/* Hemp fiber texture */}
-              <div className="absolute inset-0 opacity-20" style={{
-                backgroundImage: `radial-gradient(circle at 2px 2px, rgba(16,185,129,0.3) 1px, transparent 0)`,
-                backgroundSize: '24px 24px'
-              }} />
+        {/* Stats Section - Compact Icon Cards */}
+        <div className="max-w-3xl mx-auto mb-12">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            {/* Active Proposals Stat - Compact */}
+            <div className="group relative">
+              {/* Glow effect on hover */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl blur-lg opacity-0 group-hover:opacity-60 transition-all duration-300" />
               
-              {/* Gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/60 via-teal-900/60 to-green-900/60" />
-              
-              {/* Depth layer - 3D effect */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-              
-              {/* Glow effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-              
-              <div className="relative p-6 text-center">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <CircularForumIcon className="w-7 h-7 text-white" />
+              {/* Main Card */}
+              <div className="relative bg-card/90 backdrop-blur-sm border-2 border-emerald-500/40 rounded-2xl overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:border-emerald-400/60">
+                {/* Decorative corner */}
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-400/30 to-transparent rounded-bl-full" />
+                
+                {/* Animated ping on hover */}
+                <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-emerald-400/20 rounded-full animate-ping" />
                 </div>
-                <div className="text-5xl font-black text-emerald-50 mb-2 drop-shadow-lg">{userStats.totalIdeasSubmitted}</div>
-                <div className="text-sm font-bold text-emerald-200/80 uppercase tracking-wider">My Ideas Submitted</div>
+                
+                <div className="relative p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 min-h-[120px] sm:min-h-[140px]">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+                    <CircularForumIcon className="relative w-8 h-8 sm:w-10 sm:h-10 text-emerald-500 drop-shadow-lg" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                    {userStats.totalIdeasSubmitted}
+                  </div>
+                  {/* Text shown only on hover */}
+                  <div className="absolute inset-0 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <div className="text-xs font-bold text-emerald-300 text-center px-2 bg-emerald-950/90 rounded-full py-1">
+                      Ideas Submitted
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             
-            {/* My Votes Stat */}
-            <div className="group relative overflow-hidden rounded-3xl backdrop-blur-xl border-2 border-teal-400/30 hover:border-teal-400/60 transition-all duration-500 hover:scale-105 hover:-translate-y-2 shadow-[0_8px_32px_rgba(20,184,166,0.2)] hover:shadow-[0_16px_48px_rgba(20,184,166,0.4)]">
-              {/* Hemp fiber texture */}
-              <div className="absolute inset-0 opacity-20" style={{
-                backgroundImage: `radial-gradient(circle at 2px 2px, rgba(20,184,166,0.3) 1px, transparent 0)`,
-                backgroundSize: '24px 24px'
-              }} />
+            {/* My Votes Stat - Compact */}
+            <div className="group relative">
+              {/* Glow effect on hover */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl blur-lg opacity-0 group-hover:opacity-60 transition-all duration-300" />
               
-              {/* Gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-900/60 via-cyan-900/60 to-emerald-900/60" />
-              
-              {/* Depth layer */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-              
-              {/* Glow effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-              
-              <div className="relative p-6 text-center">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <TrendingUp className="w-7 h-7 text-white" />
+              {/* Main Card */}
+              <div className="relative bg-card/90 backdrop-blur-sm border-2 border-teal-500/40 rounded-2xl overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:border-teal-400/60">
+                {/* Decorative corner */}
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-teal-400/30 to-transparent rounded-bl-full" />
+                
+                {/* Animated ping on hover */}
+                <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-teal-400/20 rounded-full animate-ping" />
                 </div>
-                <div className="text-5xl font-black text-teal-50 mb-2 drop-shadow-lg">{userStats.totalVotes}</div>
-                <div className="text-sm font-bold text-teal-200/80 uppercase tracking-wider">My Votes Cast</div>
+                
+                <div className="relative p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 min-h-[120px] sm:min-h-[140px]">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-teal-500/20 blur-xl rounded-full" />
+                    <TrendingUp className="relative w-8 h-8 sm:w-10 sm:h-10 text-teal-500 drop-shadow-lg" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-br from-teal-500 to-cyan-500 bg-clip-text text-transparent">
+                    {userStats.totalVotes}
+                  </div>
+                  {/* Text shown only on hover */}
+                  <div className="absolute inset-0 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <div className="text-xs font-bold text-teal-300 text-center px-2 bg-teal-950/90 rounded-full py-1">
+                      Votes Cast
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             
-            {/* My Unlocks Stat */}
-            <div className="group relative overflow-hidden rounded-3xl backdrop-blur-xl border-2 border-green-400/30 hover:border-green-400/60 transition-all duration-500 hover:scale-105 hover:-translate-y-2 shadow-[0_8px_32px_rgba(34,197,94,0.2)] hover:shadow-[0_16px_48px_rgba(34,197,94,0.4)]">
-              {/* Hemp fiber texture */}
-              <div className="absolute inset-0 opacity-20" style={{
-                backgroundImage: `radial-gradient(circle at 2px 2px, rgba(34,197,94,0.3) 1px, transparent 0)`,
-                backgroundSize: '24px 24px'
-              }} />
+            {/* My Unlocks Stat - Compact */}
+            <div className="group relative">
+              {/* Glow effect on hover */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl blur-lg opacity-0 group-hover:opacity-60 transition-all duration-300" />
               
-              {/* Gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-green-900/60 via-emerald-900/60 to-teal-900/60" />
-              
-              {/* Depth layer */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-              
-              {/* Glow effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-              
-              <div className="relative p-6 text-center">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <Zap className="w-7 h-7 text-white" />
+              {/* Main Card */}
+              <div className="relative bg-card/90 backdrop-blur-sm border-2 border-green-500/40 rounded-2xl overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:border-green-400/60">
+                {/* Decorative corner */}
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-green-400/30 to-transparent rounded-bl-full" />
+                
+                {/* Animated ping on hover */}
+                <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-green-400/20 rounded-full animate-ping" />
                 </div>
-                <div className="text-5xl font-black text-green-50 mb-2 drop-shadow-lg">{userStats.totalUnlocks}</div>
-                <div className="text-sm font-bold text-green-200/80 uppercase tracking-wider">Features Unlocked</div>
+                
+                <div className="relative p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 min-h-[120px] sm:min-h-[140px]">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full" />
+                    <Zap className="relative w-8 h-8 sm:w-10 sm:h-10 text-green-500 drop-shadow-lg" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-br from-green-500 to-emerald-500 bg-clip-text text-transparent">
+                    {userStats.totalUnlocks}
+                  </div>
+                  {/* Text shown only on hover */}
+                  <div className="absolute inset-0 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <div className="text-xs font-bold text-green-300 text-center px-2 bg-green-950/90 rounded-full py-1">
+                      Features Unlocked
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Feature Cards Grid - Enhanced with depth and texture */}
+        {/* Feature Cards Grid - Visit Magazine, Swag Shop, Hemp Atlas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto mb-12">
-          {/* Card 1 - Vote on Features */}
-          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-purple-400/40 hover:border-purple-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(168,85,247,0.3)] hover:shadow-[0_30px_80px_rgba(168,85,247,0.5)]">
-            {/* Organic texture pattern */}
-            <div className="absolute inset-0 opacity-30" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 30 L35 20 L40 30 L35 40 Z M20 30 L25 20 L30 30 L25 40 Z' fill='%23a855f7' fill-opacity='0.3'/%3E%3C/svg%3E")`,
-              backgroundSize: '40px 40px'
-            }} />
-            
-            {/* Gradient background with depth */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-pink-900/70 to-fuchsia-900/80" />
-            
-            {/* Depth layers */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-purple-500/10 to-pink-500/10" />
-            
-            {/* Outer glow */}
-            <div className="absolute -inset-2 bg-gradient-to-r from-purple-500 via-pink-500 to-fuchsia-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-            
-            <div className="relative p-8 space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-2xl shadow-purple-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                <TrendingUp className="w-8 h-8 text-white" strokeWidth={2.5} />
-              </div>
+          {/* Card 1 - Visit Magazine */}
+          <div className="relative">
+            {/* BUD Helper - Flying above card */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowMagazineInfo(true)
+              }}
+              className="absolute -top-8 right-4 z-50 group/bud animate-bounce"
+              style={{ animationDuration: '3s' }}
+              title="What is this?"
+            >
+              <BudCharacter size="sm" className="hover:scale-125 transition-transform drop-shadow-2xl" />
+            </button>
+
+            <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-pink-400/40 hover:border-pink-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(236,72,153,0.3)] hover:shadow-[0_30px_80px_rgba(236,72,153,0.5)]">
+              {/* Organic texture pattern */}
+              <div className="absolute inset-0 opacity-30" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='15' y='20' width='30' height='20' rx='2' fill='%23ec4899' fill-opacity='0.3'/%3E%3Cline x1='20' y1='25' x2='40' y2='25' stroke='%23ec4899' stroke-width='2' stroke-opacity='0.3'/%3E%3Cline x1='20' y1='30' x2='40' y2='30' stroke='%23ec4899' stroke-width='2' stroke-opacity='0.3'/%3E%3Cline x1='20' y1='35' x2='35' y2='35' stroke='%23ec4899' stroke-width='2' stroke-opacity='0.3'/%3E%3C/svg%3E")`,
+                backgroundSize: '40px 40px'
+              }} />
               
-              <div>
-                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Vote on Features</h3>
-                <p className="text-purple-100/80 leading-relaxed">Use your NADA points to vote on upcoming features and help prioritize development.</p>
-              </div>
+              {/* Gradient background with depth */}
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-900/80 via-rose-900/70 to-fuchsia-900/80" />
               
-              <Button 
-                className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-fuchsia-500 hover:from-purple-600 hover:via-pink-600 hover:to-fuchsia-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
-                onClick={() => setShowVotingModal(true)}
-              >
-                Vote Now
-              </Button>
+              {/* Depth layers */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-pink-500/10 to-rose-500/10" />
+              
+              {/* Outer glow */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
+              
+              <div className="relative p-8 space-y-6">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-2xl shadow-pink-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <BookOpen className="w-8 h-8 text-white" strokeWidth={2.5} />
+                </div>
+                
+                <div>
+                  <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Visit Magazine</h3>
+                  <p className="text-pink-100/80 leading-relaxed">Discover hemp articles, earn points, build your streak, and unlock achievements. The Magazine is where knowledge meets rewards.</p>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 hover:from-pink-600 hover:via-rose-600 hover:to-fuchsia-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
+                  onClick={() => onNavigateToBrowse && onNavigateToBrowse()}
+                >
+                  Explore Magazine
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Card 2 - Submit Ideas */}
-          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-cyan-400/40 hover:border-cyan-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(34,211,238,0.3)] hover:shadow-[0_30px_80px_rgba(34,211,238,0.5)]">
-            {/* Organic texture pattern */}
-            <div className="absolute inset-0 opacity-30" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='15' r='5' fill='%2322d3ee' fill-opacity='0.3'/%3E%3Ccircle cx='30' cy='45' r='5' fill='%2322d3ee' fill-opacity='0.3'/%3E%3C/svg%3E")`,
-              backgroundSize: '40px 40px'
-            }} />
-            
-            {/* Gradient background with depth */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-cyan-900/70 to-teal-900/80" />
-            
-            {/* Depth layers */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-cyan-500/10 to-blue-500/10" />
-            
-            {/* Outer glow */}
-            <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-            
-            <div className="relative p-8 space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-2xl shadow-cyan-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                <CircularForumIcon className="w-8 h-8 text-white" />
-              </div>
+          {/* Card 2 - Swag Shop */}
+          <div className="relative">
+            {/* BUD Helper - Flying above card */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowSwagMarketInfo(true)
+              }}
+              className="absolute -top-8 right-4 z-50 group/bud animate-bounce"
+              style={{ animationDuration: '3s', animationDelay: '0.5s' }}
+              title="What is this?"
+            >
+              <BudCharacter size="sm" className="hover:scale-125 transition-transform drop-shadow-2xl" />
+            </button>
+
+            <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-amber-400/40 hover:border-amber-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(245,158,11,0.3)] hover:shadow-[0_30px_80px_rgba(245,158,11,0.5)]">
+              {/* Organic texture pattern */}
+              <div className="absolute inset-0 opacity-30" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 10 L35 25 L50 25 L38 35 L43 50 L30 40 L17 50 L22 35 L10 25 L25 25 Z' fill='%23f59e0b' fill-opacity='0.3'/%3E%3C/svg%3E")`,
+                backgroundSize: '40px 40px'
+              }} />
               
-              <div>
-                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Submit Ideas</h3>
-                <p className="text-cyan-100/80 leading-relaxed">Have a great feature idea? Submit it to the community and earn rewards if it gets implemented.</p>
-              </div>
+              {/* Gradient background with depth */}
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-900/80 via-yellow-900/70 to-orange-900/80" />
               
-              <Button 
-                className="w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
-                onClick={() => setShowSubmitIdeaModal(true)}
-              >
-                Submit Idea
-              </Button>
+              {/* Depth layers */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-amber-500/10 to-yellow-500/10" />
+              
+              {/* Outer glow */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
+              
+              <div className="relative p-8 space-y-6">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-amber-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <Store className="w-8 h-8 text-white" strokeWidth={2.5} />
+                </div>
+                
+                <div>
+                  <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">SWAG MARKET</h3>
+                  <p className="text-amber-100/80 leading-relaxed">Browse organization swag catalogs. Discover hemp products, member-exclusive merch, and community marketplace items.</p>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-600 hover:via-yellow-600 hover:to-orange-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all"
+                  onClick={() => onNavigateToSwagMarketplace && onNavigateToSwagMarketplace()}
+                >
+                  Browse Marketplace
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Card 3 - Swag Shop (Coming Soon) */}
-          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-amber-400/40 hover:border-amber-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(245,158,11,0.3)] hover:shadow-[0_30px_80px_rgba(245,158,11,0.5)]">
-            {/* Organic texture pattern */}
-            <div className="absolute inset-0 opacity-30" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 10 L35 25 L50 25 L38 35 L43 50 L30 40 L17 50 L22 35 L10 25 L25 25 Z' fill='%23f59e0b' fill-opacity='0.3'/%3E%3C/svg%3E")`,
-              backgroundSize: '40px 40px'
-            }} />
-            
-            {/* Gradient background with depth */}
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-900/80 via-yellow-900/70 to-orange-900/80" />
-            
-            {/* Depth layers */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-amber-500/10 to-yellow-500/10" />
-            
-            {/* Outer glow */}
-            <div className="absolute -inset-2 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-            
-            <div className="relative p-8 space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-amber-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                <Store className="w-8 h-8 text-white" strokeWidth={2.5} />
-              </div>
-              
-              <div>
-                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Swag Shop</h3>
-                <p className="text-amber-100/80 leading-relaxed">Unlock hemp merch, exclusive themes, and special community rewards with your NADA.</p>
-              </div>
-              
-              <Button 
-                className="w-full bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-600 hover:via-yellow-600 hover:to-orange-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all"
-                onClick={() => setShowSwagShop(true)}
-              >
-                Open Swag Shop
-              </Button>
-            </div>
-          </div>
+          {/* Card 3 - Hemp Atlas */}
+          <div className="relative">
+            {/* BUD Helper - Flying above card */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowHempAtlasInfo(true)
+              }}
+              className="absolute -top-8 right-4 z-50 group/bud animate-bounce"
+              style={{ animationDuration: '3s', animationDelay: '1s' }}
+              title="What is this?"
+            >
+              <BudCharacter size="sm" className="hover:scale-125 transition-transform drop-shadow-2xl" />
+            </button>
 
-          {/* Card 4 - Company Pages */}
-          <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-emerald-400/40 hover:border-emerald-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(16,185,129,0.3)] hover:shadow-[0_30px_80px_rgba(16,185,129,0.5)] md:col-span-2 lg:col-span-1">
-            {/* Organic texture pattern */}
-            <div className="absolute inset-0 opacity-30" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='20' y='10' width='20' height='30' fill='%2310b981' fill-opacity='0.3'/%3E%3Crect x='15' y='15' width='30' height='35' fill='%2310b981' fill-opacity='0.2'/%3E%3C/svg%3E")`,
-              backgroundSize: '40px 40px'
-            }} />
-            
-            {/* Gradient background with depth */}
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/80 via-green-900/70 to-teal-900/80" />
-            
-            {/* Depth layers */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-emerald-500/10 to-green-500/10" />
-            
-            {/* Outer glow */}
-            <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-            
-            <div className="relative p-8 space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-2xl shadow-emerald-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                <Building2 className="w-8 h-8 text-white" strokeWidth={2.5} />
-              </div>
+            <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-emerald-400/40 hover:border-emerald-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(16,185,129,0.3)] hover:shadow-[0_30px_80px_rgba(16,185,129,0.5)]">
+              {/* Organic texture pattern */}
+              <div className="absolute inset-0 opacity-30" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='20' y='10' width='20' height='30' fill='%2310b981' fill-opacity='0.3'/%3E%3Crect x='15' y='15' width='30' height='35' fill='%2310b981' fill-opacity='0.2'/%3E%3C/svg%3E")`,
+                backgroundSize: '40px 40px'
+              }} />
               
-              <div>
-                <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Company Pages</h3>
-                <p className="text-emerald-100/80 leading-relaxed">Create and manage your company page. Earn association badges and showcase your hemp business.</p>
-              </div>
+              {/* Gradient background with depth */}
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/80 via-green-900/70 to-teal-900/80" />
               
-              <Button 
-                className="w-full bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
-                onClick={() => setShowWorldMap(true)}
-              >
-                Explore World Map
-              </Button>
+              {/* Depth layers */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-emerald-500/10 to-green-500/10" />
+              
+              {/* Outer glow */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
+              
+              <div className="relative p-8 space-y-6">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-2xl shadow-emerald-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <Building2 className="w-8 h-8 text-white" strokeWidth={2.5} />
+                </div>
+                
+                <div>
+                  <h3 className="text-3xl font-black text-white mb-3 drop-shadow-lg">Hemp Atlas</h3>
+                  <p className="text-emerald-100/80 leading-relaxed">Browse the global directory of hemp stakeholders. Discover companies, connect with the industry, and showcase your business.</p>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
+                  onClick={() => setShowWorldMap(true)}
+                >
+                  Open Hemp'in Globe
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -748,132 +808,6 @@ export default function CommunityMarket({
           }
         }
       `}</style>
-
-      {/* Voting Modal */}
-      {showVotingModal && userId && accessToken && (
-        <VotingModal
-          isOpen={showVotingModal}
-          onClose={() => setShowVotingModal(false)}
-          userId={userId}
-          serverUrl={serverUrl}
-          accessToken={accessToken}
-          nadaPoints={nadaPoints}
-          onVoteSuccess={handleVoteSuccess}
-        />
-      )}
-
-      {/* Submit Idea Modal */}
-      {showSubmitIdeaModal && userId && accessToken && (
-        <SubmitIdeaModal
-          isOpen={showSubmitIdeaModal}
-          onClose={() => setShowSubmitIdeaModal(false)}
-          userId={userId}
-          serverUrl={serverUrl}
-          accessToken={accessToken}
-          onSubmitSuccess={handleIdeaSubmitSuccess}
-        />
-      )}
-
-      {/* Nada Wallet Panel */}
-      {showNadaWallet && (
-        <NadaWalletPanel
-          isOpen={showNadaWallet}
-          onClose={() => setShowNadaWallet(false)}
-          nadaPoints={nadaPoints}
-          userId={userId}
-          accessToken={accessToken}
-          serverUrl={serverUrl}
-        />
-      )}
-
-      {/* Swag Shop Panel */}
-      {showSwagShop && (
-        <SwagShop
-          isOpen={showSwagShop}
-          onClose={() => setShowSwagShop(false)}
-          userId={userId}
-          accessToken={accessToken}
-          serverUrl={serverUrl}
-          nadaPoints={nadaPoints}
-          onNadaUpdate={onNadaUpdate}
-        />
-      )}
-
-      {/* Market Settings Panel */}
-      {showMarketSettings && (
-        <MarketSettings
-          isOpen={showMarketSettings}
-          onClose={() => setShowMarketSettings(false)}
-          userId={userId}
-          accessToken={accessToken}
-          serverUrl={serverUrl}
-          onThemeUpdate={handleThemeUpdate}
-        />
-      )}
-
-      {/* Market Profile Panel */}
-      <MarketProfilePanel
-        isOpen={showProfilePanel}
-        onClose={() => setShowProfilePanel(false)}
-        userId={userId}
-        accessToken={accessToken}
-        serverUrl={serverUrl}
-        userEmail={userEmail}
-        nadaPoints={nadaPoints}
-      />
-
-      {/* Company Manager Wrapper */}
-      {showCompanyManager && userId && accessToken && (
-        <CompanyManagerWrapper
-          userId={userId}
-          accessToken={accessToken}
-          serverUrl={serverUrl}
-          onClose={() => setShowCompanyManager(false)}
-        />
-      )}
-
-      {/* World Map Browser - Full Screen */}
-      {showWorldMap && !selectedCompanyId && !showManageOrganization && !showAddOrganization && (
-        <div className="fixed inset-0 z-[9998]">
-          <WorldMapBrowser3D
-            serverUrl={serverUrl}
-            userId={userId || undefined}
-            accessToken={accessToken || undefined}
-            onClose={() => setShowWorldMap(false)}
-            onViewCompany={(companyId) => {
-              setSelectedCompanyId(companyId)
-              setPreviousView('map')
-              setShowWorldMap(false)
-            }}
-            onManageOrganization={() => {
-              setShowManageOrganization(true)
-            }}
-            onAddOrganization={() => {
-              setShowAddOrganization(true)
-            }}
-          />
-        </div>
-      )}
-
-      {/* Manage Organization Panel - Full Screen */}
-      {showManageOrganization && userId && accessToken && (
-        <div className="fixed inset-0 z-[9999]">
-          {(() => {
-            const { ManageOrganization } = require('./ManageOrganization')
-            return (
-              <ManageOrganization
-                userId={userId}
-                accessToken={accessToken}
-                serverUrl={serverUrl}
-                onClose={() => {
-                  setShowManageOrganization(false)
-                  setShowWorldMap(true) // Return to world map
-                }}
-              />
-            )
-          })()}
-        </div>
-      )}
 
       {/* Add Organization Panel - Full Screen */}
       {showAddOrganization && userId && accessToken && (
@@ -899,56 +833,51 @@ export default function CommunityMarket({
         </div>
       )}
 
-      {/* Companies List - Full Screen Panel */}
-      {showCompaniesList && !selectedCompanyId && (
-        <div className="fixed inset-0 z-[9998] bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950 overflow-y-auto">
-          <div className="container mx-auto px-4 py-8">
-            <CompaniesList
-              serverUrl={serverUrl}
-              userId={userId || undefined}
-              accessToken={accessToken || undefined}
-              onOpenManager={() => {
-                setShowCompaniesList(false)
-                setShowCompanyManager(true)
-              }}
-              onViewCompany={(companyId) => {
-                setSelectedCompanyId(companyId)
-                setPreviousView('list')
-              }}
-            />
-            <Button
-              onClick={() => setShowCompaniesList(false)}
-              variant="ghost"
-              className="mt-6 gap-2 text-emerald-100 hover:text-emerald-50"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Market
-            </Button>
-          </div>
+      {/* World Map Browser - Full Screen */}
+      {showWorldMap && !selectedCompanyId && !showManageOrganization && !showAddOrganization && (
+        <div className="fixed inset-0 z-[9998]">
+          <WorldMapBrowser3D
+            serverUrl={serverUrl}
+            userId={userId || undefined}
+            accessToken={accessToken || undefined}
+            onClose={() => setShowWorldMap(false)}
+            onViewCompany={(companyId) => {
+              setSelectedCompanyId(companyId)
+              setPreviousView('map')
+              setShowWorldMap(false)
+            }}
+            onManageOrganization={() => {
+              setShowManageOrganization(true)
+            }}
+            onAddOrganization={() => {
+              setShowAddOrganization(true)
+            }}
+          />
         </div>
       )}
 
-      {/* Company Detail Page - Full Screen */}
+      {/* Organization Profile Page - Full Screen */}
       {selectedCompanyId && (
-        <div className="fixed inset-0 z-[9998] bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950 overflow-y-auto">
-          <div className="min-h-screen">
-            <CompanyDetailPage
-              companyId={selectedCompanyId}
-              serverUrl={serverUrl}
-              userId={userId || undefined}
-              accessToken={accessToken || undefined}
-              onClose={() => {
-                setSelectedCompanyId(null)
-                // Return to previous view instead of always going to list
-                if (previousView === 'map') {
-                  setShowWorldMap(true)
-                } else if (previousView === 'list') {
-                  setShowCompaniesList(true)
-                }
-                setPreviousView(null)
-              }}
-            />
-          </div>
+        <div className="fixed inset-0 z-[9999]">
+          {(() => {
+            const { OrganizationProfilePage } = require('./OrganizationProfilePage')
+            return (
+              <OrganizationProfilePage
+                companyId={selectedCompanyId}
+                serverUrl={serverUrl}
+                userId={userId || undefined}
+                accessToken={accessToken || undefined}
+                onClose={() => {
+                  setSelectedCompanyId(null)
+                  // Return to previous view (map or list)
+                  if (previousView === 'map') {
+                    setShowWorldMap(true)
+                  }
+                  setPreviousView(null)
+                }}
+              />
+            )
+          })()}
         </div>
       )}
 
@@ -1027,6 +956,84 @@ export default function CommunityMarket({
           </div>
         </div>
       </nav>
+
+      {/* BUD Info Modals */}
+      <BudModal
+        isOpen={showSwagMarketInfo}
+        onClose={() => setShowSwagMarketInfo(false)}
+        title="SWAG MARKET - Community Marketplace"
+        message="Welcome to the SWAG MARKET! 🛍️✨🌱
+
+This is the community marketplace where organizations showcase their hemp products. Here you can:
+
+🌿 Browse organization product catalogs
+🏢 Discover member-exclusive merchandise  
+🏅 Shop badge-gated items (requires membership)
+🔗 Access external partner shops
+💚 Support hemp industry organizations
+
+Organizations in the Hemp Atlas can create their own swag shops here. As a member, you can unlock exclusive products and support the hemp community ecosystem!"
+      />
+
+      <BudModal
+        isOpen={showHempAtlasInfo}
+        onClose={() => setShowHempAtlasInfo(false)}
+        title="Hemp Atlas - Global Directory"
+        message="Explore the Hemp Atlas! 🌍🌱
+
+This is your gateway to the global hemp industry. The Hemp Atlas features:
+
+🏢 Directory of hemp stakeholders worldwide
+🗺️ Interactive 3D world map browser
+🤝 Connect with industry leaders
+📊 Showcase your own business
+🏅 Earn association badges
+
+Whether you're looking to discover hemp companies or promote your own, the Hemp Atlas connects you with the entire ecosystem. Dive in and explore!"
+      />
+
+      <BudModal
+        isOpen={showMagazineInfo}
+        onClose={() => setShowMagazineInfo(false)}
+        title="Magazine - Knowledge Hub"
+        message="Welcome to the DEWII Magazine! 📚🌱
+
+This is your go-to source for hemp-related articles, insights, and knowledge. The Magazine features:
+
+📚 Articles on hemp cultivation, processing, and applications
+📊 Industry trends and statistics
+🌱 Educational content on hemp benefits and uses
+🏆 Achievement badges for reading streaks and milestones
+
+Stay informed, earn points, and unlock achievements by reading the Magazine. Dive in and explore the world of hemp!"
+      />
+
+      {/* Profile Panel */}
+      <MarketProfilePanel
+        isOpen={showProfilePanel}
+        userId={userId}
+        accessToken={accessToken}
+        serverUrl={serverUrl}
+        userEmail={userEmail}
+        nadaPoints={nadaPoints}
+        onClose={() => setShowProfilePanel(false)}
+        onVote={() => {
+          setShowProfilePanel(false)
+          setShowVotingModal(true)
+        }}
+        onSubmitIdea={() => {
+          setShowProfilePanel(false)
+          setShowSubmitIdeaModal(true)
+        }}
+        onSettings={() => {
+          setShowProfilePanel(false)
+          setShowMarketSettings(true)
+        }}
+        onNavigateToSwagMarketplace={() => {
+          setShowProfilePanel(false)
+          onNavigateToSwagMarketplace && onNavigateToSwagMarketplace()
+        }}
+      />
     </div>
   )
 }

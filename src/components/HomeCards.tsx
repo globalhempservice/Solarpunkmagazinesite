@@ -4,6 +4,8 @@ import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 import { ComicLockOverlay } from './ComicLockOverlay'
 import { NadaLockOverlay } from './NadaLockOverlay'
 import { MarketUnlockModal } from './MarketUnlockModal'
+import { BudCharacter } from './BudCharacter'
+import { BudModal } from './BudModal'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 
@@ -63,6 +65,7 @@ export function HomeCards({
   onNavigateToMarket
 }: HomeCardsProps) {
   const [isMarketUnlocking, setIsMarketUnlocking] = useState(false)
+  const [showMarketInfo, setShowMarketInfo] = useState(false)
 
   // Calculate user level using same XP logic as UserDashboard
   const calculateXP = () => {
@@ -406,6 +409,20 @@ export function HomeCards({
           )}
         </div>
 
+        {/* BUD Helper - Top Left Corner - ONLY when unlocked */}
+        {marketUnlocked && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMarketInfo(true)
+            }}
+            className="absolute top-6 left-6 z-10 group/bud"
+            title="What is this?"
+          >
+            <BudCharacter size="sm" className="hover:scale-110 transition-transform" />
+          </button>
+        )}
+
         {/* Comic dots pattern */}
         <div className="absolute inset-0 opacity-20" style={{
           backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px)',
@@ -474,6 +491,17 @@ export function HomeCards({
           onConfirm={onMarketUnlock}
           nadaPoints={nadaPoints}
           cost={10}
+        />
+      )}
+
+      {/* Market Info Modal */}
+      {showMarketInfo && (
+        <BudModal
+          isOpen={showMarketInfo}
+          onClose={() => setShowMarketInfo(false)}
+          title="Community Market"
+          description="The Community Market is a special feature that allows you to vote on new features, submit your own ideas, and help shape the future of DEWII. By unlocking this feature, you'll gain access to a platform where your voice matters and your contributions can make a difference."
+          buttonText="Got it!"
         />
       )}
     </div>

@@ -13,9 +13,6 @@ import { AdminDashboard } from './components/AdminDashboard'
 import { ReadingHistory } from './components/ReadingHistory'
 import { LinkedInImporter } from './components/LinkedInImporter'
 import { MatchedArticles } from './components/MatchedArticles'
-import { AchievementsPage } from './components/AchievementsPage'
-import { BrowsePage } from './components/BrowsePage'
-import { SwipeMode } from './components/SwipeMode'
 import { AccountSettings } from './components/AccountSettings'
 import { PointsSystemPage } from './components/PointsSystemPage'
 import { ResetPasswordPage } from './components/ResetPasswordPage'
@@ -27,6 +24,9 @@ import { SwagShopAdmin } from './components/SwagShopAdmin'
 import { ComicLockOverlay } from './components/ComicLockOverlay'
 import { ReadingAnalytics } from './components/ReadingAnalytics'
 import { HomeCards } from './components/HomeCards'
+import { BrowsePage } from './components/BrowsePage'
+import { AchievementsPage } from './components/AchievementsPage'
+import { SwipeMode } from './components/SwipeMode'
 import { ServerErrorBanner } from './components/ServerErrorBanner'
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Skeleton } from './components/ui/skeleton'
@@ -36,6 +36,8 @@ import { Button } from './components/ui/button'
 import { Badge } from './components/ui/badge'
 import { toast } from 'sonner@2.0.3'
 import { Toaster } from './components/ui/sonner'
+import { SwagShop } from './components/SwagShop'
+import { SwagMarketplace } from './components/SwagMarketplace'
 
 interface Article {
   id: string
@@ -79,7 +81,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
@@ -890,7 +892,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hide Header when in Community Market - Market has its own navigation */}
-      {currentView !== 'community-market' && currentView !== 'reading-analytics' && (
+      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && (
         <Header
           currentView={currentView}
           onNavigate={setCurrentView}
@@ -970,9 +972,9 @@ export default function App() {
         />
       )}
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' ? 'p-0 pt-0' : 'py-8 pb-32'}>
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' ? 'p-0 pt-0' : 'py-8 pb-32'}>
         {/* Content with its own container for padding */}
-        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
+        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
             <div className="space-y-6">
@@ -1029,19 +1031,20 @@ export default function App() {
           {currentView === 'swipe' && (
             <SwipeMode 
               articles={filteredArticles}
-              accessToken={accessToken}
+              accessToken={accessToken || undefined}
               onMatch={(article) => {
-                // Add to matched articles and save to localStorage (prevent duplicates) - user-specific
-                const isDuplicate = matchedArticles.some(a => a.id === article.id)
-                if (!isDuplicate && userId) {
-                  const updatedMatches = [...matchedArticles, article]
-                  setMatchedArticles(updatedMatches)
-                  localStorage.setItem(`matchedArticles_${userId}`, JSON.stringify(updatedMatches))
-                }
+                // Add article to matched articles
+                setMatchedArticles(prev => {
+                  const newMatches = [...prev, article]
+                  if (userId) {
+                    localStorage.setItem(`matchedArticles_${userId}`, JSON.stringify(newMatches))
+                  }
+                  return newMatches
+                })
+                toast.success('❤️ Article matched! Check your dashboard.')
               }}
               onReadArticle={handleArticleClick}
               onSwitchToGrid={() => setCurrentView('feed')}
-              ref={swipeModeRef}
               onRefReady={() => setSwipeRefReady(true)}
             />
           )}
@@ -1236,9 +1239,46 @@ export default function App() {
               accessToken={accessToken}
               serverUrl={serverUrl}
               onBack={() => setCurrentView('dashboard')}
+              onNavigateToBrowse={() => setCurrentView('browse')}
               onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
               userEmail={userEmail}
               nadaPoints={userProgress?.nadaPoints || 0}
+              onNadaUpdate={(newBalance) => {
+                // Update user progress with new NADA balance
+                if (userProgress) {
+                  setUserProgress({ ...userProgress, nadaPoints: newBalance })
+                }
+              }}
+              onNavigateToSwagShop={() => setCurrentView('swag-shop')}
+              onNavigateToSwagMarketplace={() => setCurrentView('swag-marketplace')}
+            />
+          )}
+          
+          {/* Swag Shop - Full Page View */}
+          {currentView === 'swag-shop' && userProgress && (
+            <SwagShop
+              onBack={() => setCurrentView('community-market')}
+              userId={userId}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              nadaPoints={userProgress.nadaPoints || 0}
+              onNadaUpdate={(newBalance) => {
+                // Update user progress with new NADA balance
+                if (userProgress) {
+                  setUserProgress({ ...userProgress, nadaPoints: newBalance })
+                }
+              }}
+            />
+          )}
+          
+          {/* Swag Marketplace - Full Page View */}
+          {currentView === 'swag-marketplace' && userProgress && accessToken && (
+            <SwagMarketplace
+              onBack={() => setCurrentView('community-market')}
+              userId={userId || undefined}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              nadaPoints={userProgress.nadaPoints || 0}
               onNadaUpdate={(newBalance) => {
                 // Update user progress with new NADA balance
                 if (userProgress) {
@@ -1251,7 +1291,7 @@ export default function App() {
       </main>
 
       {/* Hide BottomNavbar when in Community Market - Market has its own navigation */}
-      {currentView !== 'community-market' && currentView !== 'reading-analytics' && (
+      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && (
         <BottomNavbar
           currentView={currentView}
           onNavigate={setCurrentView}

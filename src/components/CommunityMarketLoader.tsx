@@ -14,10 +14,13 @@ interface CommunityMarketLoaderProps {
   accessToken: string | null
   serverUrl: string
   onBack: () => void
+  onNavigateToBrowse?: () => void
   onFeatureUnlock: (featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization') => void
   userEmail: string | null
   nadaPoints: number
   onNadaUpdate: (newBalance: number) => void
+  onNavigateToSwagShop?: () => void
+  onNavigateToSwagMarketplace?: () => void
 }
 
 export function CommunityMarketLoader(props: CommunityMarketLoaderProps) {

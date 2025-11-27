@@ -6,6 +6,7 @@ import * as articleSecurity from './article_security.tsx'
 import * as kv from './kv_store.tsx'
 import { parseRSSFeed, generateFeedId, generateArticleId, RSSFeed, RSSArticle } from './rss_parser.tsx'
 import { setupCompanyRoutes } from './company_routes.tsx'
+import { setupSwagRoutes } from './swag_routes.tsx'
 
 // Helper function to extract site metadata from URL
 function extractSiteMetadata(url: string) {
@@ -156,7 +157,18 @@ async function requireAdmin(c: any, next: any) {
 }
 
 // Setup company routes
+console.log('🏢 Setting up company routes...')
 setupCompanyRoutes(app, requireAuth, requireAdmin)
+
+// Setup swag product routes
+console.log('🛍️ Calling setupSwagRoutes...')
+setupSwagRoutes(app, requireAuth)
+console.log('✅ setupSwagRoutes called')
+
+// TEST ROUTE - Remove after debugging
+app.get('/make-server-053bcd80/test-swag-route', (c) => {
+  return c.json({ message: 'Swag routes are working!' })
+})
 
 // ===== ARTICLE ROUTES =====
 
@@ -8074,6 +8086,50 @@ app.get('/make-server-053bcd80/health', (c) => {
     service: 'DEWII Magazine Server',
     version: '1.0.1' // Bumped version - logger middleware disabled
   })
+})
+
+// Get user's association badges (for SwagShop exclusive badges)
+app.get('/make-server-053bcd80/user-association-badges/:userId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    
+    if (!accessToken) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    console.log('🎖️ Fetching association badges for user:', userId)
+    
+    // Get user's companies
+    const { data: userCompanies } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('owner_id', userId)
+    
+    if (!userCompanies || userCompanies.length === 0) {
+      return c.json({ badges: [] })
+    }
+    
+    const companyIds = userCompanies.map(c => c.id)
+    
+    // Get all verified badges for user's companies
+    const { data: badges, error } = await supabase
+      .from('company_badges')
+      .select('*')
+      .in('company_id', companyIds)
+      .eq('verified', true)
+    
+    if (error) {
+      console.error('❌ Error fetching association badges:', error)
+      return c.json({ error: 'Failed to fetch badges', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Found ${badges?.length || 0} association badges`)
+    return c.json({ badges: badges || [] })
+  } catch (error: any) {
+    console.error('❌ Error in user association badges route:', error)
+    return c.json({ error: 'Failed to fetch badges', details: error.message }, 500)
+  }
 })
 
 Deno.serve(app.fetch)

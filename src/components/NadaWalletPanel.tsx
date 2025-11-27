@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { X, TrendingUp, Clock, Sparkles, Store, Zap, Award, Target, MessageSquare } from 'lucide-react'
 import { Badge } from './ui/badge'
+import { BudCharacter } from './BudCharacter'
+import { BudModal } from './BudModal'
 
 interface Transaction {
   id: string
@@ -47,6 +49,7 @@ function NadaRippleIcon({ className = "w-6 h-6" }: { className?: string }) {
 export function NadaWalletPanel({ isOpen, onClose, nadaPoints, userId, accessToken, serverUrl }: NadaWalletPanelProps) {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [showHowToEarnInfo, setShowHowToEarnInfo] = useState(false)
   const [userStats, setUserStats] = useState({
     totalVotes: 0,
     totalIdeasSubmitted: 0,
@@ -311,52 +314,37 @@ export function NadaWalletPanel({ isOpen, onClose, nadaPoints, userId, accessTok
                   </div>
                 </div>
 
-                {/* How to Earn NADA */}
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600/20 to-teal-600/20 backdrop-blur-xl border-3 border-emerald-500/30 p-6">
+                {/* How to Earn NADA - BUD Helper Button */}
+                <button
+                  onClick={() => setShowHowToEarnInfo(true)}
+                  className="group relative w-full overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600/20 to-teal-600/20 backdrop-blur-xl border-3 border-emerald-500/30 p-6 hover:border-emerald-400/50 transition-all hover:scale-[1.02]"
+                >
+                  {/* Comic dots pattern */}
                   <div className="absolute inset-0 opacity-10" style={{
                     backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
                     backgroundSize: '10px 10px'
                   }} />
                   
-                  <div className="relative">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Sparkles className="w-5 h-5 text-emerald-300" />
-                      <h3 className="text-xl font-black text-white">How to Earn NADA</h3>
+                  {/* Glow effect on hover */}
+                  <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-all duration-300" />
+                  
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-2xl shadow-emerald-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                        <Sparkles className="w-6 h-6 text-white" strokeWidth={2.5} />
+                      </div>
+                      <div className="text-left">
+                        <h3 className="text-xl font-black text-white mb-1">How to Earn NADA?</h3>
+                        <p className="text-sm text-emerald-200/80">Click to learn more</p>
+                      </div>
                     </div>
                     
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/30 flex items-center justify-center border border-amber-400/50 flex-shrink-0 mt-0.5">
-                          <Zap className="w-4 h-4 text-amber-300" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-white">Read articles in the Magazine</p>
-                          <p className="text-xs text-white/60">Earn Powers by reading. Collect enough Powers to exchange for NADA.</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-500/30 flex items-center justify-center border border-orange-400/50 flex-shrink-0 mt-0.5">
-                          <Sparkles className="w-4 h-4 text-orange-300" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-white">Build streaks & engage</p>
-                          <p className="text-xs text-white/60">Daily reading streaks and sharing articles earn Powers faster.</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500/30 flex items-center justify-center border border-emerald-400/50 flex-shrink-0 mt-0.5">
-                          <NadaRippleIcon className="w-4 h-4 text-emerald-300" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-white">Exchange in Magazine Wallet</p>
-                          <p className="text-xs text-white/60">Once you have enough Powers, exchange them for NADA to use here.</p>
-                        </div>
-                      </div>
+                    {/* BUD Helper - Floating on the right */}
+                    <div className="animate-bounce" style={{ animationDuration: '3s' }}>
+                      <BudCharacter size="md" className="drop-shadow-2xl" />
                     </div>
                   </div>
-                </div>
+                </button>
 
                 {/* Recent Activity */}
                 <div className="relative overflow-hidden rounded-3xl bg-white/5 backdrop-blur-xl border-2 border-white/10 p-6">
@@ -405,6 +393,70 @@ export function NadaWalletPanel({ isOpen, onClose, nadaPoints, userId, accessTok
               <div className="h-24" />
             </div>
           </motion.div>
+          
+          {/* BUD Info Modal */}
+          <BudModal
+            isOpen={showHowToEarnInfo}
+            onClose={() => setShowHowToEarnInfo(false)}
+            title="How to Earn NADA"
+            budExpression="happy"
+            budMood="default"
+            footerButton={{
+              text: 'Got it, BUD!',
+              onClick: () => setShowHowToEarnInfo(false)
+            }}
+          >
+            <div className="space-y-4 text-pink-900 dark:text-pink-100">
+              <p className="font-bold text-center">
+                Hi there! I'm BUD, and I'm here to help you understand the NADA economy.
+              </p>
+              
+              <p className="text-sm">
+                NADA is your voice currency in the Community Market. Here's how you can earn it:
+              </p>
+
+              <div className="space-y-3">
+                <div className="bg-white/50 dark:bg-pink-800/30 rounded-2xl p-3 border-2 border-pink-200 dark:border-pink-700">
+                  <h4 className="font-black text-pink-700 dark:text-pink-300 mb-1">Read Articles in the Magazine</h4>
+                  <p className="text-sm">
+                    Every article you read in Magazine mode earns you Power Up points. The more you read, the more Powers you collect.
+                  </p>
+                </div>
+
+                <div className="bg-white/50 dark:bg-pink-800/30 rounded-2xl p-3 border-2 border-pink-200 dark:border-pink-700">
+                  <h4 className="font-black text-pink-700 dark:text-pink-300 mb-1">Share & Engage</h4>
+                  <p className="text-sm">
+                    Sharing articles with friends and engaging with content boosts your Power earnings even faster.
+                  </p>
+                </div>
+
+                <div className="bg-white/50 dark:bg-pink-800/30 rounded-2xl p-3 border-2 border-pink-200 dark:border-pink-700">
+                  <h4 className="font-black text-pink-700 dark:text-pink-300 mb-1">Build Your Daily Streak</h4>
+                  <p className="text-sm">
+                    Keep your reading streak alive! Consistent daily reading multiplies your Power rewards.
+                  </p>
+                </div>
+
+                <div className="bg-white/50 dark:bg-pink-800/30 rounded-2xl p-3 border-2 border-pink-200 dark:border-pink-700">
+                  <h4 className="font-black text-pink-700 dark:text-pink-300 mb-1">Convert Powers to NADA</h4>
+                  <p className="text-sm">
+                    Once you've collected enough Powers, visit the Magazine Wallet to exchange them for NADA. This is currently the main way to earn NADA.
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl p-3 border-2 border-emerald-300 dark:border-emerald-700">
+                  <h4 className="font-black text-emerald-700 dark:text-emerald-300 mb-1">Coming Soon</h4>
+                  <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                    Exciting new ways to earn NADA are on the horizon! We're developing new games and features in the Hemp Atlas and Swag Shop. Keep playing and exploring to be ready when these surprise opportunities arrive.
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-sm text-center font-bold text-pink-700 dark:text-pink-300 pt-2">
+                Use your NADA wisely in the Community Market to vote on features, submit ideas, and unlock special content. Your voice matters in shaping DEWII's future!
+              </p>
+            </div>
+          </BudModal>
         </>
       )}
     </AnimatePresence>

@@ -55,7 +55,7 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, onClose, onV
 
   useEffect(() => {
     // Dynamically import Globe to avoid Three.js conflicts
-    import('react-globe.gl@2.27.2').then((module) => {
+    import('react-globe.gl').then((module) => {
       Globe = module.default
       setGlobeReady(true)
     })
@@ -986,7 +986,6 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, onClose, onV
                 <div className="pt-4 border-t border-hemp-primary/30">
                   <Button
                     onClick={() => {
-                      setSelectedCompany(null)
                       onViewCompany(selectedCompany.id)
                     }}
                     className="w-full relative overflow-hidden bg-gradient-to-r from-hemp-primary/20 to-hemp-secondary/20 hover:from-hemp-primary/30 hover:to-hemp-secondary/30 backdrop-blur-xl border-2 border-hemp-primary/50 hover:border-hemp-primary text-white rounded-xl px-6 py-4 transition-all duration-300 group shadow-lg shadow-hemp-primary/20 hover:shadow-hemp-primary/40"

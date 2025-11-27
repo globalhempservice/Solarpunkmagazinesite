@@ -20,6 +20,7 @@ export function AddOrganization({ userId, accessToken, serverUrl, onClose, onSuc
     name: '',
     description: '',
     categoryId: '',
+    isAssociation: false,
     city: '',
     country: '',
     website: '',
@@ -98,6 +99,7 @@ export function AddOrganization({ userId, accessToken, serverUrl, onClose, onSuc
         name: formData.name,
         description: formData.description,
         category: selectedCategory.name, // Send category name, not ID
+        is_association: formData.isAssociation,
         location: location,
         country: formData.country, // Add country separately for map highlighting
         website: formData.website || null,
@@ -253,6 +255,28 @@ export function AddOrganization({ userId, accessToken, serverUrl, onClose, onSuc
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Is Association - Enhanced with emphasis */}
+              <div className="p-5 rounded-xl border-2 border-amber-400/40 bg-amber-500/10">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="isAssociation"
+                    checked={formData.isAssociation}
+                    onChange={(e) => setFormData({ ...formData, isAssociation: e.target.checked })}
+                    className="w-5 h-5 rounded border-amber-400/50 mt-0.5 bg-emerald-950/50"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="isAssociation" className="text-sm font-black text-amber-300 uppercase tracking-wider block mb-2 cursor-pointer">
+                      Legal Association / Non-Profit Organization
+                    </label>
+                    <p className="text-xs text-white/80 leading-relaxed font-semibold">
+                      Check this box to confirm your organization is a registered association, non-profit, or official industry body. 
+                      Associations can validate member companies and issue official badges.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

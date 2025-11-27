@@ -1,4 +1,4 @@
-import { User, Award, Crown, Leaf, Sparkles } from 'lucide-react'
+import { User, Award, Crown, Leaf, Sparkles, TrendingUp, Settings } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
 import { useState, useEffect } from 'react'
@@ -15,6 +15,9 @@ interface MarketProfilePanelProps {
   userEmail: string | null
   nadaPoints: number
   onClose: () => void
+  onVote?: () => void
+  onSubmitIdea?: () => void
+  onSettings?: () => void
 }
 
 interface UserProgress {
@@ -77,7 +80,10 @@ export function MarketProfilePanel({
   serverUrl,
   userEmail,
   nadaPoints,
-  onClose
+  onClose,
+  onVote,
+  onSubmitIdea,
+  onSettings
 }: MarketProfilePanelProps) {
   const [userProgress, setUserProgress] = useState<UserProgress>({})
   const [ownedBadges, setOwnedBadges] = useState<string[]>([])
@@ -226,6 +232,17 @@ export function MarketProfilePanel({
               {/* Profile Header */}
               <div className="relative pt-12 pb-8 px-6 overflow-hidden">
                 
+                {/* Settings Button - Top Right */}
+                <button
+                  onClick={() => {
+                    onSettings && onSettings()
+                    onClose()
+                  }}
+                  className="fixed top-6 right-6 z-[10000] p-3 rounded-2xl bg-gradient-to-br from-amber-500/90 to-yellow-500/90 backdrop-blur-sm hover:from-amber-400 hover:to-yellow-400 transition-all group border-2 border-amber-300/50 shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:shadow-[0_0_30px_rgba(251,191,36,0.5)] hover:scale-110 active:scale-95"
+                >
+                  <Settings className="w-5 h-5 text-white group-hover:rotate-90 transition-transform" strokeWidth={3} />
+                </button>
+
                 {/* Animated background particles */}
                 <div className="absolute inset-0 opacity-10">
                   <div className="absolute inset-0" style={{
@@ -370,6 +387,68 @@ export function MarketProfilePanel({
                 </div>
               </div>
 
+              {/* Market Actions - Vote & Submit Idea */}
+              <div className="px-6 py-4">
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Vote Button */}
+                  <button
+                    onClick={() => {
+                      onVote && onVote()
+                      onClose()
+                    }}
+                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/60 via-pink-900/60 to-fuchsia-900/60 hover:from-purple-800/80 hover:via-pink-800/80 hover:to-fuchsia-800/80 p-4 border-2 border-purple-400/30 hover:border-purple-400/60 transition-all hover:scale-105 active:scale-95"
+                  >
+                    {/* Halftone pattern */}
+                    <div className="absolute inset-0 opacity-20" style={{
+                      backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+                      backgroundSize: '12px 12px'
+                    }} />
+                    
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <TrendingUp className="w-6 h-6 text-purple-300" strokeWidth={2.5} />
+                      <span className="text-sm font-black text-white">Vote</span>
+                    </div>
+                  </button>
+
+                  {/* Submit Idea Button */}
+                  <button
+                    onClick={() => {
+                      onSubmitIdea && onSubmitIdea()
+                      onClose()
+                    }}
+                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-900/60 via-cyan-900/60 to-teal-900/60 hover:from-blue-800/80 hover:via-cyan-800/80 hover:to-teal-800/80 p-4 border-2 border-cyan-400/30 hover:border-cyan-400/60 transition-all hover:scale-105 active:scale-95"
+                  >
+                    {/* Halftone pattern */}
+                    <div className="absolute inset-0 opacity-20" style={{
+                      backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+                      backgroundSize: '12px 12px'
+                    }} />
+                    
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <Sparkles className="w-6 h-6 text-cyan-300" strokeWidth={2.5} />
+                      <span className="text-sm font-black text-white">Submit Idea</span>
+                    </div>
+                  </button>
+
+                  {/* My Organizations Button */}
+                  <button
+                    onClick={() => setShowCompanyManager(true)}
+                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-900/60 via-green-900/60 to-teal-900/60 hover:from-emerald-800/80 hover:via-green-800/80 hover:to-teal-800/80 p-4 border-2 border-emerald-400/30 hover:border-emerald-400/60 transition-all hover:scale-105 active:scale-95"
+                  >
+                    {/* Halftone pattern */}
+                    <div className="absolute inset-0 opacity-20" style={{
+                      backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+                      backgroundSize: '12px 12px'
+                    }} />
+                    
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <Building2 className="w-6 h-6 text-emerald-300" strokeWidth={2.5} />
+                      <span className="text-sm font-black text-white">Organizations</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* My Badges Section */}
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -501,6 +580,16 @@ export function MarketProfilePanel({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Company Manager Modal */}
+          {showCompanyManager && userId && accessToken && (
+            <CompanyManagerWrapper
+              userId={userId}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              onClose={() => setShowCompanyManager(false)}
+            />
+          )}
         </>
       )}
     </AnimatePresence>

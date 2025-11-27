@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "npm install && npm run build"
   publish = "build"
 
 # SPA fallback - must be last to catch all routes
@@ -11,6 +11,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  NPM_FLAGS = "--legacy-peer-deps"
 
 [[headers]]
   for = "/*"

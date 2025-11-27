@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, ShoppingBag, Shirt, Palette, Award, Sparkles, Check, Lock } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, Shirt, Palette, Award, Sparkles, Check, Lock, Shield, Crown, Star } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 
@@ -34,8 +34,7 @@ interface SwagItem {
 }
 
 interface SwagShopProps {
-  isOpen: boolean
-  onClose: () => void
+  onBack: () => void
   userId: string | null
   accessToken: string | null
   serverUrl: string
@@ -44,8 +43,7 @@ interface SwagShopProps {
 }
 
 export function SwagShop({
-  isOpen,
-  onClose,
+  onBack,
   userId,
   accessToken,
   serverUrl,
@@ -61,6 +59,10 @@ export function SwagShop({
   // Swag Items - now loaded from database
   const [swagItems, setSwagItems] = useState<SwagItem[]>([])
   const [loadingItems, setLoadingItems] = useState(true)
+  
+  // Association badges for exclusive items
+  const [associationBadges, setAssociationBadges] = useState<any[]>([])
+  const [loadingBadges, setLoadingBadges] = useState(true)
 
   const categories = [
     { id: 'all', name: 'All Items', icon: ShoppingBag },
@@ -72,10 +74,10 @@ export function SwagShop({
 
   // Fetch owned items
   useEffect(() => {
-    if (isOpen && userId && accessToken) {
+    if (userId && accessToken) {
       fetchOwnedItems()
     }
-  }, [isOpen, userId, accessToken])
+  }, [userId, accessToken])
 
   const fetchOwnedItems = async () => {
     if (!userId || !accessToken) return
@@ -98,10 +100,10 @@ export function SwagShop({
 
   // Fetch swag items from database
   useEffect(() => {
-    if (isOpen && userId && accessToken) {
+    if (userId && accessToken) {
       fetchSwagItems()
     }
-  }, [isOpen, userId, accessToken])
+  }, [userId, accessToken])
 
   // Map icon names to actual icon components
   const getIconComponent = (iconName: string) => {
@@ -110,7 +112,10 @@ export function SwagShop({
       'Palette': Palette,
       'Award': Award,
       'Sparkles': Sparkles,
-      'ShoppingBag': ShoppingBag
+      'ShoppingBag': ShoppingBag,
+      'Shield': Shield,
+      'Crown': Crown,
+      'Star': Star
     }
     return iconMap[iconName] || ShoppingBag
   }
@@ -199,23 +204,29 @@ export function SwagShop({
     ? swagItems 
     : swagItems.filter(item => item.category === selectedCategory)
 
-  if (!isOpen) return null
-
   return (
     <>
-      {/* Main Modal */}
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <div className="relative w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950 border-2 border-emerald-400/30 shadow-2xl">
-          {/* Hemp fiber texture */}
-          <div className="absolute inset-0 opacity-10" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23059669' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundSize: '80px 80px'
-          }} />
+      {/* Full Page View - No Modal Wrapper */}
+      <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950">
+        {/* Hemp fiber texture */}
+        <div className="fixed inset-0 opacity-10 pointer-events-none" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23059669' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundSize: '80px 80px'
+        }} />
 
-          {/* Header */}
-          <div className="relative border-b border-emerald-400/20 bg-emerald-950/50 backdrop-blur-xl">
-            <div className="flex items-center justify-between p-6">
+        {/* Header - Fixed at top */}
+        <div className="sticky top-0 z-50 border-b border-emerald-400/20 bg-emerald-950/50 backdrop-blur-xl">
+          <div className="container mx-auto px-6 py-6">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
+                {/* Back Button */}
+                <button
+                  onClick={onBack}
+                  className="p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 hover:text-emerald-50 transition-all hover:scale-110 active:scale-95"
+                >
+                  <ArrowLeft className="w-6 h-6" strokeWidth={2.5} />
+                </button>
+
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg">
                   <ShoppingBag className="w-6 h-6 text-white" />
                 </div>
@@ -225,23 +236,14 @@ export function SwagShop({
                 </div>
               </div>
               
-              <div className="flex items-center gap-4">
-                <Badge className="gap-2 px-4 py-2 text-base bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-400/30 text-violet-300">
-                  <NadaRippleIcon className="w-5 h-5" />
-                  <span className="font-bold">{nadaPoints}</span>
-                </Badge>
-                
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 hover:text-emerald-50 transition-all"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+              <Badge className="gap-2 px-4 py-2 text-base bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-400/30 text-violet-300">
+                <NadaRippleIcon className="w-5 h-5" />
+                <span className="font-bold">{nadaPoints}</span>
+              </Badge>
             </div>
 
             {/* Category Tabs */}
-            <div className="flex gap-2 px-6 pb-4 overflow-x-auto">
+            <div className="flex gap-2 mt-6 overflow-x-auto pb-2">
               {categories.map((cat) => {
                 const Icon = cat.icon
                 return (
@@ -261,114 +263,114 @@ export function SwagShop({
               })}
             </div>
           </div>
+        </div>
 
-          {/* Content */}
-          <div className="relative overflow-y-auto max-h-[calc(90vh-200px)] p-6">
-            {loadingItems ? (
-              <div className="text-center py-12">
-                <p className="text-emerald-200/60 text-lg">Loading items...</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems.map((item) => {
-                  const Icon = item.icon
-                  const isOwned = ownedItems.includes(item.id)
-                  const canAfford = nadaPoints >= item.price
-                  const isPurchasing = purchasingItem === item.id
+        {/* Content */}
+        <div className="relative overflow-y-auto max-h-[calc(100vh-200px)] p-6">
+          {loadingItems ? (
+            <div className="text-center py-12">
+              <p className="text-emerald-200/60 text-lg">Loading items...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredItems.map((item) => {
+                const Icon = item.icon
+                const isOwned = ownedItems.includes(item.id)
+                const canAfford = nadaPoints >= item.price
+                const isPurchasing = purchasingItem === item.id
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="group relative overflow-hidden rounded-2xl backdrop-blur-xl border-2 border-emerald-400/20 hover:border-emerald-400/40 transition-all duration-300 hover:scale-105 hover:-translate-y-2 shadow-lg hover:shadow-2xl"
-                    >
-                      {/* Gradient background */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-20`} />
-                      
-                      {/* Depth layer */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      
-                      {/* Glow effect */}
-                      <div className={`absolute -inset-1 bg-gradient-to-r ${item.gradient} rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300`} />
+                return (
+                  <div
+                    key={item.id}
+                    className="group relative overflow-hidden rounded-2xl backdrop-blur-xl border-2 border-emerald-400/20 hover:border-emerald-400/40 transition-all duration-300 hover:scale-105 hover:-translate-y-2 shadow-lg hover:shadow-2xl"
+                  >
+                    {/* Gradient background */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-20`} />
+                    
+                    {/* Depth layer */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    
+                    {/* Glow effect */}
+                    <div className={`absolute -inset-1 bg-gradient-to-r ${item.gradient} rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300`} />
 
-                      <div className="relative p-6 space-y-4">
-                        {/* Icon & Badge */}
-                        <div className="flex items-start justify-between">
-                          <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shadow-lg`}>
-                            <Icon className="w-7 h-7 text-white" />
-                          </div>
-                          
-                          {isOwned && (
-                            <Badge className="bg-green-500/20 border-green-400/50 text-green-300 gap-1">
-                              <Check className="w-3 h-3" />
-                              Owned
-                            </Badge>
-                          )}
-                          
-                          {item.limited && !isOwned && (
-                            <Badge className="bg-amber-500/20 border-amber-400/50 text-amber-300">
-                              Limited
-                            </Badge>
-                          )}
+                    <div className="relative p-6 space-y-4">
+                      {/* Icon & Badge */}
+                      <div className="flex items-start justify-between">
+                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shadow-lg`}>
+                          <Icon className="w-7 h-7 text-white" />
                         </div>
-
-                        {/* Content */}
-                        <div>
-                          <h3 className="text-xl font-black text-emerald-50 mb-2">{item.name}</h3>
-                          <p className="text-emerald-200/60 text-sm leading-relaxed">{item.description}</p>
-                        </div>
-
-                        {/* Stock */}
-                        {item.limited && item.stock && !isOwned && (
-                          <div className="text-xs text-emerald-300/70">
-                            Only {item.stock} available
-                          </div>
+                        
+                        {isOwned && (
+                          <Badge className="bg-green-500/20 border-green-400/50 text-green-300 gap-1">
+                            <Check className="w-3 h-3" />
+                            Owned
+                          </Badge>
                         )}
+                        
+                        {item.limited && !isOwned && (
+                          <Badge className="bg-amber-500/20 border-amber-400/50 text-amber-300">
+                            Limited
+                          </Badge>
+                        )}
+                      </div>
 
-                        {/* Price & Action */}
-                        <div className="flex items-center justify-between pt-2">
-                          <div className="flex items-center gap-2">
-                            <NadaRippleIcon className="w-5 h-5 text-violet-400" />
-                            <span className="text-2xl font-black text-emerald-50">{item.price}</span>
-                          </div>
+                      {/* Content */}
+                      <div>
+                        <h3 className="text-xl font-black text-emerald-50 mb-2">{item.name}</h3>
+                        <p className="text-emerald-200/60 text-sm leading-relaxed">{item.description}</p>
+                      </div>
 
-                          <Button
-                            onClick={() => handlePurchaseClick(item)}
-                            disabled={isOwned || !canAfford || isPurchasing}
-                            className={`font-bold ${
-                              isOwned
-                                ? 'bg-green-500/20 border-green-400/50 text-green-300 cursor-not-allowed'
-                                : canAfford
-                                ? `bg-gradient-to-r ${item.gradient} hover:opacity-90 text-white`
-                                : 'bg-gray-500/20 border-gray-400/50 text-gray-400 cursor-not-allowed'
-                            }`}
-                          >
-                            {isPurchasing ? (
-                              'Processing...'
-                            ) : isOwned ? (
-                              'Owned'
-                            ) : !canAfford ? (
-                              <>
-                                <Lock className="w-4 h-4 mr-1" />
-                                Not Enough
-                              </>
-                            ) : (
-                              'Purchase'
-                            )}
-                          </Button>
+                      {/* Stock */}
+                      {item.limited && item.stock && !isOwned && (
+                        <div className="text-xs text-emerald-300/70">
+                          Only {item.stock} available
                         </div>
+                      )}
+
+                      {/* Price & Action */}
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center gap-2">
+                          <NadaRippleIcon className="w-5 h-5 text-violet-400" />
+                          <span className="text-2xl font-black text-emerald-50">{item.price}</span>
+                        </div>
+
+                        <Button
+                          onClick={() => handlePurchaseClick(item)}
+                          disabled={isOwned || !canAfford || isPurchasing}
+                          className={`font-bold ${
+                            isOwned
+                              ? 'bg-green-500/20 border-green-400/50 text-green-300 cursor-not-allowed'
+                              : canAfford
+                              ? `bg-gradient-to-r ${item.gradient} hover:opacity-90 text-white`
+                              : 'bg-gray-500/20 border-gray-400/50 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {isPurchasing ? (
+                            'Processing...'
+                          ) : isOwned ? (
+                            'Owned'
+                          ) : !canAfford ? (
+                            <>
+                              <Lock className="w-4 h-4 mr-1" />
+                              Not Enough
+                            </>
+                          ) : (
+                            'Purchase'
+                          )}
+                        </Button>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
-            {filteredItems.length === 0 && !loadingItems && (
-              <div className="text-center py-12">
-                <p className="text-emerald-200/60 text-lg">No items in this category yet</p>
-              </div>
-            )}
-          </div>
+          {filteredItems.length === 0 && !loadingItems && (
+            <div className="text-center py-12">
+              <p className="text-emerald-200/60 text-lg">No items in this category yet</p>
+            </div>
+          )}
         </div>
       </div>
 

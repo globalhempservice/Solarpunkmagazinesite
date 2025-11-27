@@ -1,13 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Building2, MapPin, Globe as GlobeIcon, ArrowLeft, Sparkles, ZoomIn, ZoomOut, RotateCw, X, Users, Award, ExternalLink } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { CompanyCard } from './CompanyCard'
 
-// Dynamic import to avoid Three.js conflicts
-// Note: You may see a warning about multiple Three.js instances in console
-// This is expected with react-globe.gl and doesn't affect functionality
-let Globe: any = null
+// Lazy load Globe to avoid bundling issues
+const GlobeComponent = lazy(() => import('react-globe.gl'))
 
 interface WorldMapBrowser3DProps {
   serverUrl: string
@@ -49,17 +47,10 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, onClose, onV
   const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null)
   const [isCountryAnimating, setIsCountryAnimating] = useState(false)
   const [showAtlasCard, setShowAtlasCard] = useState(false)
-  const [globeReady, setGlobeReady] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<any | null>(null)
   const globeEl = useRef<any>()
 
   useEffect(() => {
-    // Dynamically import Globe to avoid Three.js conflicts
-    import('react-globe.gl').then((module) => {
-      Globe = module.default
-      setGlobeReady(true)
-    })
-    
     fetchCompanies()
     loadCountryPolygons()
   }, [])
@@ -463,17 +454,6 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, onClose, onV
     )
   }
 
-  if (!globeReady || !Globe) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950">
-        <div className="text-center">
-          <GlobeIcon className="w-16 h-16 mx-auto mb-4 text-hemp-primary animate-spin" />
-          <p className="text-lg font-black uppercase tracking-widest text-white">Loading Hemp Atlas</p>
-        </div>
-      </div>
-    )
-  }
-
   // Main 3D globe view
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-900 to-green-950 relative overflow-hidden">
@@ -539,104 +519,106 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, onClose, onV
 
       {/* 3D Globe - Centered */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <Globe
-          ref={globeEl}
-          
-          // Custom Hemp'in Solarpunk styled globe
-          // Use GeoJSON polygons for countries with custom colors
-          globeImageUrl={null as any}
-          showGlobe={true}
-          
-          // Ocean color - Deep solarpunk blue that complements hemp-primary
-          globeMaterial={{
-            color: '#0f4c75', // Deep ocean blue
-            shininess: 0.1
-          }}
-          
-          // Land polygons with Hemp'in greens
-          polygonsData={countryPolygons}
-          polygonCapColor={(d: any) => {
-            const countryName = d.properties?.ADMIN || d.properties?.NAME
-            // Highlight hovered/selected countries with companies
-            if (countryName === selectedCountryName) return '#facc15' // Bright yellow/gold for selected - VERY OBVIOUS
-            if (countryName === hoveredCountry) return '#22d3ee' // Bright cyan for hover
-            if (locationData[countryName]) return '#059669' // Darker green for countries with companies
-            return '#064e3b' // Even darker for countries without companies
-          }}
-          polygonSideColor={() => '#064e3b'} // Even darker for depth
-          polygonStrokeColor={(d: any) => {
-            const countryName = d.properties?.ADMIN || d.properties?.NAME
-            if (countryName === selectedCountryName) return '#fde047' // Bright yellow glow
-            if (countryName === hoveredCountry) return '#22d3ee'
-            return '#10b981'
-          }}
-          polygonAltitude={(d: any) => {
-            const countryName = d.properties?.ADMIN || d.properties?.NAME
-            // Pop out selected/hovered countries with companies - MUCH MORE DRAMATIC
-            if (countryName === selectedCountryName) return 0.15 // Really tall
-            if (countryName === hoveredCountry) return 0.06
-            return 0.01
-          }}
-          onPolygonHover={handleCountryHover}
-          onPolygonClick={handleCountryClick}
-          
-          // Hemp'in atmosphere
-          showAtmosphere={true}
-          atmosphereColor="#10b981"
-          atmosphereAltitude={0.25}
-          
-          // Points (company markers)
-          pointsData={markers}
-          pointLat="lat"
-          pointLng="lng"
-          pointColor={() => '#fbbf24'} // Bright yellow/gold for contrast
-          pointAltitude={0.05}
-          pointRadius={(d: any) => d.size + 0.3}
-          pointLabel={(d: any) => `
-            <div style="
-              background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-              padding: 8px 16px;
-              border-radius: 20px;
-              border: 2px solid rgba(255, 255, 255, 0.3);
-              color: white;
-              font-family: system-ui, -apple-system, sans-serif;
-              font-weight: 900; 
-              font-size: 14px; 
-              letter-spacing: 0.5px;
-              text-align: center;
-              white-space: nowrap;
-            ">${d.city}</div>
-          `}
-          onPointClick={(point: any) => handleMarkerClick(point as GlobeMarker)}
-          onPointHover={(point: any) => {
-            document.body.style.cursor = point ? 'pointer' : 'grab'
-          }}
-          
-          // Rings around markers - Bright yellow/gold
-          ringsData={markers}
-          ringLat="lat"
-          ringLng="lng"
-          ringColor={() => '#fbbf24'}
-          ringMaxRadius={4}
-          ringPropagationSpeed={2.5}
-          ringRepeatPeriod={1800}
-          ringAltitude={0.02}
-          
-          // Globe settings
-          width={typeof window !== 'undefined' ? window.innerWidth : 1200}
-          height={typeof window !== 'undefined' ? window.innerHeight : 800}
-          
-          // Background - transparent to show our stars
-          backgroundColor="rgba(0,0,0,0)"
-          
-          // Enable controls
-          enablePointerInteraction={true}
-          
-          // Initial view
-          {...(globeEl.current ? {} : {
-            pointOfView: { lat: 20, lng: 0, altitude: 2.5 }
-          })}
-        />
+        <Suspense fallback={<div>Loading...</div>}>
+          <GlobeComponent
+            ref={globeEl}
+            
+            // Custom Hemp'in Solarpunk styled globe
+            // Use GeoJSON polygons for countries with custom colors
+            globeImageUrl={null as any}
+            showGlobe={true}
+            
+            // Ocean color - Deep solarpunk blue that complements hemp-primary
+            globeMaterial={{
+              color: '#0f4c75', // Deep ocean blue
+              shininess: 0.1
+            }}
+            
+            // Land polygons with Hemp'in greens
+            polygonsData={countryPolygons}
+            polygonCapColor={(d: any) => {
+              const countryName = d.properties?.ADMIN || d.properties?.NAME
+              // Highlight hovered/selected countries with companies
+              if (countryName === selectedCountryName) return '#facc15' // Bright yellow/gold for selected - VERY OBVIOUS
+              if (countryName === hoveredCountry) return '#22d3ee' // Bright cyan for hover
+              if (locationData[countryName]) return '#059669' // Darker green for countries with companies
+              return '#064e3b' // Even darker for countries without companies
+            }}
+            polygonSideColor={() => '#064e3b'} // Even darker for depth
+            polygonStrokeColor={(d: any) => {
+              const countryName = d.properties?.ADMIN || d.properties?.NAME
+              if (countryName === selectedCountryName) return '#fde047' // Bright yellow glow
+              if (countryName === hoveredCountry) return '#22d3ee'
+              return '#10b981'
+            }}
+            polygonAltitude={(d: any) => {
+              const countryName = d.properties?.ADMIN || d.properties?.NAME
+              // Pop out selected/hovered countries with companies - MUCH MORE DRAMATIC
+              if (countryName === selectedCountryName) return 0.15 // Really tall
+              if (countryName === hoveredCountry) return 0.06
+              return 0.01
+            }}
+            onPolygonHover={handleCountryHover}
+            onPolygonClick={handleCountryClick}
+            
+            // Hemp'in atmosphere
+            showAtmosphere={true}
+            atmosphereColor="#10b981"
+            atmosphereAltitude={0.25}
+            
+            // Points (company markers)
+            pointsData={markers}
+            pointLat="lat"
+            pointLng="lng"
+            pointColor={() => '#fbbf24'} // Bright yellow/gold for contrast
+            pointAltitude={0.05}
+            pointRadius={(d: any) => d.size + 0.3}
+            pointLabel={(d: any) => `
+              <div style="
+                background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                padding: 8px 16px;
+                border-radius: 20px;
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                color: white;
+                font-family: system-ui, -apple-system, sans-serif;
+                font-weight: 900; 
+                font-size: 14px; 
+                letter-spacing: 0.5px;
+                text-align: center;
+                white-space: nowrap;
+              ">${d.city}</div>
+            `}
+            onPointClick={(point: any) => handleMarkerClick(point as GlobeMarker)}
+            onPointHover={(point: any) => {
+              document.body.style.cursor = point ? 'pointer' : 'grab'
+            }}
+            
+            // Rings around markers - Bright yellow/gold
+            ringsData={markers}
+            ringLat="lat"
+            ringLng="lng"
+            ringColor={() => '#fbbf24'}
+            ringMaxRadius={4}
+            ringPropagationSpeed={2.5}
+            ringRepeatPeriod={1800}
+            ringAltitude={0.02}
+            
+            // Globe settings
+            width={typeof window !== 'undefined' ? window.innerWidth : 1200}
+            height={typeof window !== 'undefined' ? window.innerHeight : 800}
+            
+            // Background - transparent to show our stars
+            backgroundColor="rgba(0,0,0,0)"
+            
+            // Enable controls
+            enablePointerInteraction={true}
+            
+            // Initial view
+            {...(globeEl.current ? {} : {
+              pointOfView: { lat: 20, lng: 0, altitude: 2.5 }
+            })}
+          />
+        </Suspense>
       </div>
 
       {/* Country Atlas Summary Card */}

@@ -128,9 +128,12 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
 
   // Shuffle articles when category changes
   useEffect(() => {
+    console.log('🔍 BrowsePage: Articles received:', articles.length)
+    console.log('🔍 BrowsePage: First 3 articles:', articles.slice(0, 3))
     setShowArticles(false)
 
     if (articles.length === 0) {
+      console.log('⚠️ BrowsePage: No articles to display')
       setDisplayedArticles([])
       setShowArticles(true)
       return

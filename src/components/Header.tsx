@@ -201,24 +201,13 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
           className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95 z-10"
           aria-label="Change theme"
         >
-          {/* Animated glow background */}
-          <div className={`absolute -inset-6 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-2xl opacity-0 group-hover:opacity-30 transition-all duration-500 ${isAnimating ? 'opacity-40 animate-pulse' : ''}`} />
+          {/* Animated glow background - Transparent */}
+          <div className={`absolute -inset-8 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-3xl opacity-10 group-hover:opacity-20 transition-all duration-500 ${isAnimating ? 'opacity-30 animate-pulse' : ''}`} />
           
-          {/* Outer ring - matching Me button */}
-          <div className={`relative rounded-full p-1.5 transition-all group-hover:scale-110 ${
-            isAnimating
-              ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 scale-110 shadow-2xl'
-              : 'bg-gradient-to-br from-muted/50 to-muted group-hover:from-muted group-hover:to-muted/80'
-          }`}>
-            {/* Inner circle */}
-            <div className={`rounded-full p-4 sm:p-5 transition-all ${
-              isAnimating
-                ? 'bg-gradient-to-br from-sky-500/30 via-purple-500/20 to-pink-500/30 dark:from-sky-400/20 dark:via-purple-400/15 dark:to-pink-400/20 hempin:from-amber-500/30 hempin:via-yellow-500/20 hempin:to-amber-500/30 backdrop-blur-sm'
-                : 'bg-background'
-            }`}>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
-                <BrandLogo size="sm" showAnimation={true} theme={(homeButtonTheme as any) || 'default'} />
-              </div>
+          {/* Direct icon container - No circles */}
+          <div className="relative p-5 sm:p-6 transition-all group-hover:scale-110">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center">
+              <BrandLogo size="lg" showAnimation={true} theme={(homeButtonTheme as any) || 'default'} />
             </div>
           </div>
           

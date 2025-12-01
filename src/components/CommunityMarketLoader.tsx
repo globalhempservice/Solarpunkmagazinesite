@@ -21,6 +21,10 @@ interface CommunityMarketLoaderProps {
   onNadaUpdate: (newBalance: number) => void
   onNavigateToSwagShop?: () => void
   onNavigateToSwagMarketplace?: () => void
+  onNavigateToSettings?: () => void
+  equippedBadgeId?: string | null
+  profileBannerUrl?: string | null
+  marketUnlocked?: boolean
 }
 
 export function CommunityMarketLoader(props: CommunityMarketLoaderProps) {

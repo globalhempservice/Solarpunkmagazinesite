@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle, BarChart3, BookOpen, Compass, Sun, Wand2, Atom, Gem } from "lucide-react"
+import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle, BarChart3, BookOpen, Compass, Sun, Wand2, Atom, Gem, User } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
@@ -10,6 +10,7 @@ import { Separator } from "./ui/separator"
 import { Input } from "./ui/input"
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 import { ComicLockOverlay } from './ComicLockOverlay'
+import { BadgeDisplay } from './BadgeDisplay'
 
 interface Article {
   id: string
@@ -38,6 +39,7 @@ interface UserProgress {
   achievements: string[]
   readArticles: string[]
   lastReadDate: string | null
+  nickname?: string
 }
 
 interface UserDashboardProps {
@@ -54,6 +56,9 @@ interface UserDashboardProps {
   onViewReadingAnalytics?: () => void
   onFeatureUnlock?: (featureId: 'reading-analytics') => void
   accessToken?: string
+  equippedBadgeId?: string | null
+  profileBannerUrl?: string | null
+  userEmail?: string | null
 }
 
 const achievementData: Record<string, { name: string; description: string; icon: any; color: string; rarity: 'common' | 'rare' | 'epic' | 'legendary' }> = {
@@ -117,7 +122,7 @@ const lockedAchievements = [
   { id: 'streak-30', requiredStreak: 30 },
 ]
 
-export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements, onViewPointsSystem, onViewReadingAnalytics, onFeatureUnlock, accessToken }: UserDashboardProps) {
+export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements, onViewPointsSystem, onViewReadingAnalytics, onFeatureUnlock, accessToken, equippedBadgeId, profileBannerUrl, userEmail }: UserDashboardProps) {
   const [hoveredStat, setHoveredStat] = useState<string | null>(null)
   const [fireIconClicked, setFireIconClicked] = useState(false)
   const [marketingNewsletter, setMarketingNewsletter] = useState(false)
@@ -355,6 +360,93 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
 
   return (
     <div className="space-y-8">
+      {/* PROFILE BANNER WITH FLOATING BUSINESS CARD */}
+      <div className="relative overflow-hidden rounded-3xl min-h-[400px] flex items-end pb-8">
+        {/* Banner Background */}
+        {profileBannerUrl ? (
+          <>
+            <img
+              src={profileBannerUrl}
+              alt="Profile Banner"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            {/* Gradient overlay for depth */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/30 to-black/60" />
+          </>
+        ) : (
+          // Default gradient if no banner
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600" />
+        )}
+
+        {/* Floating Business Card */}
+        <div className="relative w-full px-6">
+          <div className="max-w-2xl mx-auto">
+            {/* Glass morphism card */}
+            <div className="relative group">
+              {/* Glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
+              
+              {/* Main card */}
+              <div className="relative backdrop-blur-2xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl">
+                <div className="flex items-center gap-6 flex-wrap">
+                  {/* Avatar with badge */}
+                  <div className="relative flex-shrink-0">
+                    {/* Avatar glow */}
+                    <div className="absolute -inset-3 bg-gradient-to-br from-emerald-400 to-teal-400 rounded-full blur-xl opacity-50" />
+                    
+                    {/* Avatar container */}
+                    <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 p-1 shadow-xl">
+                      <div className="w-full h-full rounded-full bg-emerald-600 flex items-center justify-center">
+                        <User className="w-12 h-12 text-white" />
+                      </div>
+                    </div>
+
+                    {/* Equipped Badge - positioned at bottom right */}
+                    {equippedBadgeId && (
+                      <div className="absolute -bottom-2 -right-2 transform scale-90">
+                        <BadgeDisplay
+                          badgeId={equippedBadgeId}
+                          size="md"
+                          equipped={true}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* User Info */}
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-3xl font-bold text-white mb-1 truncate">
+                      {progress.nickname || 'Hemp Pioneer'}
+                    </h2>
+                    {userEmail && (
+                      <p className="text-white/70 text-sm truncate mb-3">
+                        {userEmail}
+                      </p>
+                    )}
+                    
+                    {/* Stats pills */}
+                    <div className="flex flex-wrap gap-2">
+                      <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-full px-4 py-1.5 flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-yellow-400" />
+                        <span className="text-white font-semibold text-sm">{progress.points.toLocaleString()} XP</span>
+                      </div>
+                      <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-full px-4 py-1.5 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-emerald-400" />
+                        <span className="text-white font-semibold text-sm">{progress.totalArticlesRead} articles</span>
+                      </div>
+                      <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-full px-4 py-1.5 flex items-center gap-2">
+                        <Flame className="w-4 h-4 text-orange-400" />
+                        <span className="text-white font-semibold text-sm">{progress.currentStreak} day streak</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ULTRA HERO LEVEL CARD */}
       <div className="relative overflow-hidden rounded-3xl">
         {/* Animated gradient background - Dynamic based on level */}
@@ -404,6 +496,17 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                   <Sparkles key={i} className={`w-5 h-5 ${levelConfig.sparkleColor} animate-pulse`} style={{ animationDelay: `${i * 0.2}s` }} />
                 ))}
               </div>
+              
+              {/* Equipped Badge Display */}
+              {equippedBadgeId && (
+                <div className="mt-3">
+                  <BadgeDisplay
+                    badgeId={equippedBadgeId}
+                    size="lg"
+                    equipped={true}
+                  />
+                </div>
+              )}
             </div>
             
             {/* XP Display and Progress Info */}

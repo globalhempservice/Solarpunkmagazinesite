@@ -1,10 +1,10 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { motion, useMotionValue, useTransform, PanInfo } from 'motion/react'
+import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from 'motion/react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
 import { PreviewCard } from './PreviewCard'
-import { Heart, X, Sparkles, RefreshCw, Clock, User, Grid, ExternalLink, Rss } from 'lucide-react'
+import { Heart, X, Sparkles, RefreshCw, Clock, User, Grid, ExternalLink, Rss, BookOpen, Zap, ThumbsUp, ThumbsDown, Sun, Lightbulb, Sprout, Wind, Users, Eye, Grid3x3 } from 'lucide-react'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 import { toast } from 'sonner@2.0.3'
 
@@ -56,6 +56,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
   const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [showComicFeedback, setShowComicFeedback] = useState<'match' | 'skip' | null>(null)
   
   const x = useMotionValue(0)
   const rotate = useTransform(x, [-200, 200], [-25, 25])
@@ -72,6 +73,28 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
   
   // Preload next 3 cards - filter out any articles without valid IDs
   const visibleCards = articles.slice(currentIndex, currentIndex + 3).filter(article => article && article.id)
+
+  // Category config with icons and colors
+  const getCategoryConfig = (categoryName: string) => {
+    const categories: Record<string, { icon: any, color: string }> = {
+      'Renewable Energy': { icon: Sun, color: 'from-amber-500 to-orange-500' },
+      'Sustainable Tech': { icon: Lightbulb, color: 'from-blue-500 to-cyan-500' },
+      'Green Cities': { icon: Sprout, color: 'from-emerald-500 to-teal-500' },
+      'Eco Innovation': { icon: Sparkles, color: 'from-purple-500 to-pink-500' },
+      'Climate Action': { icon: Wind, color: 'from-sky-500 to-blue-500' },
+      'Community': { icon: Users, color: 'from-rose-500 to-red-500' },
+      'Future Vision': { icon: Eye, color: 'from-violet-500 to-purple-500' },
+    }
+    return categories[categoryName] || { icon: Grid3x3, color: 'from-indigo-500 to-purple-500' }
+  }
+
+  // Get random comic words for feedback
+  const getComicWord = (type: 'match' | 'skip') => {
+    const matchWords = ['BOOM!', 'YEAH!', 'POW!', 'SWEET!', 'NICE!', 'WHAM!']
+    const skipWords = ['NOPE!', 'PASS!', 'NEXT!', 'SKIP!', 'NAH!', 'BYE!']
+    const words = type === 'match' ? matchWords : skipWords
+    return words[Math.floor(Math.random() * words.length)]
+  }
 
   const handleDragEnd = (event: any, info: PanInfo) => {
     if (isAnimating) return
@@ -94,6 +117,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     
     setIsAnimating(true)
     setExitDirection('right')
+    setShowComicFeedback('match')
     setMatchedArticles([...matchedArticles, currentArticle])
     onMatch(currentArticle)
     
@@ -122,9 +146,10 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     setTimeout(() => {
       setCurrentIndex(prev => prev + 1)
       setExitDirection(null)
+      setShowComicFeedback(null)
       setIsAnimating(false)
       x.set(0)
-    }, 400)
+    }, 800)
   }
 
   const handleSkip = () => {
@@ -132,6 +157,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     
     setIsAnimating(true)
     setExitDirection('left')
+    setShowComicFeedback('skip')
     
     // Track the swipe with "liked" = false for skips
     if (accessToken) {
@@ -158,9 +184,10 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
     setTimeout(() => {
       setCurrentIndex(prev => prev + 1)
       setExitDirection(null)
+      setShowComicFeedback(null)
       setIsAnimating(false)
       x.set(0)
-    }, 400)
+    }, 800)
   }
 
   const handleReset = () => {
@@ -240,22 +267,80 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
 
   return (
     <div className="max-w-md mx-auto h-full flex flex-col py-4 sm:py-6">
-      {/* Stats Pills - Top Section */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 mb-4 sm:mb-6">
-        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-3 py-2 shadow-md">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span className="font-semibold">{articles.length - currentIndex}</span>
-          <span className="text-muted-foreground">left</span>
-        </Badge>
-        <Badge variant="secondary" className="gap-1.5 text-xs sm:text-sm px-3 py-2 shadow-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-          <Heart className="w-3.5 h-3.5 fill-emerald-500" />
-          <span className="font-semibold">{matchedArticles.length}</span>
-          <span className="text-emerald-600/70 dark:text-emerald-400/70">matches</span>
-        </Badge>
-      </div>
+      {/* Comic Feedback Overlay - BIG and CENTERED */}
+      <AnimatePresence>
+        {showComicFeedback && (
+          <motion.div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
+            initial={{ scale: 0, rotate: -15 }}
+            animate={{ 
+              scale: [0, 1.3, 1.1],
+              rotate: showComicFeedback === 'match' ? [0, -10, 5] : [0, 10, -5]
+            }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ 
+              duration: 0.5,
+              ease: [0.34, 1.56, 0.64, 1]
+            }}
+          >
+            <div className={`
+              relative px-12 py-8 rounded-3xl
+              ${showComicFeedback === 'match' 
+                ? 'bg-gradient-to-br from-green-400 to-emerald-500' 
+                : 'bg-gradient-to-br from-red-400 to-rose-500'}
+              border-6 border-white
+              shadow-[0_20px_60px_rgba(0,0,0,0.4)]
+            `}>
+              {/* Comic-style burst glow */}
+              <div className={`
+                absolute inset-0 rounded-3xl blur-2xl opacity-80
+                ${showComicFeedback === 'match' ? 'bg-green-300' : 'bg-red-300'}
+              `} />
+              
+              {/* Comic word text */}
+              <span 
+                className="relative block text-6xl sm:text-7xl font-black text-white drop-shadow-[0_8px_8px_rgba(0,0,0,0.5)]"
+                style={{
+                  textShadow: `
+                    4px 4px 0 rgba(0,0,0,0.3),
+                    -2px -2px 0 rgba(255,255,255,0.3),
+                    0 0 20px ${showComicFeedback === 'match' ? 'rgba(34,197,94,0.8)' : 'rgba(239,68,68,0.8)'}
+                  `,
+                  WebkitTextStroke: '3px rgba(0,0,0,0.2)'
+                }}
+              >
+                {getComicWord(showComicFeedback)}
+              </span>
+              
+              {/* Comic-style rays */}
+              {[...Array(8)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className={`absolute w-1 h-8 ${showComicFeedback === 'match' ? 'bg-green-200' : 'bg-red-200'} rounded-full`}
+                  style={{
+                    top: '50%',
+                    left: '50%',
+                    transformOrigin: '0 0',
+                    rotate: `${i * 45}deg`
+                  }}
+                  initial={{ scale: 0, x: 0 }}
+                  animate={{ 
+                    scale: [0, 1.5, 0],
+                    x: [0, 50, 60]
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.1
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Card Stack - Takes up available space */}
-      <div className="relative flex-1 min-h-0 px-4 mb-6 sm:mb-8">
+      {/* Card Stack - Takes up available space WITH PADDING FROM EDGES */}
+      <div className="relative flex-1 min-h-0 px-6 sm:px-8 mb-6 sm:mb-8">
         {/* Background cards for depth - Show next 2 cards with PreviewCard component */}
         {visibleCards.slice(1, 3).map((article, index) => (
           <PreviewCard
@@ -272,7 +357,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
         {currentArticle && (
           <motion.div
             key={currentArticle.id}
-            className="absolute inset-0 cursor-grab active:cursor-grabbing"
+            className="absolute inset-6 sm:inset-8 cursor-grab active:cursor-grabbing"
             style={{
               x,
               rotate,
@@ -295,7 +380,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
           >
             <div className="h-full rounded-3xl border-2 border-border bg-card shadow-2xl overflow-hidden flex flex-col">
               {/* Cover Image */}
-              <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-emerald-500/20 to-sky-500/20 overflow-hidden flex-shrink-0">
+              <div className="relative h-52 bg-gradient-to-br from-emerald-500/20 to-sky-500/20 overflow-hidden flex-shrink-0">
                 {currentArticle.coverImage ? (
                   <img
                     src={currentArticle.coverImage}
@@ -323,10 +408,23 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
                 
-                {/* Category Badge */}
-                <Badge className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm border-2">
-                  {currentArticle.category}
-                </Badge>
+                {/* Category Icon Badge - Sexy and Playful */}
+                {(() => {
+                  const categoryConfig = getCategoryConfig(currentArticle.category)
+                  const CategoryIcon = categoryConfig.icon
+                  return (
+                    <div className="absolute top-4 right-4">
+                      <div className="relative group">
+                        {/* Glow effect */}
+                        <div className={`absolute inset-0 bg-gradient-to-br ${categoryConfig.color} rounded-2xl blur-lg opacity-70 group-hover:opacity-100 transition-opacity`} />
+                        {/* Icon container */}
+                        <div className={`relative p-3 bg-gradient-to-br ${categoryConfig.color} rounded-2xl border-3 border-white/40 shadow-[0_4px_0_rgba(0,0,0,0.2)] backdrop-blur-sm group-hover:scale-110 transition-transform`}>
+                          <CategoryIcon className="w-6 h-6 text-white drop-shadow-lg" strokeWidth={2.5} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
                 
                 {/* External RSS Badge - Top Left */}
                 {currentArticle.isExternal && (
@@ -339,19 +437,19 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                 )}
               </div>
 
-              {/* Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2 line-clamp-2">
+              {/* Content */}
+              <div className="flex-1 p-6 space-y-4 flex flex-col">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold mb-3 line-clamp-2">
                     {currentArticle.title}
                   </h2>
-                  <p className="text-muted-foreground line-clamp-3 text-sm sm:text-base">
+                  <p className="text-muted-foreground line-clamp-2 text-base">
                     {currentArticle.excerpt}
                   </p>
                 </div>
 
                 {/* Meta Info */}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground pb-2">
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
                     {currentArticle.readingTime} min
@@ -383,9 +481,8 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                             .then(res => res.json())
                             .then(data => {
                               if (data.success) {
-                                toast.success(`+${pointsToEarn} points for reading!`, {
-                                  description: 'Keep exploring curated content'
-                                })
+                                // Points awarded silently - no toast notification
+                                console.log(`+${pointsToEarn} points earned for reading external article`)
                               }
                             })
                             .catch(error => {
@@ -394,7 +491,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                         }
                       }
                     }}
-                    className="w-full h-11 sm:h-12 bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 hover:from-emerald-700 hover:to-teal-700 flex items-center justify-center gap-2"
+                    className="w-full h-12 bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 hover:from-emerald-700 hover:to-teal-700 flex items-center justify-center gap-2"
                   >
                     <ExternalLink className="w-4 h-4" />
                     READ NOW
@@ -404,7 +501,7 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
                   <Button
                     onClick={handleReadNow}
                     variant="outline"
-                    className="w-full h-11 sm:h-12 border-2 border-primary/20 hover:bg-primary/5"
+                    className="w-full h-12 border-2 border-primary/20 hover:bg-primary/5"
                   >
                     Read Full Article
                   </Button>
@@ -438,88 +535,38 @@ export const SwipeMode = forwardRef<SwipeModeRef, SwipeModeProps>(({ articles, o
         )}
       </div>
 
-      {/* Control Panel - Gamified Design */}
+      {/* Bottom Action Buttons - Thumbs Style */}
       <div className="flex-shrink-0 pb-28">
-        {/* Gamified Control Buttons */}
-        <div className="flex items-center justify-center gap-4 sm:gap-6 px-4">
-          {/* Skip Button */}
-          <button
+        <div className="flex items-center justify-center gap-8 px-4">
+          {/* Skip Button - Thumbs Down */}
+          <motion.button
+            whileTap={{ scale: 0.85 }}
             onClick={handleSkip}
             disabled={isAnimating}
-            className="group relative flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group relative disabled:opacity-50 disabled:cursor-not-allowed"
+            animate={exitDirection === 'left' ? { scale: [1, 1.2, 1] } : {}}
+            transition={{ duration: 0.3 }}
           >
-            {/* Animated Glow Ring */}
-            <div className="absolute -inset-3 bg-gradient-to-br from-red-500/30 to-rose-500/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            
-            {/* Button Circle */}
-            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95 group-hover:shadow-xl group-hover:shadow-red-500/60">
-              {/* Inner glow */}
-              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-red-400/50 to-transparent" />
-              
-              {/* Icon */}
-              <X className="w-8 h-8 sm:w-10 sm:h-10 text-white relative z-10 transition-transform group-hover:rotate-90 duration-300" strokeWidth={3} />
-              
-              {/* Pulse Ring */}
-              <div className="absolute inset-0 rounded-full border-2 border-red-400/50 animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="absolute -inset-3 bg-red-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-[0_10px_40px_rgba(239,68,68,0.5)] border-4 border-white/20 group-hover:scale-110 transition-all">
+              <ThumbsDown className="w-10 h-10 text-white" strokeWidth={3} />
             </div>
-            
-            {/* Label */}
-            <span className="text-xs font-bold text-red-600 dark:text-red-400">SKIP</span>
-          </button>
+          </motion.button>
 
-          {/* Match Button - Larger & Elevated */}
-          <button
+          {/* Match Button - Thumbs Up */}
+          <motion.button
+            whileTap={{ scale: 0.85 }}
             onClick={handleMatch}
             disabled={isAnimating}
-            className="group relative flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed -mt-4"
+            className="group relative disabled:opacity-50 disabled:cursor-not-allowed"
+            animate={exitDirection === 'right' ? { scale: [1, 1.2, 1] } : {}}
+            transition={{ duration: 0.3 }}
           >
-            {/* Large Animated Glow */}
-            <div className="absolute -inset-6 bg-gradient-to-br from-emerald-400/50 to-teal-500/50 rounded-full blur-2xl opacity-75 group-hover:opacity-100 transition-opacity duration-300 animate-pulse" style={{ animationDuration: '3s' }} />
-            
-            {/* Button Circle - Larger */}
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 shadow-2xl shadow-emerald-500/60 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95 group-hover:shadow-emerald-500/80">
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              
-              {/* Inner glow */}
-              <div className="absolute inset-3 rounded-full bg-gradient-to-br from-emerald-300/60 to-transparent" />
-              
-              {/* Icon */}
-              <Heart className="w-10 h-10 sm:w-12 sm:h-12 text-white fill-white relative z-10 transition-transform group-hover:scale-110 duration-300" strokeWidth={2} />
-              
-              {/* Double Pulse Rings */}
-              <div className="absolute inset-0 rounded-full border-3 border-emerald-300/60 animate-ping" style={{ animationDuration: '2s' }} />
-              <div className="absolute inset-0 rounded-full border-2 border-emerald-400/40 animate-ping" style={{ animationDuration: '3s', animationDelay: '0.5s' }} />
+            <div className="absolute -inset-3 bg-green-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-[0_10px_40px_rgba(34,197,94,0.5)] border-4 border-white/20 group-hover:scale-110 transition-all">
+              <ThumbsUp className="w-10 h-10 text-white" strokeWidth={3} />
             </div>
-            
-            {/* Label with glow */}
-            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 drop-shadow-lg">MATCH</span>
-          </button>
-
-          {/* Reset Button */}
-          <button
-            onClick={handleReset}
-            disabled={isAnimating}
-            className="group relative flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {/* Animated Glow Ring */}
-            <div className="absolute -inset-3 bg-gradient-to-br from-primary/30 to-sky-500/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            
-            {/* Button Circle */}
-            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-primary to-sky-600 shadow-lg shadow-primary/50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95 group-hover:shadow-xl group-hover:shadow-primary/60">
-              {/* Inner glow */}
-              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-sky-400/50 to-transparent" />
-              
-              {/* Icon */}
-              <RefreshCw className="w-7 h-7 sm:w-9 sm:h-9 text-white relative z-10 transition-transform group-hover:rotate-180 duration-500" strokeWidth={2.5} />
-              
-              {/* Pulse Ring */}
-              <div className="absolute inset-0 rounded-full border-2 border-sky-400/50 animate-ping" style={{ animationDuration: '2s' }} />
-            </div>
-            
-            {/* Label */}
-            <span className="text-xs font-bold text-primary">RESET</span>
-          </button>
+          </motion.button>
         </div>
       </div>
     </div>

@@ -53,6 +53,7 @@ import { AdminNadaTracker } from './AdminNadaTracker'
 import { MonitoringBot } from './MonitoringBot'
 import { RSSFeedManager } from './RSSFeedManager'
 import { CompaniesAdminTab } from './CompaniesAdminTab'
+import { BadgeVerificationTab } from './BadgeVerificationTab'
 
 interface DashboardStats {
   totalUsers: number
@@ -214,7 +215,7 @@ interface AdminDashboardProps {
   onNavigateToSwagAdmin?: () => void
 }
 
-type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss' | 'companies'
+type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss' | 'companies' | 'badges'
 type ViewMode = 'classic' | 'feature'
 type FeatureTab = 'content' | 'swipe' | 'users' | 'gamification' | 'security' | 'analytics'
 
@@ -508,6 +509,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           { id: 'users', label: 'Users' },
           { id: 'articles', label: 'Articles' },
           { id: 'companies', label: '🏢 Companies' },
+          { id: 'badges', label: '🏅 Badge Verification' },
           { id: 'rankings', label: 'Rankings' },
           { id: 'gamification', label: 'Gamification' },
           { id: 'swipeStats', label: 'Swipe Stats' },
@@ -2006,6 +2008,14 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
       {/* Companies Tab */}
       {activeTab === 'companies' && (
         <CompaniesAdminTab
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+        />
+      )}
+
+      {/* Badge Verification Tab */}
+      {activeTab === 'badges' && (
+        <BadgeVerificationTab
           accessToken={accessToken}
           serverUrl={serverUrl}
         />

@@ -7,6 +7,7 @@ import * as kv from './kv_store.tsx'
 import { parseRSSFeed, generateFeedId, generateArticleId, RSSFeed, RSSArticle } from './rss_parser.tsx'
 import { setupCompanyRoutes } from './company_routes.tsx'
 import { setupSwagRoutes } from './swag_routes.tsx'
+import { setupArticleOrganizationRoutes } from './article_organization_routes.tsx'
 
 // Helper function to extract site metadata from URL
 function extractSiteMetadata(url: string) {
@@ -51,9 +52,10 @@ const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey)
 
 // Initialize storage buckets for article media and PDFs
 async function initStorage() {
+  const { data: buckets } = await supabase.storage.listBuckets()
+  
   // Media bucket for images
   const mediaBucketName = 'make-053bcd80-magazine-media'
-  const { data: buckets } = await supabase.storage.listBuckets()
   const mediaBucketExists = buckets?.some(bucket => bucket.name === mediaBucketName)
   if (!mediaBucketExists) {
     await supabase.storage.createBucket(mediaBucketName, { public: false })
@@ -64,6 +66,17 @@ async function initStorage() {
   const pdfBucketExists = buckets?.some(bucket => bucket.name === pdfBucketName)
   if (!pdfBucketExists) {
     await supabase.storage.createBucket(pdfBucketName, { public: false })
+  }
+  
+  // Profile banners bucket
+  const bannerBucketName = 'make-053bcd80-profile-banners'
+  const bannerBucketExists = buckets?.some(bucket => bucket.name === bannerBucketName)
+  if (!bannerBucketExists) {
+    await supabase.storage.createBucket(bannerBucketName, { 
+      public: false,
+      fileSizeLimit: 5242880 // 5MB
+    })
+    console.log('✅ Created profile banners bucket')
   }
 }
 
@@ -165,22 +178,363 @@ console.log('🛍️ Calling setupSwagRoutes...')
 setupSwagRoutes(app, requireAuth)
 console.log('✅ setupSwagRoutes called')
 
-// TEST ROUTE - Remove after debugging
+// Setup article-organization-authors routes
+console.log('📝 Setting up article-organization-authors routes...')
+setupArticleOrganizationRoutes(app, requireAuth)
+console.log('✅ Article-organization-authors routes setup complete')
+
+// ============================================
+// SWAG PURCHASE ANALYTICS ROUTES
+// ============================================
+
+// Track analytics (product view, click-through, purchase)
+app.post('/make-server-053bcd80/analytics/track', requireAuth, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const body = await c.req.json()
+    const {
+      product_id,
+      company_id,
+      action_type,
+      external_shop_platform
+    } = body
+
+    console.log('📊 Tracking analytics:', { userId, product_id, action_type })
+
+    // Validate action type
+    const validActionTypes = ['product_view', 'click_through', 'purchase_complete']
+    if (!validActionTypes.includes(action_type)) {
+      return c.json({ error: 'Invalid action_type' }, 400)
+    }
+
+    // Calculate NADA points for this action
+    let nadaAwarded = 0
+    
+    if (action_type === 'click_through') {
+      // Base points for supporting hemp business
+      nadaAwarded = 50
+
+      // Get product to check for provenance bonuses
+      const { data: product, error: productError } = await supabase
+        .from('swag_products_053bcd80')
+        .select('provenance_verified, conscious_score, certifications')
+        .eq('id', product_id)
+        .single()
+
+      if (!productError && product) {
+        // Bonus: Verified provenance
+        if (product.provenance_verified) {
+          nadaAwarded += 25
+        }
+
+        // Bonus: High conscious score (90+)
+        if (product.conscious_score && product.conscious_score >= 90) {
+          nadaAwarded += 25
+        }
+
+        // Bonus: Regenerative certified
+        if (product.certifications && product.certifications.includes('Regenerative')) {
+          nadaAwarded += 50
+        }
+      }
+
+      // Award NADA points to user
+      const userKey = `user:${userId}`
+      const userData = await kv.get(userKey)
+      const currentNada = userData?.nada_points || 0
+
+      await kv.set(userKey, {
+        ...userData,
+        nada_points: currentNada + nadaAwarded,
+        updated_at: new Date().toISOString()
+      })
+
+      console.log('✅ NADA awarded:', nadaAwarded, 'New balance:', currentNada + nadaAwarded)
+    }
+
+    // Insert analytics record into database
+    const { data: analyticsRecord, error: insertError } = await supabase
+      .from('swag_purchase_analytics_053bcd80')
+      .insert({
+        user_id: userId,
+        product_id,
+        company_id,
+        action_type,
+        external_shop_platform,
+        nada_points_awarded: nadaAwarded
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('❌ Error inserting analytics:', insertError)
+      return c.json({ error: 'Failed to track analytics', details: insertError.message }, 500)
+    }
+
+    return c.json({
+      success: true,
+      nada_awarded: nadaAwarded,
+      analytics_id: analyticsRecord.id
+    })
+  } catch (error: any) {
+    console.error('❌ Error tracking analytics:', error)
+    return c.json({ error: 'Failed to track analytics', details: error.message }, 500)
+  }
+})
+
+// Get analytics for a specific product
+app.get('/make-server-053bcd80/analytics/product/:productId', requireAuth, async (c) => {
+  try {
+    const productId = c.req.param('productId')
+    const userId = c.get('userId')
+
+    console.log('📊 Fetching product analytics:', productId)
+
+    // Check if user owns the company that owns this product
+    const { data: product } = await supabase
+      .from('swag_products_053bcd80')
+      .select('company_id')
+      .eq('id', productId)
+      .single()
+
+    if (!product) {
+      return c.json({ error: 'Product not found' }, 404)
+    }
+
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', product.company_id)
+      .single()
+
+    if (!company) {
+      return c.json({ error: 'Company not found' }, 404)
+    }
+
+    // Check authorization
+    const isOwner = company.owner_id === userId
+
+    if (!isOwner) {
+      return c.json({ error: 'Unauthorized - Only company owners can view analytics' }, 403)
+    }
+
+    // Get analytics summary from view
+    const { data: summary, error: summaryError } = await supabase
+      .from('swag_product_analytics_summary')
+      .select('*')
+      .eq('product_id', productId)
+      .single()
+
+    if (summaryError) {
+      // If no analytics yet, return zeros
+      return c.json({
+        product_id: productId,
+        total_views: 0,
+        total_clicks: 0,
+        total_purchases: 0,
+        unique_users: 0,
+        click_through_rate: 0,
+        total_nada_awarded: 0
+      })
+    }
+
+    return c.json(summary)
+  } catch (error: any) {
+    console.error('❌ Error fetching product analytics:', error)
+    return c.json({ error: 'Failed to fetch analytics', details: error.message }, 500)
+  }
+})
+
+// Get analytics for all products in a company
+app.get('/make-server-053bcd80/analytics/company/:companyId', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const userId = c.get('userId')
+
+    console.log('📊 Fetching company analytics:', companyId)
+
+    // Check authorization
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+
+    if (companyError) {
+      console.error('❌ Error fetching company:', companyError)
+      return c.json({ error: 'Company not found', details: companyError.message }, 404)
+    }
+
+    if (!company) {
+      console.error('❌ Company not found:', companyId)
+      return c.json({ error: 'Company not found' }, 404)
+    }
+
+    console.log('✅ Company found, checking authorization for user:', userId)
+
+    const isOwner = company.owner_id === userId
+
+    if (!isOwner) {
+      return c.json({ error: 'Unauthorized - Only company owners can view analytics' }, 403)
+    }
+
+    // Get analytics summary for all products
+    console.log('🔍 Querying swag_product_analytics_summary for company:', companyId)
+    const { data: summaries, error: summaryError } = await supabase
+      .from('swag_product_analytics_summary')
+      .select('*')
+      .eq('company_id', companyId)
+
+    if (summaryError) {
+      console.error('❌ Error fetching company analytics:', summaryError)
+      console.error('❌ Error code:', summaryError.code)
+      console.error('❌ Error details:', summaryError.details)
+      return c.json({ error: 'Failed to fetch analytics', details: summaryError.message }, 500)
+    }
+
+    console.log('✅ Analytics summaries fetched:', summaries?.length || 0, 'products')
+
+    // Calculate totals
+    const totals = {
+      total_views: 0,
+      total_clicks: 0,
+      total_purchases: 0,
+      unique_users: new Set(),
+      total_nada_awarded: 0,
+      products_with_analytics: summaries?.length || 0
+    }
+
+    summaries?.forEach((summary: any) => {
+      totals.total_views += summary.total_views || 0
+      totals.total_clicks += summary.total_clicks || 0
+      totals.total_purchases += summary.total_purchases || 0
+      totals.total_nada_awarded += summary.total_nada_awarded || 0
+    })
+
+    // Calculate conversion rate (clicks / views * 100)
+    const conversion_rate = totals.total_views > 0 
+      ? (totals.total_clicks / totals.total_views * 100)
+      : 0
+
+    return c.json({
+      company_id: companyId,
+      totals: {
+        ...totals,
+        unique_users: totals.unique_users.size,
+        conversion_rate: Math.round(conversion_rate * 10) / 10 // Round to 1 decimal
+      },
+      products: summaries || []
+    })
+  } catch (error: any) {
+    console.error('❌ Error fetching company analytics:', error)
+    return c.json({ error: 'Failed to fetch analytics', details: error.message }, 500)
+  }
+})
+
+// ===== HEALTH CHECK & DEBUG ROUTES =====
+
+// Health check endpoint
+app.get('/make-server-053bcd80/health', (c) => {
+  return c.json({ 
+    status: 'ok',
+    message: 'DEWII Edge Function is running! ✅',
+    timestamp: new Date().toISOString(),
+    version: '2.0.0-multi-author-debug',
+    routes: {
+      articles: 'PUBLIC - no auth required',
+      companies: 'Protected endpoints',
+      swag: 'Mixed public/protected',
+      organizations: 'Public read, protected write'
+    }
+  })
+})
+
+// DIAGNOSTIC ENDPOINT - Check articles table status
+app.get('/make-server-053bcd80/diagnostic/articles', async (c) => {
+  try {
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      checks: {}
+    }
+    
+    // Check 1: Can we query the table at all?
+    const { count, error: countError } = await supabase
+      .from('articles')
+      .select('*', { count: 'exact', head: true })
+    
+    diagnostics.checks.tableAccess = {
+      success: !countError,
+      totalCount: count,
+      error: countError?.message || null
+    }
+    
+    // Check 2: Can we fetch first 5 articles?
+    const { data: sample, error: sampleError } = await supabase
+      .from('articles')
+      .select('*')
+      .limit(5)
+    
+    diagnostics.checks.sampleQuery = {
+      success: !sampleError,
+      articlesReturned: sample?.length || 0,
+      sampleTitles: sample?.map(a => a.title) || [],
+      sampleIds: sample?.map(a => a.id) || [],
+      error: sampleError?.message || null,
+      errorCode: sampleError?.code || null,
+      errorDetails: sampleError?.details || null
+    }
+    
+    // Check 3: What columns exist?
+    if (sample && sample.length > 0) {
+      diagnostics.checks.tableSchema = {
+        columns: Object.keys(sample[0])
+      }
+    }
+    
+    return c.json(diagnostics)
+  } catch (error: any) {
+    return c.json({
+      error: 'Diagnostic failed',
+      message: error.message,
+      stack: error.stack
+    }, 500)
+  }
+})
+
+// Test route for swag
 app.get('/make-server-053bcd80/test-swag-route', (c) => {
   return c.json({ message: 'Swag routes are working!' })
 })
 
 // ===== ARTICLE ROUTES =====
 
+// DEBUG: Log all incoming requests to /articles
+app.use('/make-server-053bcd80/articles', async (c, next) => {
+  console.log('🔍 INCOMING REQUEST TO /articles')
+  console.log('   Method:', c.req.method)
+  console.log('   URL:', c.req.url)
+  console.log('   Headers:', JSON.stringify(Object.fromEntries(c.req.raw.headers.entries())))
+  await next()
+})
+
 // Get all articles (with optional filtering)
 app.get('/make-server-053bcd80/articles', async (c) => {
   try {
+    console.log('🎯🎯🎯 ARTICLES ENDPOINT HIT! 🎯🎯🎯')
+    console.log('📰 [PUBLIC ROUTE] GET /articles - No auth required')
     const category = c.req.query('category')
     const limit = parseInt(c.req.query('limit') || '50')
     
-    console.log('Fetching articles from SQL database and KV store...')
+    console.log('Fetching articles from SQL database and KV store...', { category, limit })
     
-    // Build query for SQL articles
+    // DIAGNOSTIC: First check if we can even access the articles table
+    const { count, error: countError } = await supabase
+      .from('articles')
+      .select('*', { count: 'exact', head: true })
+    
+    console.log('📊 Articles table total count:', count, 'Error:', countError?.message || 'none')
+    
+    // Build query for SQL articles - use * to get all columns
     let query = supabase
       .from('articles')
       .select('*')
@@ -189,21 +543,37 @@ app.get('/make-server-053bcd80/articles', async (c) => {
     
     // Filter by category if provided
     if (category && category !== 'all') {
+      console.log('🔍 Filtering by category:', category)
       query = query.eq('category', category)
     }
     
+    console.log('🔍 Executing SQL query...')
     const { data: sqlArticles, error } = await query
     
     if (error) {
-      console.error('Error fetching articles from SQL:', error)
+      console.error('❌ Error fetching articles from SQL:', error)
+      console.error('❌ Error code:', error.code)
+      console.error('❌ Error message:', error.message)
+      console.error('❌ Error details:', error.details)
+      console.error('❌ Error hint:', error.hint)
       throw error
     }
     
-    console.log('Fetched', sqlArticles?.length || 0, 'articles from SQL database')
+    console.log('✅ Fetched', sqlArticles?.length || 0, 'articles from SQL database')
+    console.log('📊 Sample article (first):', sqlArticles?.[0] ? JSON.stringify(sqlArticles[0], null, 2) : 'none')
+    console.log('📊 Article IDs:', sqlArticles?.slice(0, 5).map(a => a.id) || [])
     
     // Transform SQL articles to frontend format (snake_case -> camelCase) and filter out any without IDs
+    console.log('🔄 Transforming SQL articles...')
+    const beforeFilter = sqlArticles?.length || 0
     const transformedSqlArticles = (sqlArticles || [])
-      .filter(article => article && article.id)
+      .filter(article => {
+        const hasId = article && article.id
+        if (!hasId) {
+          console.warn('⚠️  Article filtered out (no ID):', article)
+        }
+        return hasId
+      })
       .map(article => ({
         id: article.id,
         title: article.title,
@@ -317,7 +687,17 @@ app.get('/make-server-053bcd80/articles', async (c) => {
     // Apply limit after combining
     const limitedArticles = allArticles.slice(0, limit)
     
-    console.log('Total articles returned:', limitedArticles.length, '(SQL:', transformedSqlArticles.length, '+ KV:', transformedKvArticles.length, ')')
+    console.log('📦 Total articles returned:', limitedArticles.length, '(SQL:', transformedSqlArticles.length, '+ KV:', transformedKvArticles.length, ')')
+    console.log('📦 First 3 article titles:', limitedArticles.slice(0, 3).map(a => a.title))
+    
+    // CRITICAL: Check if we're returning empty array
+    if (limitedArticles.length === 0) {
+      console.error('🚨 ZERO ARTICLES RETURNED!')
+      console.error('   SQL articles before filter:', beforeFilter)
+      console.error('   SQL articles after transform:', transformedSqlArticles.length)
+      console.error('   KV articles:', transformedKvArticles.length)
+      console.error('   Category filter:', category)
+    }
     
     return c.json({ articles: limitedArticles })
   } catch (error: any) {
@@ -466,18 +846,37 @@ app.post('/make-server-053bcd80/articles', requireAuth, async (c) => {
     console.log('Creating article for user:', userId)
     console.log('Article data received:', JSON.stringify(body, null, 2))
     
-    const { title, content, excerpt, category, coverImage, readingTime, media, source, sourceUrl, author, authorImage, authorTitle, publishDate } = body
+    const { title, content, excerpt, category, coverImage, readingTime, media, source, sourceUrl, author, authorImage, authorTitle, publishDate, organizationId } = body
     
     if (!title || !content) {
       console.log('Validation failed: missing title or content')
       return c.json({ error: 'Title and content are required' }, 400)
     }
     
+    // If organizationId provided, verify user owns the organization
+    if (organizationId) {
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('owner_id')
+        .eq('id', organizationId)
+        .single()
+      
+      if (companyError || !company) {
+        console.log('Organization not found:', organizationId)
+        return c.json({ error: 'Organization not found' }, 404)
+      }
+      
+      if (company.owner_id !== userId) {
+        console.log('User does not own organization:', userId, organizationId)
+        return c.json({ error: 'Only organization owners can publish articles under the organization' }, 403)
+      }
+    }
+    
     // Create article ID
     const articleId = crypto.randomUUID()
     const now = new Date().toISOString()
     
-    // Create article object (snake_case for SQL) - now with all columns
+    // Create article object (snake_case for SQL) - now with all columns including organization_id
     const article = {
       id: articleId,
       title,
@@ -487,6 +886,7 @@ app.post('/make-server-053bcd80/articles', requireAuth, async (c) => {
       cover_image: coverImage || '',
       reading_time: readingTime || 5,
       author_id: userId,
+      organization_id: organizationId || null,
       views: 0,
       likes: 0,
       created_at: now,
@@ -568,6 +968,7 @@ app.post('/make-server-053bcd80/articles', requireAuth, async (c) => {
       coverImage: savedArticle.cover_image,
       readingTime: savedArticle.reading_time,
       authorId: savedArticle.author_id,
+      organizationId: savedArticle.organization_id,
       views: savedArticle.views,
       likes: savedArticle.likes,
       createdAt: savedArticle.created_at,
@@ -613,11 +1014,45 @@ app.put('/make-server-053bcd80/articles/:id', requireAuth, async (c) => {
       return c.json({ error: 'Article not found' }, 404)
     }
     
-    if (existingArticle.author_id !== userId) {
-      return c.json({ error: 'Unauthorized' }, 403)
+    // Check authorization - owner of article OR owner of organization
+    let authorized = existingArticle.author_id === userId
+    
+    if (!authorized && existingArticle.organization_id) {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('owner_id')
+        .eq('id', existingArticle.organization_id)
+        .single()
+      
+      authorized = company?.owner_id === userId
     }
     
-    const { title, content, excerpt, category, coverImage, readingTime, media, source, sourceUrl, author, authorImage, authorTitle, publishDate } = body
+    if (!authorized) {
+      return c.json({ error: 'Unauthorized - Only article creator or organization owner can edit' }, 403)
+    }
+    
+    const { title, content, excerpt, category, coverImage, readingTime, media, source, sourceUrl, author, authorImage, authorTitle, publishDate, organizationId } = body
+    
+    // If changing organization, verify permissions
+    if (organizationId !== undefined && organizationId !== existingArticle.organization_id) {
+      // Only article creator can change organization
+      if (existingArticle.author_id !== userId) {
+        return c.json({ error: 'Only article creator can change organization' }, 403)
+      }
+      
+      // If setting to an organization, verify user owns it
+      if (organizationId) {
+        const { data: company } = await supabase
+          .from('companies')
+          .select('owner_id')
+          .eq('id', organizationId)
+          .single()
+        
+        if (!company || company.owner_id !== userId) {
+          return c.json({ error: 'You must own the organization to publish articles under it' }, 403)
+        }
+      }
+    }
     
     // Update article (snake_case for SQL) - now with all columns
     const updatedArticle = {
@@ -635,6 +1070,11 @@ app.put('/make-server-053bcd80/articles/:id', requireAuth, async (c) => {
       author_title: authorTitle || null,
       publish_date: publishDate || null,
       updated_at: new Date().toISOString()
+    }
+    
+    // Only update organization_id if it was provided in the request
+    if (organizationId !== undefined) {
+      updatedArticle.organization_id = organizationId
     }
     
     const { data: savedArticle, error: updateError } = await supabase
@@ -661,6 +1101,7 @@ app.put('/make-server-053bcd80/articles/:id', requireAuth, async (c) => {
       coverImage: savedArticle.cover_image,
       readingTime: savedArticle.reading_time,
       authorId: savedArticle.author_id,
+      organizationId: savedArticle.organization_id,
       views: savedArticle.views,
       likes: savedArticle.likes,
       createdAt: savedArticle.created_at,
@@ -1555,6 +1996,130 @@ app.put('/make-server-053bcd80/users/:userId/profile-banner', async (c) => {
     console.log('=== PROFILE BANNER UPDATE ERROR ===')
     console.log('Error:', error.message)
     return c.json({ error: 'Failed to update profile banner', details: error.message }, 500)
+  }
+})
+
+// Upload custom profile banner image
+app.post('/make-server-053bcd80/users/:userId/upload-banner', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    console.log('=== UPLOAD PROFILE BANNER REQUEST ===')
+    console.log('User ID:', userId)
+    
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    if (!accessToken) {
+      return c.json({ error: 'No access token provided' }, 401)
+    }
+    
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    if (authError || !user || user.id !== userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    // Check if user owns the custom profile banner item
+    const { data: items, error: itemsError } = await supabase
+      .from('user_swag_items')
+      .select('item_id')
+      .eq('user_id', userId)
+      .eq('item_id', 'custom-profile-banner')
+      .single()
+    
+    if (itemsError || !items) {
+      return c.json({ error: 'Purchase Custom Profile Banner in Swag Shop first!' }, 403)
+    }
+    
+    // Get file from form data
+    const formData = await c.req.formData()
+    const file = formData.get('banner')
+    
+    if (!file || !(file instanceof File)) {
+      return c.json({ error: 'No file provided' }, 400)
+    }
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return c.json({ error: 'File must be an image' }, 400)
+    }
+    
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      return c.json({ error: 'File must be under 5MB' }, 400)
+    }
+    
+    // Upload to Supabase Storage
+    const fileExt = file.type.split('/')[1]
+    const fileName = `${userId}-${Date.now()}.${fileExt}`
+    const fileBuffer = await file.arrayBuffer()
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('make-053bcd80-profile-banners')
+      .upload(fileName, fileBuffer, {
+        contentType: file.type,
+        upsert: true
+      })
+    
+    if (uploadError) {
+      console.log('ERROR: Upload failed:', uploadError)
+      return c.json({ error: 'Upload failed', details: uploadError.message }, 500)
+    }
+    
+    // Get public/signed URL
+    const { data: urlData } = await supabase.storage
+      .from('make-053bcd80-profile-banners')
+      .createSignedUrl(fileName, 31536000) // 1 year expiry
+    
+    const bannerUrl = urlData?.signedUrl || null
+    console.log('Generated signed URL:', bannerUrl)
+    
+    // Save banner URL to user progress
+    const { data: updatedProgress, error: updateError } = await supabase
+      .from('user_progress')
+      .update({ profile_banner_url: bannerUrl })
+      .eq('user_id', userId)
+      .select()
+      .single()
+    
+    if (updateError) {
+      console.log('ERROR: Failed to save banner URL:', updateError)
+      return c.json({ error: 'Failed to save banner', details: updateError.message }, 500)
+    }
+    
+    console.log('✅ Banner uploaded and saved successfully to database')
+    console.log('Updated progress record:', updatedProgress)
+    
+    return c.json({ 
+      success: true, 
+      bannerUrl,
+      fileName 
+    })
+  } catch (error: any) {
+    console.log('=== BANNER UPLOAD ERROR ===')
+    console.log('Error:', error.message)
+    return c.json({ error: 'Failed to upload banner', details: error.message }, 500)
+  }
+})
+
+// Get profile banner signed URL
+app.get('/make-server-053bcd80/users/:userId/banner', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    // Get user progress with banner URL
+    const { data: progress, error } = await supabase
+      .from('user_progress')
+      .select('profile_banner_url')
+      .eq('user_id', userId)
+      .single()
+    
+    if (error || !progress?.profile_banner_url) {
+      return c.json({ bannerUrl: null })
+    }
+    
+    return c.json({ bannerUrl: progress.profile_banner_url })
+  } catch (error: any) {
+    console.log('Error fetching banner:', error.message)
+    return c.json({ bannerUrl: null })
   }
 })
 
@@ -8130,6 +8695,91 @@ app.get('/make-server-053bcd80/user-association-badges/:userId', async (c) => {
     console.error('❌ Error in user association badges route:', error)
     return c.json({ error: 'Failed to fetch badges', details: error.message }, 500)
   }
+})
+
+// ==================== THEME SYSTEM ROUTES ====================
+
+// Get user's selected theme
+app.get('/make-server-053bcd80/user-selected-theme/:userId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    if (!userId) {
+      return c.json({ error: 'User ID is required' }, 400)
+    }
+    
+    // Get user data from KV store
+    const userData = await kv.get(`user:${userId}`)
+    
+    // Return selected theme (default to solarpunk-dreams if not set)
+    const selectedTheme = userData?.selected_theme || 'solarpunk-dreams'
+    
+    console.log(`✅ Retrieved theme for user ${userId}: ${selectedTheme}`)
+    return c.json({ selectedTheme })
+  } catch (error: any) {
+    console.error('❌ Error fetching user theme:', error)
+    return c.json({ error: 'Failed to fetch theme', details: error.message }, 500)
+  }
+})
+
+// Update user's selected theme
+app.post('/make-server-053bcd80/update-user-theme', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1]
+    
+    if (!accessToken) {
+      return c.json({ error: 'Authorization token required' }, 401)
+    }
+    
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(accessToken)
+    
+    if (authError || !user) {
+      console.error('❌ Authentication error:', authError)
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    
+    // Get theme from request body
+    const { theme } = await c.req.json()
+    
+    if (!theme) {
+      return c.json({ error: 'Theme is required' }, 400)
+    }
+    
+    // Validate theme is one of the available options
+    const validThemes = ['solarpunk-dreams', 'midnight-hemp', 'golden-hour', 'hempin', 'dark']
+    if (!validThemes.includes(theme)) {
+      return c.json({ error: 'Invalid theme' }, 400)
+    }
+    
+    // Get current user data
+    const userKey = `user:${user.id}`
+    const userData = await kv.get(userKey)
+    
+    // Update theme
+    await kv.set(userKey, {
+      ...userData,
+      selected_theme: theme
+    })
+    
+    console.log(`✅ Updated theme for user ${user.id}: ${theme}`)
+    return c.json({ success: true, theme })
+  } catch (error: any) {
+    console.error('❌ Error updating user theme:', error)
+    return c.json({ error: 'Failed to update theme', details: error.message }, 500)
+  }
+})
+
+// DEBUG: Catch-all route to see unmatched requests
+app.all('*', (c) => {
+  console.log('❌ UNMATCHED ROUTE:', c.req.method, c.req.url)
+  console.log('   Available routes should start with /make-server-053bcd80')
+  return c.json({ 
+    error: 'Route not found', 
+    method: c.req.method,
+    path: c.req.url,
+    hint: 'All routes must start with /make-server-053bcd80'
+  }, 404)
 })
 
 Deno.serve(app.fetch)

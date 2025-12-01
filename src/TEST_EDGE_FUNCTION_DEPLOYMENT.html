@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DEWII Edge Function Deployment Test</title>
+  <style>
+    body {
+      font-family: 'SF Pro', system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d4a2e 100%);
+      color: #e0e0e0;
+    }
+    
+    h1 {
+      color: #7ec850;
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #a0a0a0;
+      margin-bottom: 30px;
+    }
+    
+    .test-button {
+      background: linear-gradient(135deg, #7ec850 0%, #5a9e3a 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 12px rgba(126, 200, 80, 0.3);
+      transition: all 0.2s;
+    }
+    
+    .test-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(126, 200, 80, 0.4);
+    }
+    
+    .test-button:active {
+      transform: translateY(0);
+    }
+    
+    .status-box {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .status-item {
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 4px solid #555;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .status-item.success {
+      border-left-color: #7ec850;
+      background: rgba(126, 200, 80, 0.1);
+    }
+    
+    .status-item.error {
+      border-left-color: #ff4444;
+      background: rgba(255, 68, 68, 0.1);
+    }
+    
+    .status-item.pending {
+      border-left-color: #ffa500;
+      background: rgba(255, 165, 0, 0.1);
+    }
+    
+    .code-block {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .endpoint-url {
+      color: #7ec850;
+      word-break: break-all;
+    }
+    
+    .icon {
+      margin-right: 8px;
+    }
+    
+    .instructions {
+      background: rgba(126, 200, 80, 0.1);
+      border: 1px solid #7ec850;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .instructions h3 {
+      color: #7ec850;
+      margin-top: 0;
+    }
+    
+    .instructions ol {
+      margin: 15px 0;
+      padding-left: 25px;
+    }
+    
+    .instructions li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    
+    .deploy-command {
+      background: #1a1a1a;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      color: #7ec850;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 DEWII Edge Function Deployment Tester</h1>
+  <p class="subtitle">Test if your Edge Function is deployed and working correctly</p>
+  
+  <div class="instructions">
+    <h3>📋 Before Testing:</h3>
+    <ol>
+      <li><strong>Deploy your Edge Function first:</strong></li>
+      <div class="deploy-command">supabase functions deploy make-server-053bcd80</div>
+      <li>Wait 30-60 seconds for deployment to complete</li>
+      <li>Then click the test buttons below</li>
+    </ol>
+  </div>
+
+  <div>
+    <button class="test-button" onclick="testHealthEndpoint()">
+      ❤️ 1. Test Health Check
+    </button>
+    <button class="test-button" onclick="testArticlesEndpoint()">
+      📰 2. Test Articles Endpoint
+    </button>
+    <button class="test-button" onclick="runAllTests()">
+      🔍 Run All Tests
+    </button>
+    <button class="test-button" onclick="clearResults()">
+      🗑️ Clear Results
+    </button>
+  </div>
+
+  <div id="results" class="status-box"></div>
+
+  <script>
+    const PROJECT_ID = 'dhsqlszauibxintwziib';
+    const SERVER_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/make-server-053bcd80`;
+
+    function addResult(title, status, message, details = null) {
+      const resultsDiv = document.getElementById('results');
+      const statusItem = document.createElement('div');
+      statusItem.className = `status-item ${status}`;
+      
+      let icon = '⏳';
+      if (status === 'success') icon = '✅';
+      if (status === 'error') icon = '❌';
+      
+      let html = `<strong><span class="icon">${icon}</span>${title}</strong><br>${message}`;
+      
+      if (details) {
+        html += `<div class="code-block">${JSON.stringify(details, null, 2)}</div>`;
+      }
+      
+      statusItem.innerHTML = html;
+      resultsDiv.appendChild(statusItem);
+      
+      // Auto-scroll to bottom
+      resultsDiv.scrollTop = resultsDiv.scrollHeight;
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      addResult('Results cleared', 'pending', 'Ready to run tests...');
+    }
+
+    async function testArticlesEndpoint() {
+      addResult('Testing Articles Endpoint', 'pending', `Fetching from: ${SERVER_URL}/articles`);
+      
+      try {
+        const response = await fetch(`${SERVER_URL}/articles?limit=5`);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          
+          if (response.status === 401) {
+            addResult(
+              'Articles Endpoint - FAILED ❌', 
+              'error',
+              `Got 401 Unauthorized. This means OLD CODE is still deployed!\n\n` +
+              `Error: ${errorData.message || 'Missing authorization header'}\n\n` +
+              `FIX: You need to redeploy the Edge Function:\n` +
+              `→ Run: supabase functions deploy make-server-053bcd80\n` +
+              `→ The /articles endpoint should be PUBLIC (no auth required)\n` +
+              `→ Your local code is correct, but Supabase is serving an old cached version`,
+              errorData
+            );
+          } else if (response.status === 404) {
+            addResult(
+              'Articles Endpoint - NOT FOUND ❌',
+              'error',
+              `Got 404 Not Found. The Edge Function might not be deployed at all.\n\n` +
+              `FIX: Deploy the Edge Function:\n` +
+              `→ Run: supabase functions deploy make-server-053bcd80`,
+              errorData
+            );
+          } else {
+            addResult(
+              'Articles Endpoint - ERROR ❌',
+              'error',
+              `Got HTTP ${response.status}: ${response.statusText}`,
+              errorData
+            );
+          }
+          return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.articles && Array.isArray(data.articles)) {
+          addResult(
+            'Articles Endpoint - SUCCESS ✅',
+            'success',
+            `Fetched ${data.articles.length} articles successfully!\n` +
+            `The Edge Function is deployed and working correctly.`,
+            { 
+              articlesCount: data.articles.length,
+              sampleArticle: data.articles[0] ? {
+                id: data.articles[0].id,
+                title: data.articles[0].title,
+                category: data.articles[0].category
+              } : null
+            }
+          );
+        } else {
+          addResult(
+            'Articles Endpoint - UNEXPECTED RESPONSE ⚠️',
+            'error',
+            'Response format is incorrect (missing articles array)',
+            data
+          );
+        }
+        
+      } catch (error) {
+        addResult(
+          'Articles Endpoint - NETWORK ERROR ❌',
+          'error',
+          `Failed to connect to the Edge Function.\n\n` +
+          `Error: ${error.message}\n\n` +
+          `This means:\n` +
+          `→ Edge Function is NOT deployed, OR\n` +
+          `→ Network/CORS issue\n\n` +
+          `FIX: Deploy the Edge Function:\n` +
+          `→ Run: supabase functions deploy make-server-053bcd80`,
+          { error: error.message, stack: error.stack }
+        );
+      }
+    }
+
+    async function testHealthEndpoint() {
+      addResult('Testing Health Endpoint', 'pending', `Checking: ${SERVER_URL}/health`);
+      
+      try {
+        const response = await fetch(`${SERVER_URL}/health`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        addResult(
+          'Health Check - SUCCESS ✅',
+          'success',
+          `Edge Function is deployed and running!\n\n` +
+          `Status: ${data.status}\n` +
+          `Version: ${data.version}\n` +
+          `Message: ${data.message}\n\n` +
+          `Routes configuration:\n` +
+          `• ${data.routes.articles}\n` +
+          `• ${data.routes.swag}\n` +
+          `• ${data.routes.organizations}`,
+          data
+        );
+        
+      } catch (error) {
+        addResult(
+          'Health Check - FAILED ❌',
+          'error',
+          `Cannot reach the Edge Function.\n\n` +
+          `Error: ${error.message}\n\n` +
+          `This means:\n` +
+          `→ Edge Function is NOT deployed\n` +
+          `→ Or wrong project ID\n` +
+          `→ Or Supabase project is paused\n\n` +
+          `FIX: Deploy the Edge Function:\n` +
+          `→ Run: supabase functions deploy make-server-053bcd80`,
+          { error: error.message }
+        );
+      }
+    }
+
+    async function runAllTests() {
+      clearResults();
+      addResult('Running All Tests', 'pending', 'Starting comprehensive test suite...');
+      
+      await testHealthEndpoint();
+      await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between tests
+      await testArticlesEndpoint();
+      
+      addResult('All Tests Complete', 'success', 'Check results above ☝️');
+    }
+
+    // Auto-run tests on page load
+    window.addEventListener('load', () => {
+      addResult('Page Loaded', 'pending', 'Click "Run All Tests" to begin, or test individual endpoints above.');
+    });
+  </script>
+</body>
+</html>

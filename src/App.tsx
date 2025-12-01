@@ -74,6 +74,8 @@ interface UserProgress {
   marketNewsletterOptIn?: boolean
   nadaPoints?: number
   marketUnlocked?: boolean
+  selectedBadge?: string | null
+  profileBannerUrl?: string | null
 }
 
 export default function App() {
@@ -81,7 +83,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace' | 'globe'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const [articles, setArticles] = useState<Article[]>([])
@@ -106,6 +108,7 @@ export default function App() {
     return 0
   })
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
+  const [userBadges, setUserBadges] = useState<any[]>([])
 
   const supabase = createClient()
   const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`
@@ -301,12 +304,21 @@ export default function App() {
     }
   }, [])
 
-  // Fetch articles and user progress when authenticated
+  // Fetch PUBLIC articles on mount (no auth required)
+  useEffect(() => {
+    console.log('🎬 Initial mount: Fetching public articles')
+    fetchArticles()
+  }, []) // Run once on mount
+
+  // Fetch user-specific data when authenticated
   useEffect(() => {
     if (isAuthenticated && userId && accessToken) {
-      fetchArticles()
+      console.log('🔐 User authenticated: Fetching user-specific data')
       fetchUserProgress()
       fetchUserArticles()
+      fetchUserBadges()
+      // Re-fetch articles to get user-specific data (like if they've read them)
+      fetchArticles()
     }
   }, [isAuthenticated, userId, accessToken])
 
@@ -328,33 +340,63 @@ export default function App() {
   const fetchArticles = async () => {
     setLoading(true)
     try {
-      console.log('Fetching articles from server...')
-      const response = await fetch(`${serverUrl}/articles?category=${selectedCategory}`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        }
-      })
+      const fetchUrl = `${serverUrl}/articles?category=${selectedCategory}`
+      console.log('🔍 Fetching articles from:', fetchUrl)
+      console.log('🔍 Server URL base:', serverUrl)
+      console.log('🔍 Access token available:', !!accessToken)
+      
+      // Include auth header if available (for logged-in users), but endpoint is public
+      const headers: Record<string, string> = {}
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`
+      } else {
+        // Use anon key for public access
+        headers['Authorization'] = `Bearer ${publicAnonKey}`
+      }
+      
+      const response = await fetch(fetchUrl, { headers })
+      
+      console.log('📡 Response status:', response.status, response.statusText)
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Fetch articles error:', errorData)
-        throw new Error(errorData.error || 'Failed to fetch articles')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('❌ Fetch articles error:', errorData)
+        console.error('❌ Full error response:', JSON.stringify(errorData, null, 2))
+        
+        // If 401 error, might be cached old edge function code or RLS policy
+        if (response.status === 401) {
+          console.warn('⚠️  401 Unauthorized - Debugging info:')
+          console.warn('   1. Check health endpoint:', `${serverUrl}/health`)
+          console.warn('   2. Error says:', errorData.error, errorData.details)
+          console.warn('   3. This might be: Cached Edge Function / RLS / Wrong URL')
+          
+          // Try to fetch health endpoint to verify Edge Function is working
+          fetch(`${serverUrl}/health`)
+            .then(r => r.json())
+            .then(health => console.log('✅ Health check:', health))
+            .catch(e => console.error('❌ Health check failed:', e))
+        }
+        
+        throw new Error(errorData.error || errorData.message || 'Failed to fetch articles')
       }
 
       const data = await response.json()
-      console.log('Articles fetched:', data.articles?.length || 0, 'articles')
+      console.log('✅ Articles fetched successfully:', data.articles?.length || 0, 'articles')
+      console.log('✅ First 3 articles:', data.articles?.slice(0, 3))
       setArticles(data.articles || [])
     } catch (error: any) {
       console.error('Error fetching articles:', error)
       
       // Check if it's a network/deployment error
       if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-        console.error('🚨 SERVER NOT DEPLOYED - Please deploy the edge function:')
-        console.error('   supabase functions deploy make-server-053bcd80')
-        console.error('   OR deploy via Supabase Dashboard → Edge Functions')
+        console.error('🚨 SERVER NOT DEPLOYED OR UNREACHABLE:')
+        console.error('   → Deploy via: supabase functions deploy make-server-053bcd80')
+        console.error('   → Or use Supabase Dashboard → Edge Functions → Deploy')
       }
       
-      // Removed toast notification - errors shown in console only
+      // Set empty array to prevent UI breaking
+      setArticles([])
     } finally {
       setLoading(false)
     }
@@ -377,6 +419,7 @@ export default function App() {
       const data = await response.json()
       console.log('✅ User progress fetched:', data.progress)
       console.log('🔐 Market Unlocked Status:', data.progress?.marketUnlocked)
+      console.log('🎨 Profile Banner URL:', data.progress?.profileBannerUrl)
       setUserProgress(data.progress)
     } catch (error: any) {
       console.error('Error fetching user progress:', error)
@@ -388,6 +431,58 @@ export default function App() {
         console.error('   OR deploy via Supabase Dashboard → Edge Functions')
       }
     }
+  }
+
+  const fetchUserBadges = async () => {
+    if (!userId || !accessToken) return
+
+    try {
+      console.log('🏅 Fetching user association badges...')
+      const response = await fetch(`${serverUrl}/user-association-badges/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.warn('⚠️  Failed to fetch badges:', response.status, errorData)
+        throw new Error(errorData.error || 'Failed to fetch user badges')
+      }
+
+      const data = await response.json()
+      console.log('✅ User badges fetched:', data.badges?.length || 0, 'badges')
+      setUserBadges(data.badges || [])
+    } catch (error: any) {
+      console.error('Error fetching user badges:', error)
+      
+      // Check if it's a network/deployment error
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        console.error('🚨 SERVER NOT DEPLOYED OR UNREACHABLE:')
+        console.error('   → Deploy via: supabase functions deploy make-server-053bcd80')
+        console.error('   → Or use Supabase Dashboard → Edge Functions → Deploy')
+      }
+      
+      setUserBadges([]) // Set empty array on error to prevent UI breaking
+    }
+  }
+
+  const handleThemeChange = (newTheme: string) => {
+    console.log('🎨 Theme change requested:', newTheme)
+    
+    // Apply theme immediately to DOM
+    document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour')
+    document.documentElement.classList.add(newTheme)
+    
+    // Update user progress state
+    if (userProgress) {
+      setUserProgress({
+        ...userProgress,
+        selectedTheme: newTheme
+      })
+    }
+    
+    console.log('✅ Theme applied:', newTheme)
   }
 
   const fetchUserArticles = async () => {
@@ -891,8 +986,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hide Header when in Community Market - Market has its own navigation */}
-      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && (
+      {/* Hide Header when in Community Market, Globe, or full-screen views */}
+      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && currentView !== 'globe' && (
         <Header
           currentView={currentView}
           onNavigate={setCurrentView}
@@ -972,9 +1067,9 @@ export default function App() {
         />
       )}
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' ? 'p-0 pt-0' : 'py-8 pb-32'}>
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' ? 'p-0 pt-0' : 'py-8 pb-32'}>
         {/* Content with its own container for padding */}
-        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
+        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
             <div className="space-y-6">
@@ -1041,7 +1136,7 @@ export default function App() {
                   }
                   return newMatches
                 })
-                toast.success('❤️ Article matched! Check your dashboard.')
+                // Toast notification removed - comic feedback only
               }}
               onReadArticle={handleArticleClick}
               onSwitchToGrid={() => setCurrentView('feed')}
@@ -1064,6 +1159,9 @@ export default function App() {
               onViewReadingAnalytics={() => setCurrentView('reading-analytics')}
               onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
               accessToken={accessToken || undefined}
+              equippedBadgeId={userProgress.selectedBadge || null}
+              profileBannerUrl={userProgress.profileBannerUrl || null}
+              userEmail={userEmail}
             />
           )}
 
@@ -1204,10 +1302,15 @@ export default function App() {
               marketingOptIn={userProgress?.marketingOptIn}
               totalArticlesRead={userProgress?.totalArticlesRead || 0}
               accessToken={accessToken || undefined}
+              serverUrl={serverUrl}
+              profileBannerUrl={userProgress?.profileBannerUrl}
               onLogout={handleLogout}
               onUpdateProfile={handleUpdateProfile}
               onUpdateMarketingPreference={handleUpdateMarketingPreference}
               onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+              onThemeChange={handleThemeChange}
+              onBadgeEquipped={fetchUserProgress}
+              onBannerUploaded={fetchUserProgress}
             />
           )}
 
@@ -1243,6 +1346,9 @@ export default function App() {
               onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
               userEmail={userEmail}
               nadaPoints={userProgress?.nadaPoints || 0}
+              equippedBadgeId={userProgress?.selectedBadge || null}
+              profileBannerUrl={userProgress?.profileBannerUrl || null}
+              marketUnlocked={userProgress?.marketUnlocked || false}
               onNadaUpdate={(newBalance) => {
                 // Update user progress with new NADA balance
                 if (userProgress) {
@@ -1251,6 +1357,7 @@ export default function App() {
               }}
               onNavigateToSwagShop={() => setCurrentView('swag-shop')}
               onNavigateToSwagMarketplace={() => setCurrentView('swag-marketplace')}
+              onNavigateToSettings={() => setCurrentView('settings')}
             />
           )}
           
@@ -1278,6 +1385,7 @@ export default function App() {
               userId={userId || undefined}
               accessToken={accessToken}
               serverUrl={serverUrl}
+              userBadges={userBadges}
               nadaPoints={userProgress.nadaPoints || 0}
               onNadaUpdate={(newBalance) => {
                 // Update user progress with new NADA balance
@@ -1290,7 +1398,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Hide BottomNavbar when in Community Market - Market has its own navigation */}
+      {/* Hide BottomNavbar when in Community Market or full-screen views */}
       {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && (
         <BottomNavbar
           currentView={currentView}

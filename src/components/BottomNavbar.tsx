@@ -47,69 +47,67 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
 
           {/* Navigation Items */}
           <div className="relative flex items-center justify-center w-full max-w-md mx-auto pointer-events-auto h-full pb-4">
-            {/* Left Button - Explore (Home) - BIGGER with Aura */}
+            {/* Left Button - Explore (Home) - Emerald Green */}
             <div className="flex-1 flex justify-center items-center">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleNavigate('feed')}
-                className={`flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-20 h-20 ${
-                  currentView === 'feed'
-                    ? 'text-emerald-600 dark:text-emerald-400 hempin:text-emerald-400'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className="flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-20 h-20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 active:scale-95"
               >
                 <div className="relative">
-                  {/* Enhanced aura effect - ACTIVE */}
-                  {currentView === 'feed' && (
-                    <div className="absolute -inset-4 bg-gradient-to-br from-emerald-400/40 via-teal-400/30 to-emerald-400/40 rounded-full blur-2xl animate-pulse" />
-                  )}
-                  {/* Permanent subtle aura - INACTIVE */}
-                  {currentView !== 'feed' && (
-                    <div className="absolute -inset-4 bg-gradient-to-br from-emerald-400/15 via-teal-400/10 to-emerald-400/15 group-hover:from-emerald-400/25 group-hover:via-teal-400/20 group-hover:to-emerald-400/25 rounded-full blur-xl transition-all duration-300" />
-                  )}
-                  <div className={`relative rounded-full p-4 transition-all ${
+                  {/* Animated glow background - Emerald */}
+                  <div className={`absolute -inset-8 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 rounded-full blur-3xl transition-all duration-500 ${
+                    currentView === 'feed' 
+                      ? 'opacity-30 animate-pulse' 
+                      : 'opacity-10 group-hover:opacity-20'
+                  }`} />
+                  
+                  {/* Circle background with gradient */}
+                  <div className={`relative rounded-full p-5 transition-all group-hover:scale-110 ${
                     currentView === 'feed'
-                      ? 'bg-emerald-500/20 scale-110 shadow-lg'
-                      : 'bg-muted/30 hover:bg-muted/50 hover:scale-105'
+                      ? 'bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]'
+                      : 'bg-gradient-to-br from-emerald-500/80 via-teal-500/80 to-emerald-500/80 group-hover:from-emerald-400 group-hover:via-teal-500 group-hover:to-emerald-500 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]'
                   }`}>
-                    <Home className="h-10 w-10 transition-transform" strokeWidth={currentView === 'feed' ? 3 : 2.5} />
+                    {/* Shine effect */}
+                    <div className="absolute top-2 right-2 w-8 h-8 bg-white/40 rounded-full blur-md" />
+                    
+                    <Home 
+                      className="relative h-10 w-10 text-white drop-shadow-lg"
+                      strokeWidth={currentView === 'feed' ? 3 : 2.5} 
+                    />
                   </div>
                 </div>
               </Button>
             </div>
 
-            {/* Center Button - Me (Elevated & Larger) */}
+            {/* Center Button - Me (Elevated & Larger) - Purple/Pink Gradient */}
             <div className="flex-1 flex justify-center items-center -mt-8">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleNavigate('dashboard')}
-                className="flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full relative"
+                className="flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full relative focus:outline-none focus:ring-2 focus:ring-purple-500/50 active:scale-95"
               >
-                {/* Large glow effect */}
-                {currentView === 'dashboard' && (
-                  <div className="absolute -inset-6 bg-gradient-to-br from-sky-400/40 via-purple-400/30 to-pink-400/40 dark:from-sky-400/30 dark:via-purple-400/20 dark:to-pink-400/30 hempin:from-amber-400/40 hempin:via-yellow-400/30 hempin:to-amber-400/40 rounded-full blur-2xl animate-pulse" />
-                )}
-                
-                {/* Outer ring */}
-                <div className={`relative rounded-full p-1.5 transition-all ${
-                  currentView === 'dashboard'
-                    ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 scale-110 shadow-2xl'
-                    : 'bg-gradient-to-br from-muted/50 to-muted hover:from-muted hover:to-muted/80 hover:scale-105'
-                }`}>
-                  {/* Inner circle */}
-                  <div className={`rounded-full p-5 transition-all ${
+                <div className="relative">
+                  {/* Animated glow background - Purple/Pink */}
+                  <div className={`absolute -inset-10 bg-gradient-to-r from-sky-400 via-purple-500 to-pink-500 rounded-full blur-3xl transition-all duration-500 ${
+                    currentView === 'dashboard' 
+                      ? 'opacity-30 animate-pulse' 
+                      : 'opacity-10 group-hover:opacity-20'
+                  }`} />
+                  
+                  {/* Circle background with gradient */}
+                  <div className={`relative rounded-full p-6 transition-all group-hover:scale-110 ${
                     currentView === 'dashboard'
-                      ? 'bg-gradient-to-br from-sky-500/30 via-purple-500/20 to-pink-500/30 dark:from-sky-400/20 dark:via-purple-400/15 dark:to-pink-400/20 hempin:from-amber-500/30 hempin:via-yellow-500/20 hempin:to-amber-500/30 backdrop-blur-sm'
-                      : 'bg-background'
+                      ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 shadow-[0_0_24px_rgba(168,85,247,0.5)]'
+                      : 'bg-gradient-to-br from-sky-500/80 via-purple-500/80 to-pink-500/80 dark:from-sky-400/80 dark:via-purple-400/80 dark:to-pink-400/80 hempin:from-amber-500/80 hempin:via-yellow-500/80 hempin:to-amber-500/80 group-hover:from-sky-500 group-hover:via-purple-500 group-hover:to-pink-500 group-hover:shadow-[0_0_24px_rgba(168,85,247,0.4)]'
                   }`}>
+                    {/* Shine effect */}
+                    <div className="absolute top-3 right-3 w-10 h-10 bg-white/40 rounded-full blur-md" />
+                    
                     <User 
-                      className={`h-12 w-12 transition-all ${
-                        currentView === 'dashboard'
-                          ? 'text-sky-600 dark:text-sky-400 hempin:text-amber-400 drop-shadow-lg'
-                          : 'text-muted-foreground'
-                      }`}
+                      className="relative h-12 w-12 text-white drop-shadow-lg"
                       strokeWidth={currentView === 'dashboard' ? 3 : 2.5}
                     />
                   </div>
@@ -124,7 +122,7 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
               </Button>
             </div>
 
-            {/* Right Button - Create (Plus) - BIGGER with Aura - LOCKED at 25 articles */}
+            {/* Right Button - Create (Plus) - Emerald/Teal (matching CREATE card) - LOCKED at 25 articles */}
             <div className="flex-1 flex justify-center items-center">
               <Button
                 variant="ghost"
@@ -136,30 +134,32 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
                     onFeatureUnlock('article-creation')
                   }
                 }}
-                className={`flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-20 h-20 ${
-                  currentView === 'editor'
-                    ? 'text-amber-600 dark:text-amber-400 hempin:text-amber-500'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className="flex flex-col items-center gap-0 h-auto py-0 px-0 transition-all group rounded-full w-20 h-20 focus:outline-none focus:ring-2 focus:ring-teal-500/50 active:scale-95"
               >
                 <div className="relative">
                   {/* Unlocked State - Normal Plus Icon */}
                   {isArticleCreationUnlocked && (
                     <>
-                      {/* Enhanced aura effect - ACTIVE */}
-                      {currentView === 'editor' && (
-                        <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/40 via-yellow-400/30 to-amber-400/40 rounded-full blur-2xl animate-pulse" />
-                      )}
-                      {/* Permanent subtle aura - INACTIVE */}
-                      {currentView !== 'editor' && (
-                        <div className="absolute -inset-4 bg-gradient-to-br from-amber-400/15 via-yellow-400/10 to-amber-400/15 group-hover:from-amber-400/25 group-hover:via-yellow-400/20 group-hover:to-amber-400/25 rounded-full blur-xl transition-all duration-300" />
-                      )}
-                      <div className={`relative rounded-full p-4 transition-all ${
+                      {/* Animated glow background - Teal/Cyan */}
+                      <div className={`absolute -inset-8 bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 rounded-full blur-3xl transition-all duration-500 ${
+                        currentView === 'editor' 
+                          ? 'opacity-30 animate-pulse' 
+                          : 'opacity-10 group-hover:opacity-20'
+                      }`} />
+                      
+                      {/* Circle background with gradient */}
+                      <div className={`relative rounded-full p-5 transition-all group-hover:scale-110 ${
                         currentView === 'editor'
-                          ? 'bg-amber-500/20 scale-110 shadow-lg'
-                          : 'bg-muted/30 hover:bg-muted/50 hover:scale-105'
+                          ? 'bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 shadow-[0_0_20px_rgba(20,184,166,0.4)]'
+                          : 'bg-gradient-to-br from-emerald-500/80 via-teal-500/80 to-cyan-500/80 group-hover:from-emerald-400 group-hover:via-teal-500 group-hover:to-cyan-500 group-hover:shadow-[0_0_20px_rgba(20,184,166,0.3)]'
                       }`}>
-                        <Plus className="h-10 w-10 transition-transform" strokeWidth={currentView === 'editor' ? 3 : 2.5} />
+                        {/* Shine effect */}
+                        <div className="absolute top-2 right-2 w-8 h-8 bg-white/40 rounded-full blur-md" />
+                        
+                        <Plus 
+                          className="relative h-10 w-10 text-white drop-shadow-lg"
+                          strokeWidth={currentView === 'editor' ? 3 : 2.5} 
+                        />
                       </div>
                     </>
                   )}

@@ -4,6 +4,9 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
 import { SwagManagementTab } from './SwagManagementTab'
+import { OrganizationPublicationsTab } from './OrganizationPublicationsTab'
+import OrganizationMembersTab from './OrganizationMembersTab'
+import OrganizationBadgesTab from './OrganizationBadgesTab'
 
 interface Company {
   id: string
@@ -609,25 +612,27 @@ export function CompanyManager({ userId, accessToken, serverUrl, onClose }: Comp
 
                     {activeTab === 'badges' && (
                       <div className="space-y-4">
-                        <div className="text-center py-12 bg-emerald-900/20 rounded-2xl border-2 border-dashed border-emerald-500/20">
-                          <Award className="w-12 h-12 mx-auto mb-3 text-emerald-400/50" />
-                          <h3 className="font-black mb-2 text-white">No Badge Requests</h3>
-                          <p className="text-sm text-emerald-200/60">
-                            Badge requests from members will appear here
-                          </p>
-                        </div>
+                        <OrganizationBadgesTab
+                          companyId={selectedCompany.id}
+                          companyName={selectedCompany.name}
+                          currentUserId={userId}
+                          isOwner={selectedCompany.ownerId === userId}
+                          userRole={selectedCompany.ownerId === userId ? 'owner' : null}
+                          canManageBadges={selectedCompany.ownerId === userId}
+                        />
                       </div>
                     )}
 
                     {activeTab === 'members' && (
                       <div className="space-y-4">
-                        <div className="text-center py-12 bg-emerald-900/20 rounded-2xl border-2 border-dashed border-emerald-500/20">
-                          <Users className="w-12 h-12 mx-auto mb-3 text-emerald-400/50" />
-                          <h3 className="font-black mb-2 text-white">No Members Yet</h3>
-                          <p className="text-sm text-emerald-200/60">
-                            Organization members will appear here
-                          </p>
-                        </div>
+                        <OrganizationMembersTab
+                          companyId={selectedCompany.id}
+                          companyName={selectedCompany.name}
+                          currentUserId={userId}
+                          isOwner={selectedCompany.ownerId === userId}
+                          userRole={selectedCompany.ownerId === userId ? 'owner' : null}
+                          canManageMembers={selectedCompany.ownerId === userId}
+                        />
                       </div>
                     )}
 
@@ -658,17 +663,13 @@ export function CompanyManager({ userId, accessToken, serverUrl, onClose }: Comp
 
                     {activeTab === 'publications' && (
                       <div className="space-y-4">
-                        <div className="text-center py-12 bg-emerald-900/20 rounded-2xl border-2 border-dashed border-emerald-500/20">
-                          <BookOpen className="w-12 h-12 mx-auto mb-3 text-emerald-400/50" />
-                          <h3 className="font-black mb-2 text-white">Publications Coming Soon</h3>
-                          <p className="text-sm text-emerald-200/60 mb-4">
-                            Manage your organization's articles and content here
-                          </p>
-                          <div className="flex items-center justify-center gap-2 text-xs text-emerald-300/60">
-                            <FileText className="w-4 h-4" />
-                            <span>Article management will be available soon</span>
-                          </div>
-                        </div>
+                        <OrganizationPublicationsTab
+                          companyId={selectedCompany.id}
+                          userId={userId}
+                          accessToken={accessToken}
+                          serverUrl={serverUrl}
+                          userRole="owner"
+                        />
                       </div>
                     )}
                   </div>

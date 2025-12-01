@@ -1,0 +1,82 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    
+    <!-- Hemp green gradient -->
+    <linearGradient id="hempGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7" />
+      <stop offset="50%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    
+    <!-- Orb gradient -->
+    <radialGradient id="orbGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6ee7b7" stop-opacity="0.8" />
+      <stop offset="40%" stop-color="#10b981" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.2" />
+    </radialGradient>
+    
+    <!-- Text gradient -->
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#6ee7b7" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)" />
+  
+  <!-- Decorative dots pattern -->
+  <g opacity="0.1">
+    <circle cx="100" cy="100" r="2" fill="#6ee7b7" />
+    <circle cx="150" cy="120" r="2" fill="#6ee7b7" />
+    <circle cx="200" cy="90" r="2" fill="#6ee7b7" />
+    <circle cx="1100" cy="500" r="2" fill="#6ee7b7" />
+    <circle cx="1050" cy="520" r="2" fill="#6ee7b7" />
+    <circle cx="1000" cy="490" r="2" fill="#6ee7b7" />
+  </g>
+  
+  <!-- Large orb background left -->
+  <circle cx="200" cy="315" r="300" fill="url(#orbGlow)" opacity="0.4" />
+  
+  <!-- Large orb background right -->
+  <circle cx="1000" cy="315" r="250" fill="url(#orbGlow)" opacity="0.3" />
+  
+  <!-- Main orb icon (centered top) -->
+  <g transform="translate(500, 80)">
+    <!-- Glow -->
+    <circle cx="100" cy="100" r="90" fill="url(#hempGradient)" opacity="0.3" />
+    <!-- Main orb -->
+    <circle cx="100" cy="100" r="70" fill="url(#hempGradient)" />
+    <!-- Highlight -->
+    <ellipse cx="80" cy="75" rx="35" ry="25" fill="#ffffff" opacity="0.4" transform="rotate(-25 80 75)" />
+    <circle cx="75" cy="70" r="12" fill="#ffffff" opacity="0.7" />
+  </g>
+  
+  <!-- Text content -->
+  <g>
+    <!-- Main title -->
+    <text x="600" y="360" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="900" fill="url(#textGradient)" text-anchor="middle" letter-spacing="-2">
+      Hemp'in Universe
+    </text>
+    
+    <!-- Subtitle -->
+    <text x="600" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="36" font-weight="600" fill="#10b981" text-anchor="middle">
+      DEWII Magazine
+    </text>
+    
+    <!-- Tagline -->
+    <text x="600" y="480" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="400" fill="#94a3b8" text-anchor="middle">
+      Your Solarpunk Future Starts Here
+    </text>
+  </g>
+  
+  <!-- Bottom accent line -->
+  <rect x="400" y="540" width="400" height="4" fill="url(#hempGradient)" rx="2" opacity="0.6" />
+</svg>

@@ -11,6 +11,10 @@ import { BrandLogo } from './BrandLogo'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 import { ComicLockOverlay } from './ComicLockOverlay'
+import { ThemeSelector } from './ThemeSelector'
+import { BadgeCollection } from './BadgeCollection'
+import { ProfileBannerUpload } from './ProfileBannerUpload'
+import { BadgeDisplay } from './BadgeDisplay'
 import {
   Dialog,
   DialogContent,
@@ -31,11 +35,16 @@ interface AccountSettingsProps {
   accessToken?: string
   totalArticlesRead?: number
   selectedTheme?: string
+  serverUrl?: string
+  profileBannerUrl?: string | null
   onLogout: () => void
   onUpdateProfile?: (nickname: string, theme: string) => Promise<void>
   onUpdateMarketingPreference?: (marketingOptIn: boolean) => Promise<void>
   onUpdateMarketNewsletterPreference?: (marketNewsletterOptIn: boolean) => Promise<void>
   onFeatureUnlock?: (featureId: 'theme-customization') => void
+  onThemeChange?: (theme: string) => void
+  onBadgeEquipped?: () => void
+  onBannerUploaded?: () => void
 }
 
 export function AccountSettings({ 
@@ -49,13 +58,19 @@ export function AccountSettings({
   marketNewsletterOptIn: initialMarketNewsletterOptIn,
   accessToken,
   totalArticlesRead = 0,
+  serverUrl,
+  profileBannerUrl: initialProfileBannerUrl,
   onLogout,
   onUpdateProfile,
   onUpdateMarketingPreference,
   onUpdateMarketNewsletterPreference,
-  onFeatureUnlock
+  onFeatureUnlock,
+  onThemeChange,
+  onBadgeEquipped,
+  onBannerUploaded
 }: AccountSettingsProps) {
   const level = userPoints ? Math.floor(userPoints / 100) + 1 : 1
+  const finalServerUrl = serverUrl || `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`
   
   const [nickname, setNickname] = useState(initialNickname || '')
   const [selectedTheme, setSelectedTheme] = useState(initialTheme || 'default')
@@ -87,6 +102,16 @@ export function AccountSettings({
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
   const [deleteAccountError, setDeleteAccountError] = useState('')
+  
+  // Owned swag items for theme selector
+  const [ownedItems, setOwnedItems] = useState<Array<{ item_id: string; item_name: string }>>([] )
+  
+  // Badge state
+  const [equippedBadgeId, setEquippedBadgeId] = useState<string | null>(null)
+  const [equipingBadgeId, setEquipingBadgeId] = useState<string | null>(null)
+  
+  // Profile banner state
+  const [currentBannerUrl, setCurrentBannerUrl] = useState<string | null>(initialProfileBannerUrl || null)
   
   // Debounce timer for nickname auto-save
   const nicknameTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -140,6 +165,134 @@ export function AccountSettings({
       description: 'Cosmic light'
     },
   ]
+
+  // Fetch owned swag items and equipped badge on mount
+  useEffect(() => {
+    if (userId && accessToken) {
+      fetchOwnedItems()
+      fetchEquippedBadge()
+    }
+  }, [userId, accessToken])
+  
+  // Update banner URL when prop changes
+  useEffect(() => {
+    setCurrentBannerUrl(initialProfileBannerUrl || null)
+  }, [initialProfileBannerUrl])
+
+  async function fetchOwnedItems() {
+    if (!userId || !accessToken) return
+    
+    try {
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/user-swag-items/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        // The route returns { items: ['badge-founder', 'theme-midnight-hemp'] }
+        const itemIds = data.items || []
+        // Convert to format expected by components: [{ item_id: 'badge-founder' }]
+        setOwnedItems(itemIds.map((id: string) => ({ item_id: id, item_name: id })))
+      }
+    } catch (error) {
+      console.error('Error fetching owned items:', error)
+    }
+  }
+  
+  async function fetchEquippedBadge() {
+    if (!userId || !accessToken) return
+    
+    try {
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/user-progress/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setEquippedBadgeId(data.selectedBadge || null)
+      }
+    } catch (error) {
+      console.error('Error fetching equipped badge:', error)
+    }
+  }
+  
+  async function handleEquipBadge(badgeId: string) {
+    if (!userId || !accessToken || equipingBadgeId) return
+    
+    // If clicking the already equipped badge, do nothing
+    if (equippedBadgeId === badgeId) return
+    
+    setEquipingBadgeId(badgeId)
+    
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/users/${userId}/select-badge`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({ badge: badgeId })
+        }
+      )
+
+      if (response.ok) {
+        // Update local state immediately
+        setEquippedBadgeId(badgeId)
+        console.log('Badge equipped successfully:', badgeId)
+        setShowSuccessMessage(true)
+        setTimeout(() => setShowSuccessMessage(false), 2000)
+        
+        // Notify parent to refresh user progress
+        if (onBadgeEquipped) {
+          onBadgeEquipped()
+        }
+      } else {
+        console.error('Failed to equip badge:', await response.text())
+      }
+    } catch (error) {
+      console.error('Error equipping badge:', error)
+    } finally {
+      // Clear loading state after a moment
+      setTimeout(() => {
+        setEquipingBadgeId(null)
+      }, 600)
+    }
+  }
+  
+  async function handleBannerUploadComplete() {
+    // Fetch the updated banner URL from the server
+    if (!userId || !accessToken) return
+    
+    console.log('🎨 Banner upload completed, refreshing user data...')
+    
+    try {
+      const response = await fetch(`${finalServerUrl}/user-progress/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentBannerUrl(data.profileBannerUrl || null)
+        console.log('✅ Banner URL updated in AccountSettings:', data.profileBannerUrl)
+        
+        // Notify parent to refresh full user progress so banner shows everywhere
+        if (onBannerUploaded) {
+          console.log('🔄 Notifying App.tsx to refresh full user progress')
+          onBannerUploaded()
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching updated banner:', error)
+    }
+  }
 
   // Auto-save nickname with debounce and validation
   useEffect(() => {
@@ -429,6 +582,79 @@ export function AccountSettings({
           </div>
         </div>
 
+        {/* PROFILE PREVIEW WITH BANNER */}
+        <div className="mb-8">
+          <div className="relative overflow-hidden rounded-3xl min-h-[280px] flex items-end pb-6">
+            {/* Banner Background */}
+            {currentBannerUrl ? (
+              <>
+                <img
+                  src={currentBannerUrl}
+                  alt="Profile Banner"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                {/* Gradient overlay for depth */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/30 to-black/60" />
+              </>
+            ) : (
+              // Default gradient if no banner
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600" />
+            )}
+
+            {/* Floating Business Card */}
+            <div className="relative w-full px-6">
+              <div className="max-w-2xl mx-auto">
+                {/* Glass morphism card */}
+                <div className="relative group">
+                  {/* Glow effect */}
+                  <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
+                  
+                  {/* Main card */}
+                  <div className="relative backdrop-blur-2xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl">
+                    <div className="flex items-center gap-6 flex-wrap">
+                      {/* Avatar with badge */}
+                      <div className="relative flex-shrink-0">
+                        {/* Avatar glow */}
+                        <div className="absolute -inset-3 bg-gradient-to-br from-emerald-400 to-teal-400 rounded-full blur-xl opacity-50" />
+                        
+                        {/* Avatar container */}
+                        <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 p-1 shadow-xl">
+                          <div className="w-full h-full rounded-full bg-emerald-600 flex items-center justify-center">
+                            <User className="w-12 h-12 text-white" />
+                          </div>
+                        </div>
+
+                        {/* Equipped Badge - positioned at bottom right */}
+                        {equippedBadgeId && (
+                          <div className="absolute -bottom-2 -right-2 transform scale-90">
+                            <BadgeDisplay
+                              badgeId={equippedBadgeId}
+                              size="md"
+                              equipped={true}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* User Info */}
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-3xl font-bold text-white mb-1 truncate">
+                          {nickname || initialNickname || 'Hemp Pioneer'}
+                        </h2>
+                        {userEmail && (
+                          <p className="text-white/70 text-sm truncate">
+                            {userEmail}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-6">
           {/* Gamified Profile Customization - Gated at 100 articles */}
           <div 
@@ -617,6 +843,20 @@ export function AccountSettings({
 
                 <Separator />
 
+                {/* App-Wide Theme Selector */}
+                {userId && accessToken && onThemeChange && (
+                  <ThemeSelector
+                    userId={userId}
+                    serverUrl={`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`}
+                    accessToken={accessToken}
+                    currentTheme={initialSelectedTheme || 'solarpunk-dreams'}
+                    ownedItems={ownedItems}
+                    onThemeChange={onThemeChange}
+                  />
+                )}
+
+                <Separator />
+
                 {/* Points Summary */}
                 {!isNicknameSet || !isThemeCustomized ? (
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
@@ -652,6 +892,53 @@ export function AccountSettings({
               </CardContent>
             </Card>
           </div>
+
+          {/* Badge Collection */}
+          {userId && accessToken && (
+            <Card className="border-2 border-purple-500/20 bg-card/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-purple-500" />
+                  Badges
+                </CardTitle>
+                <CardDescription>
+                  Equip badges to display on your profile
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BadgeCollection
+                  ownedBadgeIds={ownedItems.filter(item => item.item_id.startsWith('badge-')).map(item => item.item_id)}
+                  equippedBadgeId={equippedBadgeId}
+                  onEquip={handleEquipBadge}
+                  isEquipping={equipingBadgeId}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Custom Profile Banner */}
+          {userId && accessToken && ownedItems.some(item => item.item_id === 'custom-profile-banner') && (
+            <Card className="border-2 border-amber-500/20 bg-card/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <SunsetIcon className="w-5 h-5 text-amber-500" />
+                  Custom Profile Banner
+                </CardTitle>
+                <CardDescription>
+                  Upload a custom banner to personalize your profile
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProfileBannerUpload
+                  userId={userId}
+                  accessToken={accessToken}
+                  serverUrl={finalServerUrl}
+                  currentBannerUrl={currentBannerUrl}
+                  onUploadComplete={handleBannerUploadComplete}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Newsletter Preferences */}
           <Card className="border-2 border-blue-500/20 bg-card/50 backdrop-blur-sm">

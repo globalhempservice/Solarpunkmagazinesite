@@ -3,6 +3,8 @@ import { Building2, MapPin, Globe, Mail, Phone, Calendar, Briefcase, Users, Awar
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { ImageWithFallback } from './figma/ImageWithFallback'
+import { SwagManagementTab } from './SwagManagementTab'
+import { OrganizationPublicationsTab } from './OrganizationPublicationsTab'
 
 interface OrganizationProfilePageProps {
   companyId: string
@@ -10,6 +12,22 @@ interface OrganizationProfilePageProps {
   userId?: string
   accessToken?: string
   onClose: () => void
+}
+
+interface Product {
+  id: string
+  company_id: string
+  name: string
+  description: string
+  price: number
+  stock_quantity: number
+  category: string
+  images: string[]
+  primary_image_url: string | null
+  is_published: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 interface Company {
@@ -42,10 +60,29 @@ export function OrganizationProfilePage({ companyId, serverUrl, userId, accessTo
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'about' | 'swag' | 'publications'>('about')
+  const [products, setProducts] = useState<Product[]>([])
+  const [productsLoading, setProductsLoading] = useState(false)
+  
+  const isOwner = userId && company?.owner_id === userId
+  const isMember = userId && company?.members?.includes(userId)
+  
+  // Determine user role for permissions
+  const getUserRole = (): 'owner' | 'admin' | 'member' | 'viewer' => {
+    if (!userId || !company) return 'viewer'
+    if (isOwner) return 'owner'
+    if (isMember) return 'member' // Could be admin if we had that field
+    return 'viewer'
+  }
 
   useEffect(() => {
     fetchCompany()
   }, [companyId])
+
+  useEffect(() => {
+    if (activeTab === 'swag') {
+      fetchProducts()
+    }
+  }, [activeTab, companyId])
 
   const fetchCompany = async () => {
     try {
@@ -66,6 +103,52 @@ export function OrganizationProfilePage({ companyId, serverUrl, userId, accessTo
       console.error('Error fetching company:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Debug permissions
+  useEffect(() => {
+    if (company) {
+      console.log('🔐 Organization Profile Permissions:', {
+        userId,
+        companyOwnerId: company.owner_id,
+        isOwner,
+        isMember,
+        userRole: getUserRole(),
+        canManageSwag: getUserRole() === 'owner' || getUserRole() === 'admin',
+        canLinkPublications: getUserRole() === 'owner' || getUserRole() === 'admin'
+      })
+    }
+  }, [company, userId])
+
+  const fetchProducts = async () => {
+    setProductsLoading(true)
+    try {
+      const { publicAnonKey } = await import('../utils/supabase/info')
+      const url = `${serverUrl}/swag-products/by-company/${companyId}`
+      console.log('🛍️ [PUBLIC] Fetching products for company:', companyId)
+      console.log('🔗 Full URL:', url)
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`
+        }
+      })
+      
+      console.log('📡 Response status:', response.status, response.statusText)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Fetched', data?.length || 0, 'public products')
+        setProducts(data)
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Failed to fetch products:', errorText)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching products:', error)
+    } finally {
+      setProductsLoading(false)
     }
   }
 
@@ -128,9 +211,9 @@ export function OrganizationProfilePage({ companyId, serverUrl, userId, accessTo
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950 overflow-auto relative pb-24">
+    <div className="fixed inset-0 bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950 overflow-y-auto">
       {/* Animated Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         {/* Organic glow orbs */}
         <div className="absolute top-20 left-20 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-40 right-20 w-[32rem] h-[32rem] bg-teal-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
@@ -158,7 +241,7 @@ export function OrganizationProfilePage({ companyId, serverUrl, userId, accessTo
       </div>
 
       {/* Header - Sticky with Glassmorphism */}
-      <div className="sticky top-0 z-50 border-b-2 border-emerald-500/10">
+      <div className="sticky top-0 z-50 border-b-2 border-emerald-500/10 relative">
         {/* Backdrop blur */}
         <div className="absolute inset-0 bg-emerald-950/95 backdrop-blur-2xl" />
         
@@ -322,7 +405,7 @@ export function OrganizationProfilePage({ companyId, serverUrl, userId, accessTo
       </div>
 
       {/* Main Content */}
-      <div className="relative max-w-7xl mx-auto px-3 sm:px-4 pb-8">
+      <div className="relative max-w-7xl mx-auto px-3 sm:px-4 pb-24 z-10">
         {/* Tabs - Mobile Optimized */}
         <div className="mb-6 flex justify-center">
           <div className="inline-flex gap-1 sm:gap-2 p-1.5 sm:p-2 bg-emerald-950/80 backdrop-blur-xl rounded-xl sm:rounded-2xl border-2 border-emerald-500/20 shadow-2xl w-full sm:w-auto max-w-full overflow-x-auto">
@@ -602,32 +685,97 @@ export function OrganizationProfilePage({ companyId, serverUrl, userId, accessTo
 
         {activeTab === 'swag' && (
           <div className="animate-fadeIn">
-            <div className="relative group max-w-2xl mx-auto">
-              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 rounded-xl sm:rounded-[2rem] blur-xl sm:blur-2xl opacity-20 group-hover:opacity-40 transition-all duration-500" />
-              <div className="relative bg-gradient-to-br from-amber-950/70 via-yellow-950/70 to-amber-950/70 backdrop-blur-xl border-2 border-amber-400/30 rounded-xl sm:rounded-[2rem] p-8 sm:p-12 md:p-16 text-center shadow-2xl">
-                <div className="absolute inset-0 opacity-5 rounded-xl sm:rounded-[2rem]" style={{
-                  backgroundImage: `radial-gradient(circle at 2px 2px, rgba(245,158,11,0.5) 1px, transparent 0)`,
-                  backgroundSize: '16px 16px'
-                }} />
-                
-                <div className="relative mb-6 inline-block">
-                  <div className="absolute inset-0 bg-amber-400/20 blur-2xl rounded-full" />
-                  <div className="relative p-4 sm:p-6 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl sm:rounded-3xl shadow-2xl">
-                    <ShoppingBag className="w-12 h-12 sm:w-16 sm:h-16 text-white" strokeWidth={2.5} />
+            {(getUserRole() === 'owner' || getUserRole() === 'admin') && userId && accessToken ? (
+              <SwagManagementTab
+                companyId={companyId}
+                userId={userId}
+                accessToken={accessToken}
+                serverUrl={serverUrl}
+              />
+            ) : (
+              <div>
+                {productsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-400 rounded-full animate-spin" />
                   </div>
-                </div>
-                
-                <h2 className="font-black text-2xl sm:text-3xl md:text-4xl text-white mb-3 sm:mb-4">Swag Shop Coming Soon</h2>
-                <div className="h-1 w-20 sm:w-24 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full mx-auto mb-4 sm:mb-6" />
-                <p className="text-amber-100/80 text-base sm:text-lg leading-relaxed max-w-md mx-auto px-4">
-                  This organization's exclusive swag shop will be available here. Members will be able to browse and purchase unique hemp merchandise.
-                </p>
+                ) : products.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {products.filter(p => p.is_published && p.is_active).map((product) => {
+                      const productImage = (product.images && product.images.length > 0) ? product.images[0] : product.primary_image_url
+                      return (
+                        <div key={product.id} className="relative group">
+                          <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl blur opacity-0 group-hover:opacity-60 transition-all duration-300" />
+                          <div className="relative bg-gradient-to-br from-amber-950/70 via-yellow-950/70 to-amber-950/70 backdrop-blur-xl border-2 border-amber-400/30 hover:border-amber-400/50 rounded-xl p-4 sm:p-6 transition-all duration-300 group-hover:scale-[1.02]">
+                            {productImage && (
+                              <div className="mb-4 rounded-lg overflow-hidden aspect-square bg-amber-900/20">
+                                <ImageWithFallback 
+                                  src={productImage}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <h3 className="font-black text-lg text-white mb-2">{product.name}</h3>
+                            <p className="text-amber-200/70 text-sm mb-3 line-clamp-2">{product.description}</p>
+                            <div className="flex items-center justify-between">
+                              <span className="font-black text-xl text-amber-400">${product.price}</span>
+                              {product.stock_quantity > 0 ? (
+                                <Badge className="bg-emerald-500/20 border-emerald-400/40 text-emerald-200">
+                                  In Stock
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-red-500/20 border-red-400/40 text-red-200">
+                                  Out of Stock
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="relative group max-w-2xl mx-auto">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 rounded-xl sm:rounded-[2rem] blur-xl sm:blur-2xl opacity-20 group-hover:opacity-40 transition-all duration-500" />
+                    <div className="relative bg-gradient-to-br from-amber-950/70 via-yellow-950/70 to-amber-950/70 backdrop-blur-xl border-2 border-amber-400/30 rounded-xl sm:rounded-[2rem] p-8 sm:p-12 md:p-16 text-center shadow-2xl">
+                      <div className="absolute inset-0 opacity-5 rounded-xl sm:rounded-[2rem]" style={{
+                        backgroundImage: `radial-gradient(circle at 2px 2px, rgba(245,158,11,0.5) 1px, transparent 0)`,
+                        backgroundSize: '16px 16px'
+                      }} />
+                      
+                      <div className="relative mb-6 inline-block">
+                        <div className="absolute inset-0 bg-amber-400/20 blur-2xl rounded-full" />
+                        <div className="relative p-4 sm:p-6 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl sm:rounded-3xl shadow-2xl">
+                          <ShoppingBag className="w-12 h-12 sm:w-16 sm:h-16 text-white" strokeWidth={2.5} />
+                        </div>
+                      </div>
+                      
+                      <h2 className="font-black text-2xl sm:text-3xl md:text-4xl text-white mb-3 sm:mb-4">No Products Yet</h2>
+                      <div className="h-1 w-20 sm:w-24 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full mx-auto mb-4 sm:mb-6" />
+                      <p className="text-amber-100/80 text-base sm:text-lg leading-relaxed max-w-md mx-auto px-4">
+                        This organization hasn't added any products to their swag shop yet. Check back soon for exclusive hemp merchandise!
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         )}
 
-        {activeTab === 'publications' && (
+        {activeTab === 'publications' && userId && accessToken && (
+          <div className="animate-fadeIn">
+            <OrganizationPublicationsTab
+              companyId={companyId}
+              userId={userId}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              userRole={getUserRole()}
+            />
+          </div>
+        )}
+
+        {activeTab === 'publications' && (!userId || !accessToken) && (
           <div className="animate-fadeIn">
             <div className="relative group max-w-2xl mx-auto">
               <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 via-pink-500 to-fuchsia-500 rounded-xl sm:rounded-[2rem] blur-xl sm:blur-2xl opacity-20 group-hover:opacity-40 transition-all duration-500" />
@@ -644,10 +792,10 @@ export function OrganizationProfilePage({ companyId, serverUrl, userId, accessTo
                   </div>
                 </div>
                 
-                <h2 className="font-black text-2xl sm:text-3xl md:text-4xl text-white mb-3 sm:mb-4">Publications Coming Soon</h2>
+                <h2 className="font-black text-2xl sm:text-3xl md:text-4xl text-white mb-3 sm:mb-4">Sign In to View Publications</h2>
                 <div className="h-1 w-20 sm:w-24 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mx-auto mb-4 sm:mb-6" />
                 <p className="text-purple-100/80 text-base sm:text-lg leading-relaxed max-w-md mx-auto px-4">
-                  Articles, RSS feeds, and publications from <span className="font-black text-white">{company.name}</span> will appear here. Stay tuned for industry insights and updates.
+                  Please sign in to view articles and publications from <span className="font-black text-white">{company.name}</span>.
                 </p>
               </div>
             </div>

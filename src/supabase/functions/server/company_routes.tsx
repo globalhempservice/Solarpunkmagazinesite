@@ -1135,5 +1135,983 @@ app.get('/make-server-053bcd80/admin/badge-requests', requireAuth, requireAdmin,
   }
 })
 
+// ============================================================================
+// ORGANIZATION PUBLICATIONS - Article Management Routes
+// ============================================================================
+
+// Get all publications for an organization (PUBLIC - shows approved only unless owner)
+app.get('/make-server-053bcd80/companies/:companyId/publications', async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    console.log(`📰 Fetching publications for organization: ${companyId}`)
+    
+    const { data: publications, error } = await supabase
+      .from('organization_publications')
+      .select(`
+        *,
+        article:articles(
+          id,
+          title,
+          content,
+          author_id,
+          created_at,
+          publish_date,
+          featured_image_url,
+          category,
+          tags,
+          reading_time_minutes,
+          view_count
+        )
+      `)
+      .eq('organization_id', companyId)
+      .eq('is_approved', true)
+      .order('display_order', { ascending: true })
+      .order('added_at', { ascending: false })
+    
+    if (error) {
+      console.error('❌ Error fetching publications:', error)
+      return c.json({ error: 'Failed to fetch publications', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Fetched ${publications?.length || 0} publications`)
+    return c.json(publications || [])
+  } catch (error: any) {
+    console.error('❌ Error in publications route:', error)
+    return c.json({ error: 'Failed to fetch publications', details: error.message }, 500)
+  }
+})
+
+// Link an article to organization (requires auth + ownership)
+app.post('/make-server-053bcd80/companies/:companyId/publications', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const { article_id, role = 'author', notes } = await c.req.json()
+    const userId = c.get('userId')
+    
+    console.log(`📰 Linking article ${article_id} to organization ${companyId}`)
+    
+    if (!article_id) {
+      return c.json({ error: 'article_id is required' }, 400)
+    }
+    
+    // Verify user owns the organization
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('owner_id, name')
+      .eq('id', companyId)
+      .single()
+    
+    if (companyError || !company) {
+      console.error('❌ Organization not found:', companyError)
+      return c.json({ error: 'Organization not found' }, 404)
+    }
+    
+    if (company.owner_id !== userId) {
+      console.error('❌ User does not own organization')
+      return c.json({ error: 'You do not own this organization' }, 403)
+    }
+    
+    // Verify article exists
+    const { data: article, error: articleError } = await supabase
+      .from('articles')
+      .select('id, title')
+      .eq('id', article_id)
+      .single()
+    
+    if (articleError || !article) {
+      console.error('❌ Article not found:', articleError)
+      return c.json({ error: 'Article not found' }, 404)
+    }
+    
+    // Validate role
+    const validRoles = ['author', 'co-author', 'sponsor', 'featured']
+    if (!validRoles.includes(role)) {
+      return c.json({ error: 'Invalid role. Must be one of: author, co-author, sponsor, featured' }, 400)
+    }
+    
+    // Create the publication link
+    const { data: publication, error } = await supabase
+      .from('organization_publications')
+      .insert({
+        organization_id: companyId,
+        article_id,
+        role,
+        notes: notes || null,
+        added_by: userId,
+        is_approved: true, // Auto-approve for now (owner-added content)
+        approved_by: userId,
+        approved_at: new Date().toISOString()
+      })
+      .select(`
+        *,
+        article:articles(
+          id,
+          title,
+          content,
+          author_id,
+          created_at,
+          publish_date,
+          featured_image_url,
+          category,
+          tags,
+          reading_time_minutes,
+          view_count
+        )
+      `)
+      .single()
+    
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        console.error('❌ Article already linked to organization')
+        return c.json({ error: 'This article is already linked to this organization' }, 400)
+      }
+      console.error('❌ Error linking article:', error)
+      return c.json({ error: 'Failed to link article', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Article "${article.title}" linked to organization "${company.name}"`)
+    return c.json(publication)
+  } catch (error: any) {
+    console.error('❌ Error in link article route:', error)
+    return c.json({ error: 'Failed to link article', details: error.message }, 500)
+  }
+})
+
+// Unlink article from organization
+app.delete('/make-server-053bcd80/companies/:companyId/publications/:publicationId', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const publicationId = c.req.param('publicationId')
+    const userId = c.get('userId')
+    
+    console.log(`📰 Unlinking publication ${publicationId} from organization ${companyId}`)
+    
+    // Verify user owns the organization
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    if (companyError || !company) {
+      console.error('❌ Organization not found:', companyError)
+      return c.json({ error: 'Organization not found' }, 404)
+    }
+    
+    if (company.owner_id !== userId) {
+      console.error('❌ User does not own organization')
+      return c.json({ error: 'You do not own this organization' }, 403)
+    }
+    
+    // Delete the publication link
+    const { error } = await supabase
+      .from('organization_publications')
+      .delete()
+      .eq('id', publicationId)
+      .eq('organization_id', companyId)
+    
+    if (error) {
+      console.error('❌ Error unlinking article:', error)
+      return c.json({ error: 'Failed to unlink article', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Publication unlinked successfully`)
+    return c.json({ success: true, message: 'Article unlinked from organization' })
+  } catch (error: any) {
+    console.error('❌ Error in unlink article route:', error)
+    return c.json({ error: 'Failed to unlink article', details: error.message }, 500)
+  }
+})
+
+// Update publication metadata (role, notes, display order)
+app.put('/make-server-053bcd80/companies/:companyId/publications/:publicationId', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const publicationId = c.req.param('publicationId')
+    const { role, notes, display_order } = await c.req.json()
+    const userId = c.get('userId')
+    
+    console.log(`📰 Updating publication ${publicationId}`)
+    
+    // Verify ownership
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    if (companyError || !company || company.owner_id !== userId) {
+      console.error('❌ Unauthorized access attempt')
+      return c.json({ error: 'Unauthorized' }, 403)
+    }
+    
+    // Build update object
+    const updateData: any = {}
+    if (role) {
+      const validRoles = ['author', 'co-author', 'sponsor', 'featured']
+      if (!validRoles.includes(role)) {
+        return c.json({ error: 'Invalid role. Must be one of: author, co-author, sponsor, featured' }, 400)
+      }
+      updateData.role = role
+    }
+    if (notes !== undefined) updateData.notes = notes
+    if (display_order !== undefined) updateData.display_order = display_order
+    
+    if (Object.keys(updateData).length === 0) {
+      return c.json({ error: 'No fields to update' }, 400)
+    }
+    
+    // Update publication
+    const { data: publication, error } = await supabase
+      .from('organization_publications')
+      .update(updateData)
+      .eq('id', publicationId)
+      .eq('organization_id', companyId)
+      .select(`
+        *,
+        article:articles(
+          id,
+          title,
+          content,
+          author_id,
+          created_at,
+          publish_date,
+          featured_image_url,
+          category,
+          tags,
+          reading_time_minutes,
+          view_count
+        )
+      `)
+      .single()
+    
+    if (error) {
+      console.error('❌ Error updating publication:', error)
+      return c.json({ error: 'Failed to update publication', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Publication updated successfully`)
+    return c.json(publication)
+  } catch (error: any) {
+    console.error('❌ Error in update publication route:', error)
+    return c.json({ error: 'Failed to update publication', details: error.message }, 500)
+  }
+})
+
+// Get user's articles (for linking dropdown)
+app.get('/make-server-053bcd80/users/:userId/articles', requireAuth, async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const requestingUserId = c.get('userId')
+    
+    // Users can only fetch their own articles (or admins can fetch any)
+    const isAdmin = c.get('isAdmin')
+    if (userId !== requestingUserId && !isAdmin) {
+      console.error('❌ Unauthorized access to user articles')
+      return c.json({ error: 'Unauthorized' }, 403)
+    }
+    
+    console.log(`📰 Fetching articles for user: ${userId}`)
+    
+    const { data: articles, error } = await supabase
+      .from('articles')
+      .select('id, title, created_at, publish_date, category, tags, featured_image_url, reading_time_minutes')
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('❌ Error fetching user articles:', error)
+      return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Fetched ${articles?.length || 0} articles`)
+    return c.json(articles || [])
+  } catch (error: any) {
+    console.error('❌ Error in user articles route:', error)
+    return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+  }
+})
+
+// Get publication statistics for an organization
+app.get('/make-server-053bcd80/companies/:companyId/publications/stats', async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    console.log(`📊 Fetching publication stats for organization: ${companyId}`)
+    
+    const { data: stats, error } = await supabase
+      .from('organization_publications')
+      .select('role, article:articles(view_count)')
+      .eq('organization_id', companyId)
+      .eq('is_approved', true)
+    
+    if (error) {
+      console.error('❌ Error fetching publication stats:', error)
+      return c.json({ error: 'Failed to fetch stats', details: error.message }, 500)
+    }
+    
+    const result = {
+      total: stats?.length || 0,
+      by_role: {
+        author: stats?.filter(p => p.role === 'author').length || 0,
+        'co-author': stats?.filter(p => p.role === 'co-author').length || 0,
+        sponsor: stats?.filter(p => p.role === 'sponsor').length || 0,
+        featured: stats?.filter(p => p.role === 'featured').length || 0
+      },
+      total_views: stats?.reduce((sum, p) => sum + (p.article?.view_count || 0), 0) || 0
+    }
+    
+    console.log(`✅ Stats calculated: ${result.total} publications, ${result.total_views} total views`)
+    return c.json(result)
+  } catch (error: any) {
+    console.error('❌ Error in publication stats route:', error)
+    return c.json({ error: 'Failed to fetch stats', details: error.message }, 500)
+  }
+})
+
+// ============================================================================
+// ORGANIZATION MEMBERS MANAGEMENT
+// ============================================================================
+
+// Get all members of an organization
+app.get('/make-server-053bcd80/organizations/:companyId/members', async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    console.log(`👥 Fetching members for organization: ${companyId}`)
+    
+    const { data: members, error } = await supabase
+      .from('company_members')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('joined_at', { ascending: false })
+    
+    if (error) {
+      console.error('❌ Error fetching members:', error)
+      return c.json({ error: 'Failed to fetch members', details: error.message }, 500)
+    }
+    
+    // Fetch user details for each member using admin client
+    const formattedMembers = await Promise.all(
+      (members || []).map(async (m) => {
+        let email = 'Unknown'
+        let name = 'Unknown'
+        
+        try {
+          const { data: userData, error: userError } = await supabase.auth.admin.getUserById(m.user_id)
+          if (!userError && userData?.user) {
+            email = userData.user.email || 'Unknown'
+            name = userData.user.user_metadata?.full_name || 
+                   userData.user.user_metadata?.name || 
+                   email.split('@')[0]
+          }
+        } catch (err) {
+          console.warn(`⚠️ Could not fetch user data for ${m.user_id}:`, err)
+        }
+        
+        return {
+          id: m.id,
+          userId: m.user_id,
+          email,
+          name,
+          role: m.role,
+          title: m.title,
+          canEdit: m.can_edit,
+          canManageBadges: m.can_manage_badges,
+          canManageMembers: m.can_manage_members,
+          invitedBy: m.invited_by,
+          joinedAt: m.joined_at
+        }
+      })
+    )
+    
+    console.log(`✅ Fetched ${formattedMembers.length} members`)
+    return c.json({ members: formattedMembers })
+  } catch (error: any) {
+    console.error('❌ Error in members route:', error)
+    return c.json({ error: 'Failed to fetch members', details: error.message }, 500)
+  }
+})
+
+// Invite a new member to organization
+app.post('/make-server-053bcd80/organizations/:companyId/members/invite', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const { email, role, title, permissions } = await c.req.json()
+    const inviterId = c.get('userId')
+    
+    console.log(`📨 Inviting member ${email} to organization ${companyId}`)
+    
+    // Verify inviter has permission
+    const { data: inviter } = await supabase
+      .from('company_members')
+      .select('role, can_manage_members')
+      .eq('company_id', companyId)
+      .eq('user_id', inviterId)
+      .single()
+    
+    // Check if user is owner or admin/member with permission
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    const isOwner = company?.owner_id === inviterId
+    const canInvite = isOwner || inviter?.role === 'admin' || inviter?.can_manage_members
+    
+    if (!canInvite) {
+      return c.json({ error: 'You do not have permission to invite members' }, 403)
+    }
+    
+    // Find user by email using listUsers
+    const { data: { users }, error: userError } = await supabase.auth.admin.listUsers()
+    
+    if (userError) {
+      console.error('❌ Error fetching users:', userError)
+      return c.json({ error: 'Failed to fetch users', details: userError.message }, 500)
+    }
+    
+    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase())
+    
+    if (!user) {
+      return c.json({ error: 'User not found. They must sign up first.' }, 404)
+    }
+    
+    // Check if already a member
+    const { data: existing } = await supabase
+      .from('company_members')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('user_id', user.id)
+      .single()
+    
+    if (existing) {
+      return c.json({ error: 'User is already a member of this organization' }, 400)
+    }
+    
+    // Add member
+    const { data: newMember, error } = await supabase
+      .from('company_members')
+      .insert({
+        company_id: companyId,
+        user_id: user.id,
+        role: role || 'member',
+        title: title || null,
+        can_edit: permissions?.canEdit || false,
+        can_manage_badges: permissions?.canManageBadges || false,
+        can_manage_members: permissions?.canManageMembers || false,
+        invited_by: inviterId
+      })
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('❌ Error adding member:', error)
+      return c.json({ error: 'Failed to add member', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Member ${email} invited successfully`)
+    return c.json({ success: true, member: newMember })
+  } catch (error: any) {
+    console.error('❌ Error in invite member route:', error)
+    return c.json({ error: 'Failed to invite member', details: error.message }, 500)
+  }
+})
+
+// Update member role
+app.put('/make-server-053bcd80/organizations/:companyId/members/:memberId/role', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const memberId = c.req.param('memberId')
+    const { role } = await c.req.json()
+    const userId = c.get('userId')
+    
+    console.log(`🔄 Updating member ${memberId} role to ${role}`)
+    
+    // Verify user has permission (owner or admin)
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    const { data: userMember } = await supabase
+      .from('company_members')
+      .select('role, can_manage_members')
+      .eq('company_id', companyId)
+      .eq('user_id', userId)
+      .single()
+    
+    const isOwner = company?.owner_id === userId
+    const canManage = isOwner || userMember?.role === 'admin' || userMember?.can_manage_members
+    
+    if (!canManage) {
+      return c.json({ error: 'You do not have permission to update member roles' }, 403)
+    }
+    
+    // Update role
+    const { error } = await supabase
+      .from('company_members')
+      .update({ role })
+      .eq('id', memberId)
+      .eq('company_id', companyId)
+    
+    if (error) {
+      console.error('❌ Error updating role:', error)
+      return c.json({ error: 'Failed to update role', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Member role updated successfully`)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in update role route:', error)
+    return c.json({ error: 'Failed to update role', details: error.message }, 500)
+  }
+})
+
+// Update member permissions
+app.put('/make-server-053bcd80/organizations/:companyId/members/:memberId/permissions', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const memberId = c.req.param('memberId')
+    const { canEdit, canManageBadges, canManageMembers, title } = await c.req.json()
+    const userId = c.get('userId')
+    
+    console.log(`🔄 Updating member ${memberId} permissions`)
+    
+    // Verify user has permission
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    const { data: userMember } = await supabase
+      .from('company_members')
+      .select('role, can_manage_members')
+      .eq('company_id', companyId)
+      .eq('user_id', userId)
+      .single()
+    
+    const isOwner = company?.owner_id === userId
+    const canManage = isOwner || userMember?.role === 'admin' || userMember?.can_manage_members
+    
+    if (!canManage) {
+      return c.json({ error: 'You do not have permission to update member permissions' }, 403)
+    }
+    
+    // Update permissions
+    const updates: any = {}
+    if (canEdit !== undefined) updates.can_edit = canEdit
+    if (canManageBadges !== undefined) updates.can_manage_badges = canManageBadges
+    if (canManageMembers !== undefined) updates.can_manage_members = canManageMembers
+    if (title !== undefined) updates.title = title
+    
+    const { error } = await supabase
+      .from('company_members')
+      .update(updates)
+      .eq('id', memberId)
+      .eq('company_id', companyId)
+    
+    if (error) {
+      console.error('❌ Error updating permissions:', error)
+      return c.json({ error: 'Failed to update permissions', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Member permissions updated successfully`)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in update permissions route:', error)
+    return c.json({ error: 'Failed to update permissions', details: error.message }, 500)
+  }
+})
+
+// Remove member from organization
+app.delete('/make-server-053bcd80/organizations/:companyId/members/:memberId', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const memberId = c.req.param('memberId')
+    const userId = c.get('userId')
+    
+    console.log(`🗑️ Removing member ${memberId} from organization ${companyId}`)
+    
+    // Get member being removed
+    const { data: memberToRemove } = await supabase
+      .from('company_members')
+      .select('user_id')
+      .eq('id', memberId)
+      .single()
+    
+    // Verify user has permission (owner, admin, or removing self)
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    const { data: userMember } = await supabase
+      .from('company_members')
+      .select('role, can_manage_members')
+      .eq('company_id', companyId)
+      .eq('user_id', userId)
+      .single()
+    
+    const isOwner = company?.owner_id === userId
+    const isSelf = memberToRemove?.user_id === userId
+    const canManage = isOwner || userMember?.role === 'admin' || userMember?.can_manage_members
+    
+    // Can't remove the owner
+    if (memberToRemove?.user_id === company?.owner_id) {
+      return c.json({ error: 'Cannot remove the organization owner' }, 400)
+    }
+    
+    if (!isSelf && !canManage) {
+      return c.json({ error: 'You do not have permission to remove members' }, 403)
+    }
+    
+    // Remove member
+    const { error } = await supabase
+      .from('company_members')
+      .delete()
+      .eq('id', memberId)
+      .eq('company_id', companyId)
+    
+    if (error) {
+      console.error('❌ Error removing member:', error)
+      return c.json({ error: 'Failed to remove member', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Member removed successfully`)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in remove member route:', error)
+    return c.json({ error: 'Failed to remove member', details: error.message }, 500)
+  }
+})
+
+// ============================================================================
+// ORGANIZATION BADGES MANAGEMENT
+// ============================================================================
+
+// Get all badges for an organization
+app.get('/make-server-053bcd80/organizations/:companyId/badges', async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    console.log(`🏅 Fetching badges for organization: ${companyId}`)
+    
+    const { data: badges, error } = await supabase
+      .from('company_badges')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('❌ Error fetching badges:', error)
+      return c.json({ error: 'Failed to fetch badges', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Fetched ${badges?.length || 0} badges`)
+    return c.json({ badges: badges || [] })
+  } catch (error: any) {
+    console.error('❌ Error in badges route:', error)
+    return c.json({ error: 'Failed to fetch badges', details: error.message }, 500)
+  }
+})
+
+// Create a badge request for organization
+app.post('/make-server-053bcd80/organizations/:companyId/badges', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const { badgeType, name, description, icon, evidenceUrl, notes } = await c.req.json()
+    const userId = c.get('userId')
+    
+    console.log(`🏅 Creating badge request for organization ${companyId}`)
+    
+    // Verify user has permission
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    const { data: userMember } = await supabase
+      .from('company_members')
+      .select('role, can_manage_badges')
+      .eq('company_id', companyId)
+      .eq('user_id', userId)
+      .single()
+    
+    const isOwner = company?.owner_id === userId
+    const canManage = isOwner || userMember?.role === 'admin' || userMember?.can_manage_badges
+    
+    if (!canManage) {
+      return c.json({ error: 'You do not have permission to request badges' }, 403)
+    }
+    
+    // Check if badge already exists
+    const { data: existing } = await supabase
+      .from('company_badges')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('badge_type', badgeType)
+      .single()
+    
+    if (existing) {
+      return c.json({ error: 'This badge already exists for your organization' }, 400)
+    }
+    
+    // Create badge request (unverified by default)
+    const { data: badge, error } = await supabase
+      .from('company_badges')
+      .insert({
+        company_id: companyId,
+        badge_type: badgeType,
+        badge_name: name,
+        badge_description: description || null,
+        badge_icon: icon || null,
+        evidence_url: evidenceUrl || null,
+        notes: notes || null,
+        verified: false
+      })
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('❌ Error creating badge:', error)
+      return c.json({ error: 'Failed to create badge', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Badge request created successfully (pending verification)`)
+    return c.json({ success: true, badge })
+  } catch (error: any) {
+    console.error('❌ Error in create badge route:', error)
+    return c.json({ error: 'Failed to create badge', details: error.message }, 500)
+  }
+})
+
+// Update/verify a badge (admin only for verification)
+app.put('/make-server-053bcd80/organizations/:companyId/badges/:badgeId', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const badgeId = c.req.param('badgeId')
+    const { verified, verificationNotes } = await c.req.json()
+    const userId = c.get('userId')
+    
+    console.log(`🔄 Updating badge ${badgeId}`)
+    
+    // Only admins can verify badges
+    const { data: adminCheck } = await supabase
+      .from('kv_store_053bcd80')
+      .select('value')
+      .eq('key', 'admin_user_id')
+      .single()
+    
+    const isAdmin = adminCheck?.value === `"${userId}"`
+    
+    if (!isAdmin && verified !== undefined) {
+      return c.json({ error: 'Only admins can verify badges' }, 403)
+    }
+    
+    const updates: any = {}
+    if (verified !== undefined) {
+      updates.verified = verified
+      updates.verified_by = userId
+      updates.verified_at = new Date().toISOString()
+    }
+    if (verificationNotes) updates.verification_notes = verificationNotes
+    
+    const { error } = await supabase
+      .from('company_badges')
+      .update(updates)
+      .eq('id', badgeId)
+      .eq('company_id', companyId)
+    
+    if (error) {
+      console.error('❌ Error updating badge:', error)
+      return c.json({ error: 'Failed to update badge', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Badge updated successfully`)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in update badge route:', error)
+    return c.json({ error: 'Failed to update badge', details: error.message }, 500)
+  }
+})
+
+// Delete a badge
+app.delete('/make-server-053bcd80/organizations/:companyId/badges/:badgeId', requireAuth, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const badgeId = c.req.param('badgeId')
+    const userId = c.get('userId')
+    
+    console.log(`🗑️ Deleting badge ${badgeId}`)
+    
+    // Verify user has permission
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', companyId)
+      .single()
+    
+    const { data: userMember } = await supabase
+      .from('company_members')
+      .select('role, can_manage_badges')
+      .eq('company_id', companyId)
+      .eq('user_id', userId)
+      .single()
+    
+    // Check if admin (admins can delete any badge)
+    const { data: adminCheck } = await supabase
+      .from('kv_store_053bcd80')
+      .select('value')
+      .eq('key', 'admin_user_id')
+      .single()
+    
+    const isAdmin = adminCheck?.value === `"${userId}"`
+    const isOwner = company?.owner_id === userId
+    const canManage = isOwner || userMember?.role === 'admin' || userMember?.can_manage_badges
+    
+    if (!isAdmin && !canManage) {
+      return c.json({ error: 'You do not have permission to delete badges' }, 403)
+    }
+    
+    const { error } = await supabase
+      .from('company_badges')
+      .delete()
+      .eq('id', badgeId)
+      .eq('company_id', companyId)
+    
+    if (error) {
+      console.error('❌ Error deleting badge:', error)
+      return c.json({ error: 'Failed to delete badge', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Badge deleted successfully`)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in delete badge route:', error)
+    return c.json({ error: 'Failed to delete badge', details: error.message }, 500)
+  }
+})
+
+// ============================================================================
+// ADMIN: BADGE VERIFICATION SYSTEM
+// ============================================================================
+
+// Admin: Get all badge requests across all organizations
+app.get('/make-server-053bcd80/admin/badges/all', requireAuth, requireAdmin, async (c) => {
+  try {
+    console.log('🏅 [ADMIN] Fetching all badge requests...')
+    
+    const { data: badges, error } = await supabase
+      .from('company_badges')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('❌ Error fetching badges:', error)
+      return c.json({ error: 'Failed to fetch badges', details: error.message }, 500)
+    }
+    
+    // Fetch company names for all badges
+    const badgesWithCompanies = await Promise.all(
+      (badges || []).map(async (badge) => {
+        const { data: company } = await supabase
+          .from('companies')
+          .select('name')
+          .eq('id', badge.company_id)
+          .single()
+        
+        return {
+          id: badge.id,
+          companyId: badge.company_id,
+          companyName: company?.name || 'Unknown',
+          badgeType: badge.badge_type,
+          name: badge.badge_name,
+          description: badge.badge_description,
+          icon: badge.badge_icon,
+          evidenceUrl: badge.evidence_url,
+          notes: badge.notes,
+          verified: badge.verified,
+          verifiedBy: badge.verified_by,
+          verifiedAt: badge.verified_at,
+          verificationNotes: badge.verification_notes,
+          earnedAt: badge.created_at,
+          issuedByAssociationId: badge.issued_by_association_id
+        }
+      })
+    )
+    
+    console.log(`✅ [ADMIN] Fetched ${badgesWithCompanies.length} badge requests`)
+    return c.json({ badges: badgesWithCompanies })
+  } catch (error: any) {
+    console.error('❌ Error in admin badges route:', error)
+    return c.json({ error: 'Failed to fetch badges', details: error.message }, 500)
+  }
+})
+
+// Admin: Verify/Update a badge
+app.put('/make-server-053bcd80/admin/badges/:badgeId/verify', requireAuth, requireAdmin, async (c) => {
+  try {
+    const badgeId = c.req.param('badgeId')
+    const { verified, verificationNotes } = await c.req.json()
+    const adminId = c.get('userId')
+    
+    console.log(`🔐 [ADMIN] Verifying badge ${badgeId}`)
+    
+    const updates: any = {
+      verified: verified,
+      verified_by: adminId,
+      verified_at: new Date().toISOString()
+    }
+    
+    if (verificationNotes !== undefined) {
+      updates.verification_notes = verificationNotes
+    }
+    
+    const { error } = await supabase
+      .from('company_badges')
+      .update(updates)
+      .eq('id', badgeId)
+    
+    if (error) {
+      console.error('❌ Error verifying badge:', error)
+      return c.json({ error: 'Failed to verify badge', details: error.message }, 500)
+    }
+    
+    console.log(`✅ [ADMIN] Badge ${verified ? 'verified' : 'unverified'} successfully`)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in admin verify badge route:', error)
+    return c.json({ error: 'Failed to verify badge', details: error.message }, 500)
+  }
+})
+
+// Admin: Delete/Reject a badge
+app.delete('/make-server-053bcd80/admin/badges/:badgeId', requireAuth, requireAdmin, async (c) => {
+  try {
+    const badgeId = c.req.param('badgeId')
+    
+    console.log(`🗑️ [ADMIN] Deleting badge ${badgeId}`)
+    
+    const { error } = await supabase
+      .from('company_badges')
+      .delete()
+      .eq('id', badgeId)
+    
+    if (error) {
+      console.error('❌ Error deleting badge:', error)
+      return c.json({ error: 'Failed to delete badge', details: error.message }, 500)
+    }
+    
+    console.log(`✅ [ADMIN] Badge deleted successfully`)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in admin delete badge route:', error)
+    return c.json({ error: 'Failed to delete badge', details: error.message }, 500)
+  }
+})
+
 // End of company routes setup
 }

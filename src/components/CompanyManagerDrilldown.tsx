@@ -4,6 +4,9 @@ import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { motion, AnimatePresence, PanInfo } from 'motion/react'
 import { SwagManagementTab } from './SwagManagementTab'
+import { OrganizationPublicationsTab } from './OrganizationPublicationsTab'
+import OrganizationMembersTab from './OrganizationMembersTab'
+import OrganizationBadgesTab from './OrganizationBadgesTab'
 
 interface Company {
   id: string
@@ -327,9 +330,34 @@ export function CompanyManagerDrilldown({ userId, accessToken, serverUrl, onClos
                     serverUrl={serverUrl}
                   />
                 )}
-                {navigation.view === 'publications' && <PublicationsView company={selectedCompany} />}
-                {navigation.view === 'badges' && <BadgeRequestsView company={selectedCompany} />}
-                {navigation.view === 'members' && <MembersView company={selectedCompany} />}
+                {navigation.view === 'publications' && (
+                  <PublicationsView 
+                    company={selectedCompany}
+                    userId={userId}
+                    accessToken={accessToken}
+                    serverUrl={serverUrl}
+                  />
+                )}
+                {navigation.view === 'badges' && (
+                  <OrganizationBadgesTab
+                    companyId={selectedCompany.id}
+                    companyName={selectedCompany.name}
+                    currentUserId={userId}
+                    isOwner={selectedCompany.ownerId === userId}
+                    userRole={selectedCompany.ownerId === userId ? 'owner' : null}
+                    canManageBadges={selectedCompany.ownerId === userId}
+                  />
+                )}
+                {navigation.view === 'members' && (
+                  <OrganizationMembersTab
+                    companyId={selectedCompany.id}
+                    companyName={selectedCompany.name}
+                    currentUserId={userId}
+                    isOwner={selectedCompany.ownerId === userId}
+                    userRole={selectedCompany.ownerId === userId ? 'owner' : null}
+                    canManageMembers={selectedCompany.ownerId === userId}
+                  />
+                )}
                 {navigation.view === 'settings' && (
                   <SettingsView 
                     company={selectedCompany} 
@@ -448,43 +476,7 @@ function DetailCard({ icon: Icon, label, value, link }: { icon: any, label: stri
   )
 }
 
-function BadgeRequestsView({ company }: { company: Company }) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-black text-2xl text-white mb-1">Badge Requests</h2>
-        <p className="text-sm text-emerald-200/70">Manage member badge applications</p>
-      </div>
-      
-      <div className="text-center py-12 bg-emerald-900/20 rounded-2xl border-2 border-dashed border-emerald-500/20">
-        <Award className="w-12 h-12 mx-auto mb-3 text-emerald-400/50" />
-        <h3 className="font-black mb-2 text-white">No Badge Requests</h3>
-        <p className="text-sm text-emerald-200/60">
-          Badge requests from members will appear here
-        </p>
-      </div>
-    </div>
-  )
-}
 
-function MembersView({ company }: { company: Company }) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-black text-2xl text-white mb-1">Members</h2>
-        <p className="text-sm text-emerald-200/70">Manage organization members</p>
-      </div>
-      
-      <div className="text-center py-12 bg-emerald-900/20 rounded-2xl border-2 border-dashed border-emerald-500/20">
-        <Users className="w-12 h-12 mx-auto mb-3 text-emerald-400/50" />
-        <h3 className="font-black mb-2 text-white">No Members Yet</h3>
-        <p className="text-sm text-emerald-200/60">
-          Organization members will appear here
-        </p>
-      </div>
-    </div>
-  )
-}
 
 function SettingsView({ company, onTogglePublish, isPublishing }: { company: Company, onTogglePublish: () => void, isPublishing: boolean }) {
   return (
@@ -554,15 +546,26 @@ function ProfileView({ company }: { company: Company }) {
   )
 }
 
-function PublicationsView({ company }: { company: Company }) {
+function PublicationsView({ 
+  company, 
+  userId, 
+  accessToken, 
+  serverUrl 
+}: { 
+  company: Company
+  userId: string
+  accessToken: string
+  serverUrl: string
+}) {
   return (
     <div className="space-y-4">
-      <h2 className="font-black text-2xl text-white">Publications</h2>
-      <p className="text-sm text-emerald-200/70">Manage your organization's publications</p>
-      
-      <div className="bg-emerald-950/50 border-2 border-emerald-500/20 rounded-2xl p-6">
-        <p className="text-sm text-emerald-200/60">Publication management coming soon...</p>
-      </div>
+      <OrganizationPublicationsTab
+        companyId={company.id}
+        userId={userId}
+        accessToken={accessToken}
+        serverUrl={serverUrl}
+        userRole="owner"
+      />
     </div>
   )
 }

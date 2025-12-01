@@ -1,4 +1,4 @@
-import { User, Award, Crown, Leaf, Sparkles, TrendingUp, Settings } from 'lucide-react'
+import { User, TrendingUp, Settings, ShoppingBag, Sparkles, Puzzle } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
 import { useState, useEffect } from 'react'
@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Building2 } from 'lucide-react'
 import { CompanyManager } from './CompanyManager'
 import { CompanyManagerWrapper } from './CompanyManagerWrapper'
+import { BadgeDisplay } from './BadgeDisplay'
+import { PluginsShop } from './PluginsShop'
 
 interface MarketProfilePanelProps {
   isOpen: boolean
@@ -14,14 +16,14 @@ interface MarketProfilePanelProps {
   serverUrl: string
   userEmail: string | null
   nadaPoints: number
+  equippedBadgeId?: string | null
+  profileBannerUrl?: string | null
   onClose: () => void
   onVote?: () => void
   onSubmitIdea?: () => void
   onSettings?: () => void
-}
-
-interface UserProgress {
-  selectedBadge?: string
+  onNavigateToSwagMarketplace?: () => void
+  onNadaUpdate?: (newBalance: number) => void
 }
 
 // NADA Ripple Icon
@@ -48,31 +50,6 @@ function NadaRippleIcon({ className = "w-6 h-6" }: { className?: string }) {
   )
 }
 
-// Badge definitions matching MarketSettings
-const BADGES_INFO = [
-  {
-    id: 'badge-founder',
-    name: 'Founder',
-    icon: Crown,
-    iconColor: 'text-purple-400',
-    bgGradient: 'from-purple-500 to-pink-600',
-  },
-  {
-    id: 'badge-hemp-pioneer',
-    name: 'Hemp Pioneer',
-    icon: Leaf,
-    iconColor: 'text-emerald-400',
-    bgGradient: 'from-emerald-500 to-green-600',
-  },
-  {
-    id: 'badge-nada-whale',
-    name: 'NADA Whale',
-    icon: Sparkles,
-    iconColor: 'text-cyan-400',
-    bgGradient: 'from-cyan-500 to-blue-600',
-  }
-]
-
 export function MarketProfilePanel({
   isOpen,
   userId,
@@ -80,122 +57,22 @@ export function MarketProfilePanel({
   serverUrl,
   userEmail,
   nadaPoints,
+  equippedBadgeId,
+  profileBannerUrl,
   onClose,
   onVote,
   onSubmitIdea,
-  onSettings
+  onSettings,
+  onNavigateToSwagMarketplace,
+  onNadaUpdate
 }: MarketProfilePanelProps) {
-  const [userProgress, setUserProgress] = useState<UserProgress>({})
-  const [ownedBadges, setOwnedBadges] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [equipingBadgeId, setEquipingBadgeId] = useState<string | null>(null)
-  const [showSuccessToast, setShowSuccessToast] = useState(false)
-  const [activeTab, setActiveTab] = useState<'badges' | 'companies'>('badges')
   const [showCompanyManager, setShowCompanyManager] = useState(false)
+  const [showPluginsShop, setShowPluginsShop] = useState(false)
+  const [currentNadaPoints, setCurrentNadaPoints] = useState(nadaPoints)
 
   useEffect(() => {
-    if (isOpen && userId && accessToken) {
-      fetchUserData()
-    }
-  }, [isOpen, userId, accessToken]) // Refetch every time the panel opens
-
-  const fetchUserData = async () => {
-    if (!userId || !accessToken) return
-
-    setIsLoading(true)
-    try {
-      // Fetch user progress
-      const progressResponse = await fetch(
-        `${serverUrl}/user-progress/${userId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        }
-      )
-
-      if (progressResponse.ok) {
-        const progressData = await progressResponse.json()
-        setUserProgress(progressData)
-        console.log('User progress:', progressData)
-      }
-
-      // Fetch owned items to get badges
-      const itemsResponse = await fetch(
-        `${serverUrl}/user-swag-items/${userId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        }
-      )
-
-      if (itemsResponse.ok) {
-        const itemsData = await itemsResponse.json()
-        const items = itemsData.items || []
-        // Filter to only badge items
-        const badgeIds = items.filter((id: string) => id.startsWith('badge-'))
-        setOwnedBadges(badgeIds)
-        console.log('Owned badges:', badgeIds)
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Get current badge info
-  const getCurrentBadge = () => {
-    const badgeId = userProgress.selectedBadge
-    if (!badgeId || badgeId === 'default') return null
-    return BADGES_INFO.find(b => b.id === badgeId)
-  }
-
-  const currentBadge = getCurrentBadge()
-
-  // Handle badge equip
-  const handleEquipBadge = async (badgeId: string) => {
-    if (!userId || !accessToken || equipingBadgeId) return
-    
-    // If clicking the already active badge, do nothing
-    if (userProgress.selectedBadge === badgeId) return
-    
-    setEquipingBadgeId(badgeId)
-    
-    try {
-      const response = await fetch(
-        `${serverUrl}/users/${userId}/select-badge`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({ badge: badgeId })
-        }
-      )
-
-      if (response.ok) {
-        // Update local state immediately
-        setUserProgress(prev => ({
-          ...prev,
-          selectedBadge: badgeId
-        }))
-        console.log('Badge equipped successfully:', badgeId)
-        setShowSuccessToast(true)
-      } else {
-        console.error('Failed to equip badge:', await response.text())
-      }
-    } catch (error) {
-      console.error('Error equipping badge:', error)
-    } finally {
-      // Clear loading state after a moment
-      setTimeout(() => {
-        setEquipingBadgeId(null)
-      }, 600)
-    }
-  }
+    setCurrentNadaPoints(nadaPoints)
+  }, [nadaPoints])
 
   return (
     <AnimatePresence>
@@ -229,9 +106,24 @@ export function MarketProfilePanel({
                 backgroundSize: '80px 80px'
               }} />
 
-              {/* Profile Header */}
-              <div className="relative pt-12 pb-8 px-6 overflow-hidden">
-                
+              {/* Profile Header with Banner Background */}
+              <div className="relative min-h-[350px] flex items-end pb-6 overflow-hidden">
+                {/* Banner Background */}
+                {profileBannerUrl ? (
+                  <>
+                    <img
+                      src={profileBannerUrl}
+                      alt="Profile Banner"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    {/* Gradient overlay for depth */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/70" />
+                  </>
+                ) : (
+                  // Default gradient if no banner
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-green-950" />
+                )}
+
                 {/* Settings Button - Top Right */}
                 <button
                   onClick={() => {
@@ -243,105 +135,56 @@ export function MarketProfilePanel({
                   <Settings className="w-5 h-5 text-white group-hover:rotate-90 transition-transform" strokeWidth={3} />
                 </button>
 
-                {/* Animated background particles */}
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute inset-0" style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='20' stroke='white' stroke-width='2' fill='none' opacity='0.4'/%3E%3Ccircle cx='30' cy='30' r='10' fill='white' opacity='0.3'/%3E%3C/svg%3E")`,
-                    backgroundSize: '60px 60px'
-                  }} />
-                </div>
+                {/* Floating Business Card */}
+                <div className="relative w-full px-6 z-10">
+                  <div className="max-w-md mx-auto">
+                    {/* Glass morphism card */}
+                    <div className="relative group">
+                      {/* Glow effect */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
+                      
+                      {/* Main card */}
+                      <div className="relative backdrop-blur-2xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl">
+                        <div className="flex flex-col items-center text-center">
+                          {/* Avatar with badge */}
+                          <div className="relative mb-4">
+                            {/* Avatar glow */}
+                            <div className="absolute -inset-3 bg-gradient-to-br from-emerald-400 to-teal-400 rounded-full blur-xl opacity-60 animate-pulse" />
+                            
+                            {/* Avatar container */}
+                            <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 p-1 shadow-xl">
+                              <div className="w-full h-full rounded-full bg-emerald-600 flex items-center justify-center">
+                                <User className="w-12 h-12 text-white" strokeWidth={2.5} />
+                              </div>
+                            </div>
 
-                {/* Pulsing glow orbs */}
-                <div className="absolute top-10 left-10 w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-0 right-10 w-48 h-48 bg-teal-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                            {/* Equipped Badge - positioned at bottom right */}
+                            {equippedBadgeId && (
+                              <div className="absolute -bottom-2 -right-2 transform scale-90">
+                                <BadgeDisplay
+                                  badgeId={equippedBadgeId}
+                                  size="md"
+                                  equipped={true}
+                                />
+                              </div>
+                            )}
+                          </div>
 
-                {/* Profile Content */}
-                <div className="relative z-10 text-center">
-                  {/* Profile Avatar with Globe Aura */}
-                  <div className="flex justify-center mb-6">
-                    <div className="relative">
-                      {/* Outer pulsing aura */}
-                      <motion.div
-                        className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 blur-2xl"
-                        animate={{
-                          scale: [1, 1.4, 1],
-                          opacity: [0.3, 0.6, 0.3]
-                        }}
-                        transition={{
-                          duration: 2.5,
-                          repeat: Infinity,
-                          ease: 'easeInOut'
-                        }}
-                        style={{
-                          width: '120px',
-                          height: '120px',
-                          marginLeft: '-10px',
-                          marginTop: '-10px'
-                        }}
-                      />
-
-                      {/* Middle aura */}
-                      <motion.div
-                        className="absolute inset-0 rounded-full bg-primary/40 blur-xl"
-                        animate={{
-                          scale: [1, 1.25, 1],
-                          opacity: [0.4, 0.7, 0.4]
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: 'easeInOut',
-                          delay: 0.4
-                        }}
-                        style={{
-                          width: '110px',
-                          height: '110px',
-                          marginLeft: '-5px',
-                          marginTop: '-5px'
-                        }}
-                      />
-
-                      {/* Main profile icon */}
-                      <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-primary via-emerald-500 to-teal-600 flex items-center justify-center border-4 border-emerald-950 shadow-2xl">
-                        <User className="w-12 h-12 text-white" strokeWidth={2.5} />
-                        
-                        {/* Shine overlay */}
-                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/50 via-transparent to-transparent" />
+                          {/* User Info */}
+                          <div className="w-full">
+                            <h2 className="text-2xl font-black text-white drop-shadow-lg mb-1">
+                              {userEmail?.split('@')[0] || 'User'}
+                            </h2>
+                            {userEmail && (
+                              <p className="text-white/70 text-sm truncate mb-4">
+                                {userEmail}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-
-                  {/* User Email */}
-                  <h2 className="text-2xl font-black text-white drop-shadow-lg mb-2">
-                    {userEmail?.split('@')[0] || 'User'}
-                  </h2>
-                  <p className="text-emerald-200/80 text-sm mb-6">{userEmail}</p>
-
-                  {/* Active Badge Display */}
-                  {currentBadge ? (
-                    <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
-                      <div className="relative">
-                        <div className={`absolute inset-0 rounded-lg bg-gradient-to-br ${currentBadge.bgGradient} blur-md opacity-60`} />
-                        <div className={`relative w-10 h-10 rounded-lg bg-gradient-to-br ${currentBadge.bgGradient} flex items-center justify-center`}>
-                          <currentBadge.icon className="w-6 h-6 text-white" strokeWidth={2.5} />
-                        </div>
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs text-emerald-200/60 uppercase tracking-wide">Active Badge</p>
-                        <p className="text-sm font-black text-white">{currentBadge.name}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
-                      <div className="w-10 h-10 rounded-lg bg-muted/30 flex items-center justify-center">
-                        <Award className="w-6 h-6 text-muted-foreground/50" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs text-emerald-200/60 uppercase tracking-wide">No Badge</p>
-                        <p className="text-sm font-bold text-white/70">Click a badge below to equip</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -389,7 +232,7 @@ export function MarketProfilePanel({
 
               {/* Market Actions - Vote & Submit Idea */}
               <div className="px-6 py-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {/* Vote Button */}
                   <button
                     onClick={() => {
@@ -446,140 +289,29 @@ export function MarketProfilePanel({
                       <span className="text-sm font-black text-white">Organizations</span>
                     </div>
                   </button>
+
+                  {/* Plugins Shop Button */}
+                  <button
+                    onClick={() => setShowPluginsShop(true)}
+                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/60 via-violet-900/60 to-fuchsia-900/60 hover:from-purple-800/80 hover:via-violet-800/80 hover:to-fuchsia-800/80 p-4 border-2 border-purple-400/30 hover:border-purple-400/60 transition-all hover:scale-105 active:scale-95"
+                  >
+                    {/* Halftone pattern */}
+                    <div className="absolute inset-0 opacity-20" style={{
+                      backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+                      backgroundSize: '12px 12px'
+                    }} />
+                    
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <Puzzle className="w-6 h-6 text-purple-300" strokeWidth={2.5} />
+                      <span className="text-sm font-black text-white">Plugins Shop</span>
+                    </div>
+                  </button>
                 </div>
               </div>
 
-              {/* My Badges Section */}
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="w-12 h-12 border-4 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-                </div>
-              ) : (
-                <div className="px-6 pb-8">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Award className="w-5 h-5 text-emerald-300" />
-                    <h3 className="font-black text-lg text-white">My Badges</h3>
-                    <Badge variant="outline" className="ml-auto bg-emerald-500/20 border-emerald-400/50 text-emerald-300">
-                      {ownedBadges.length}
-                    </Badge>
-                  </div>
 
-                  {ownedBadges.length === 0 ? (
-                    <div className="py-12 text-center bg-white/5 rounded-2xl backdrop-blur-sm border border-white/10">
-                      <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center">
-                        <Award className="w-8 h-8 text-white/50" />
-                      </div>
-                      <p className="text-sm text-white/80 mb-2 font-semibold">No badges yet</p>
-                      <p className="text-xs text-emerald-200/60">Purchase badges in the Swag Shop!</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-4">
-                      {ownedBadges.map((badgeId) => {
-                        const badgeInfo = BADGES_INFO.find(b => b.id === badgeId)
-                        if (!badgeInfo) return null
-
-                        const BadgeIcon = badgeInfo.icon
-                        const isActive = userProgress.selectedBadge === badgeId
-
-                        return (
-                          <div key={badgeId} className="relative group">
-                            {/* Comic-style badge card - Now Clickable! */}
-                            <button
-                              onClick={() => handleEquipBadge(badgeId)}
-                              disabled={isActive || equipingBadgeId !== null}
-                              className={`relative w-full p-4 rounded-2xl border-4 transition-all ${
-                                isActive 
-                                  ? 'border-amber-400 bg-amber-500/20 scale-105 cursor-default' 
-                                  : 'border-white/20 bg-white/5 hover:border-emerald-400/60 hover:scale-105 cursor-pointer'
-                              }`}
-                              style={{
-                                boxShadow: isActive 
-                                  ? '0 0 30px rgba(251, 191, 36, 0.5), 6px 6px 0px 0px rgba(0,0,0,0.4)' 
-                                  : '6px 6px 0px 0px rgba(0,0,0,0.3)'
-                              }}
-                            >
-                              {/* Loading Spinner Overlay */}
-                              {equipingBadgeId === badgeId && (
-                                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
-                                  <div className="w-8 h-8 border-4 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-                                </div>
-                              )}
-
-                              {/* Halftone pattern */}
-                              <div className="absolute inset-0 rounded-2xl opacity-20 pointer-events-none" style={{
-                                backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-                                backgroundSize: '8px 8px'
-                              }} />
-
-                              {/* Badge icon */}
-                              <div className="mb-3 flex justify-center relative">
-                                <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${badgeInfo.bgGradient} blur-lg opacity-50`} />
-                                <div className={`relative w-14 h-14 rounded-xl bg-gradient-to-br ${badgeInfo.bgGradient} flex items-center justify-center border-2 border-white/20 shadow-lg`}>
-                                  <BadgeIcon className="w-7 h-7 text-white" strokeWidth={2.5} />
-                                </div>
-                              </div>
-
-                              {/* Badge name */}
-                              <p className="text-xs font-black text-center text-white line-clamp-2">{badgeInfo.name}</p>
-
-                              {/* Active indicator */}
-                              {isActive && (
-                                <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-xl border-2 border-emerald-950">
-                                  <Sparkles className="w-4 h-4 text-white" strokeWidth={3} />
-                                </div>
-                              )}
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </motion.div>
-
-          {/* Success Toast Notification */}
-          <AnimatePresence>
-            {showSuccessToast && (
-              <motion.div
-                initial={{ opacity: 0, y: 50, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 50, scale: 0.8 }}
-                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none"
-                onAnimationComplete={() => {
-                  if (showSuccessToast) {
-                    setTimeout(() => setShowSuccessToast(false), 2000)
-                  }
-                }}
-              >
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 px-6 py-4 shadow-2xl border-2 border-white/30">
-                  {/* Halftone pattern */}
-                  <div className="absolute inset-0 opacity-20" style={{
-                    backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.4) 1px, transparent 0)`,
-                    backgroundSize: '12px 12px'
-                  }} />
-
-                  {/* Glow effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-teal-400/20 blur-xl" />
-
-                  <div className="relative z-10 flex items-center gap-3">
-                    <motion.div
-                      animate={{ rotate: [0, 360] }}
-                      transition={{ duration: 0.6, ease: 'easeInOut' }}
-                    >
-                      <Sparkles className="w-6 h-6 text-white" strokeWidth={2.5} />
-                    </motion.div>
-                    <div>
-                      <p className="text-sm font-black text-white">Badge Equipped!</p>
-                      <p className="text-xs text-white/80">Saved & will persist across sessions</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Company Manager Modal */}
           {showCompanyManager && userId && accessToken && (
@@ -588,6 +320,21 @@ export function MarketProfilePanel({
               accessToken={accessToken}
               serverUrl={serverUrl}
               onClose={() => setShowCompanyManager(false)}
+            />
+          )}
+
+          {/* Plugins Shop Modal */}
+          {showPluginsShop && userId && accessToken && (
+            <PluginsShop
+              userId={userId}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              nadaPoints={currentNadaPoints}
+              onClose={() => setShowPluginsShop(false)}
+              onPurchaseComplete={(newBalance) => {
+                setCurrentNadaPoints(newBalance)
+                onNadaUpdate && onNadaUpdate(newBalance)
+              }}
             />
           )}
         </>

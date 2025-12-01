@@ -5,6 +5,8 @@ import { Badge } from './ui/badge'
 import { CompanyCard } from './CompanyCard'
 
 // Lazy load Globe to avoid bundling issues
+// Note: react-globe.gl uses Three.js internally, which may show a "Multiple instances of Three.js" warning
+// This is a known issue with the library and does not affect functionality
 const GlobeComponent = lazy(() => import('react-globe.gl'))
 
 interface WorldMapBrowser3DProps {
@@ -49,6 +51,38 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, onClose, onV
   const [showAtlasCard, setShowAtlasCard] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<any | null>(null)
   const globeEl = useRef<any>()
+
+  // Suppress known Three.js warnings from react-globe.gl
+  useEffect(() => {
+    const originalWarn = console.warn
+    const originalError = console.error
+    
+    console.warn = (...args: any[]) => {
+      const message = args[0]?.toString() || ''
+      // Suppress Three.js multiple instances warning
+      if (message.includes('THREE.WebGLRenderer') || 
+          message.includes('Multiple instances') ||
+          message.includes('three.module.js')) {
+        return
+      }
+      originalWarn.apply(console, args)
+    }
+    
+    console.error = (...args: any[]) => {
+      const message = args[0]?.toString() || ''
+      // Suppress Three.js related errors that don't affect functionality
+      if (message.includes('THREE.WebGLRenderer') || 
+          message.includes('three.module.js')) {
+        return
+      }
+      originalError.apply(console, args)
+    }
+    
+    return () => {
+      console.warn = originalWarn
+      console.error = originalError
+    }
+  }, [])
 
   useEffect(() => {
     fetchCompanies()

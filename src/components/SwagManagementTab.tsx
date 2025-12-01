@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { ShoppingBag, Plus, Edit, Trash2, Eye, EyeOff, Star, Package, DollarSign, ExternalLink, Lock } from 'lucide-react'
+import { ShoppingBag, Plus, Edit, Trash2, Eye, EyeOff, Star, Package, DollarSign, ExternalLink, Lock, Upload, TrendingUp, MousePointerClick, DollarSign as Revenue, BarChart3 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import { SwagProductCSVImporter } from './SwagProductCSVImporter'
 
 interface SwagProduct {
   id: string
@@ -25,6 +26,19 @@ interface SwagProduct {
   is_published: boolean
   created_at: string
   updated_at: string
+  // Analytics fields (when fetched with analytics)
+  views?: number
+  clicks?: number
+  purchases?: number
+  conversion_rate?: number
+}
+
+interface CompanyAnalytics {
+  total_views: number
+  total_clicks: number
+  total_purchases: number
+  unique_users: number
+  conversion_rate: number
 }
 
 interface SwagManagementTabProps {
@@ -39,18 +53,22 @@ export function SwagManagementTab({ companyId, accessToken, serverUrl }: SwagMan
   const [showProductForm, setShowProductForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<SwagProduct | null>(null)
   const [filter, setFilter] = useState<'all' | 'active' | 'featured' | 'badge-gated'>('all')
+  const [showCSVImporter, setShowCSVImporter] = useState(false)
+  const [analytics, setAnalytics] = useState<CompanyAnalytics | null>(null)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true)
 
   useEffect(() => {
     fetchProducts()
+    fetchAnalytics()
   }, [companyId])
 
   const fetchProducts = async () => {
     try {
       console.log('🛍️ Fetching swag products for company:', companyId)
-      console.log('🔗 Full URL:', `${serverUrl}/make-server-053bcd80/swag-products/my/${companyId}`)
+      console.log('🔗 Full URL:', `${serverUrl}/swag-products/my/${companyId}`)
       console.log('🔑 Access token:', accessToken ? 'Present' : 'Missing')
       
-      const response = await fetch(`${serverUrl}/make-server-053bcd80/swag-products/my/${companyId}`, {
+      const response = await fetch(`${serverUrl}/swag-products/my/${companyId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -82,13 +100,66 @@ export function SwagManagementTab({ companyId, accessToken, serverUrl }: SwagMan
     }
   }
 
+  const fetchAnalytics = async () => {
+    try {
+      console.log('📊 SwagManagementTab companyId prop:', companyId)
+      console.log('📊 SwagManagementTab companyId type:', typeof companyId)
+      const url = `${serverUrl}/analytics/company/${companyId}`
+      console.log('🔗 Full analytics URL:', url)
+      console.log('🔑 Access token:', accessToken ? 'Present' : 'Missing')
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+
+      console.log('📡 Analytics response status:', response.status, response.statusText)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Analytics fetched:', data)
+        setAnalytics(data.totals)
+      } else {
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json()
+          console.error('❌ Failed to fetch analytics:', errorData)
+        } else {
+          const errorText = await response.text()
+          console.error('❌ Failed to fetch analytics. Status:', response.status, 'Response:', errorText)
+        }
+        
+        // Set default analytics on error
+        setAnalytics({
+          total_views: 0,
+          total_clicks: 0,
+          total_purchases: 0,
+          unique_users: 0,
+          conversion_rate: 0
+        })
+      }
+    } catch (error) {
+      console.error('❌ Error fetching analytics:', error)
+      setAnalytics({
+        total_views: 0,
+        total_clicks: 0,
+        total_purchases: 0,
+        unique_users: 0,
+        conversion_rate: 0
+      })
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }
+
   const handleDeleteProduct = async (productId: string) => {
     if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
       return
     }
 
     try {
-      const response = await fetch(`${serverUrl}/make-server-053bcd80/swag-products/${productId}`, {
+      const response = await fetch(`${serverUrl}/swag-products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${accessToken}`
@@ -111,7 +182,7 @@ export function SwagManagementTab({ companyId, accessToken, serverUrl }: SwagMan
 
   const handleTogglePublish = async (product: SwagProduct) => {
     try {
-      const response = await fetch(`${serverUrl}/make-server-053bcd80/swag-products/${product.id}`, {
+      const response = await fetch(`${serverUrl}/swag-products/${product.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +209,7 @@ export function SwagManagementTab({ companyId, accessToken, serverUrl }: SwagMan
 
   const handleToggleFeatured = async (product: SwagProduct) => {
     try {
-      const response = await fetch(`${serverUrl}/make-server-053bcd80/swag-products/${product.id}`, {
+      const response = await fetch(`${serverUrl}/swag-products/${product.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +291,53 @@ export function SwagManagementTab({ companyId, accessToken, serverUrl }: SwagMan
 
   return (
     <div className="space-y-6">
-      {/* Stats Bar */}
+      {/* Analytics Dashboard */}
+      {!loadingAnalytics && analytics && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 className="w-5 h-5 text-emerald-400" />
+            <h3 className="font-black text-white">Analytics Overview</h3>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-900/30 to-blue-950/50 border border-blue-500/20">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-blue-300/60 font-bold">Total Views</p>
+                <TrendingUp className="w-4 h-4 text-blue-400" />
+              </div>
+              <p className="text-2xl font-black text-blue-100">{analytics.total_views.toLocaleString()}</p>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-900/30 to-purple-950/50 border border-purple-500/20">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-purple-300/60 font-bold">Click-Throughs</p>
+                <MousePointerClick className="w-4 h-4 text-purple-400" />
+              </div>
+              <p className="text-2xl font-black text-purple-100">{analytics.total_clicks.toLocaleString()}</p>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-900/30 to-amber-950/50 border border-amber-500/20">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-amber-300/60 font-bold">Unique Users</p>
+                <Eye className="w-4 h-4 text-amber-400" />
+              </div>
+              <p className="text-2xl font-black text-amber-100">{analytics.unique_users.toLocaleString()}</p>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-900/30 to-emerald-950/50 border border-emerald-500/20">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-emerald-300/60 font-bold">Conversion Rate</p>
+                <BarChart3 className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-2xl font-black text-emerald-100">
+                {analytics.conversion_rate ? `${analytics.conversion_rate.toFixed(1)}%` : '0%'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="p-4 rounded-xl bg-emerald-900/30 border border-emerald-500/10">
           <p className="text-xs text-emerald-300/60 font-bold mb-1">Total Products</p>
@@ -285,16 +402,26 @@ export function SwagManagementTab({ companyId, accessToken, serverUrl }: SwagMan
           </button>
         </div>
 
-        <Button
-          onClick={() => {
-            setEditingProduct(null)
-            setShowProductForm(true)
-          }}
-          className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 transition-all hover:scale-105 active:scale-95 shadow-lg border-2 border-emerald-400/30 text-white font-black"
-        >
-          <Plus className="w-4 h-4" />
-          Add Product
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => setShowCSVImporter(true)}
+            className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-400 hover:to-purple-500 transition-all hover:scale-105 active:scale-95 shadow-lg border-2 border-blue-400/30 text-white font-black"
+          >
+            <Upload className="w-4 h-4" />
+            Import Products
+          </Button>
+          
+          <Button
+            onClick={() => {
+              setEditingProduct(null)
+              setShowProductForm(true)
+            }}
+            className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 transition-all hover:scale-105 active:scale-95 shadow-lg border-2 border-emerald-400/30 text-white font-black"
+          >
+            <Plus className="w-4 h-4" />
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Products Grid */}
@@ -432,6 +559,16 @@ export function SwagManagementTab({ companyId, accessToken, serverUrl }: SwagMan
           ))}
         </div>
       )}
+
+      {/* CSV Importer Modal */}
+      <SwagProductCSVImporter
+        isOpen={showCSVImporter}
+        onClose={() => setShowCSVImporter(false)}
+        companyId={companyId}
+        accessToken={accessToken}
+        serverUrl={serverUrl}
+        onImportComplete={fetchProducts}
+      />
     </div>
   )
 }
@@ -472,8 +609,8 @@ function ProductForm({ companyId, product, accessToken, serverUrl, onSuccess, on
 
     try {
       const url = product
-        ? `${serverUrl}/make-server-053bcd80/swag-products/${product.id}`
-        : `${serverUrl}/make-server-053bcd80/swag-products`
+        ? `${serverUrl}/swag-products/${product.id}`
+        : `${serverUrl}/swag-products`
 
       console.log('🔗 Constructed URL:', url)
       console.log('🏢 Server URL:', serverUrl)

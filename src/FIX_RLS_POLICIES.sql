@@ -1,245 +1,173 @@
--- ============================================
--- FIX RLS POLICIES - Allow Service Role Access
--- ============================================
--- The issue: RLS policies are blocking the backend server (service role)
--- from accessing data it needs to fetch user progress
---
--- This script ensures the service role (your backend) can access all data
--- while still protecting user data from direct frontend access
--- ============================================
+-- ============================================================================
+-- FIX RLS POLICIES - Allow Public Reading of Articles
+-- ============================================================================
+-- The /articles endpoint is failing with "Missing authorization header"
+-- This is because RLS (Row Level Security) is blocking reads
+-- We need to add a policy to allow public SELECT on articles
+-- ============================================================================
 
--- ============================================
--- FIX 1: article_views policies
--- ============================================
-
--- Drop the restrictive service role policy
-DROP POLICY IF EXISTS "Service role full access to article views" ON public.article_views;
-
--- Recreate with proper USING clause for SELECT
-CREATE POLICY "Service role can read all article views"
-  ON public.article_views
-  FOR SELECT
-  USING (
-    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
-    OR auth.uid()::text = user_id
-  );
-
--- Service role can insert any record
-CREATE POLICY "Service role can insert article views"
-  ON public.article_views
-  FOR INSERT
-  WITH CHECK (
-    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
-    OR auth.uid()::text = user_id
-  );
-
--- Service role can update any record
-CREATE POLICY "Service role can update article views"
-  ON public.article_views
-  FOR UPDATE
-  USING (
-    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
-    OR auth.uid()::text = user_id
-  );
-
--- Service role can delete any record
-CREATE POLICY "Service role can delete article views"
-  ON public.article_views
-  FOR DELETE
-  USING (
-    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
-    OR auth.uid()::text = user_id
-  );
-
-
--- ============================================
--- FIX 2: article_swipe_stats policies
--- ============================================
-
--- Drop the old restrictive policy
-DROP POLICY IF EXISTS "Service role can modify swipe stats" ON public.article_swipe_stats;
-
--- Recreate with proper clauses for each operation
-CREATE POLICY "Service role can read swipe stats"
-  ON public.article_swipe_stats
-  FOR SELECT
-  USING (true); -- Anyone can read
-
-CREATE POLICY "Service role can insert swipe stats"
-  ON public.article_swipe_stats
-  FOR INSERT
-  WITH CHECK (
-    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
-  );
-
-CREATE POLICY "Service role can update swipe stats"
-  ON public.article_swipe_stats
-  FOR UPDATE
-  USING (
-    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
-  );
-
-CREATE POLICY "Service role can delete swipe stats"
-  ON public.article_swipe_stats
-  FOR DELETE
-  USING (
-    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
-  );
-
-
--- ============================================
--- FIX 3: Check if other critical tables have RLS
--- ============================================
-
--- Check which tables have RLS enabled
+-- ============================================================================
+-- 1. CHECK CURRENT RLS STATUS
+-- ============================================================================
 SELECT 
-  schemaname,
   tablename,
-  rowsecurity,
-  CASE 
-    WHEN rowsecurity = false THEN '⚠️ RLS Disabled (might need enabling)'
-    ELSE '✅ RLS Enabled'
-  END as status
+  rowsecurity as rls_enabled
 FROM pg_tables
-WHERE schemaname = 'public'
-  AND tablename IN (
-    'user_progress',
-    'user_achievements', 
-    'read_articles',
-    'profiles',
-    'wallets',
-    'articles'
-  )
-ORDER BY tablename;
+WHERE schemaname = 'public' 
+  AND tablename = 'articles';
 
--- If any of these tables have RLS enabled, we need to ensure service role can access them
--- Run the sections below ONLY if the table has RLS enabled
+-- If rls_enabled = true, we need policies
 
--- ============================================
--- OPTIONAL: user_progress policies (if RLS enabled)
--- ============================================
--- Uncomment and run ONLY if user_progress has RLS enabled
+-- ============================================================================
+-- 2. VIEW EXISTING POLICIES
+-- ============================================================================
+SELECT 
+  policyname,
+  permissive,
+  roles,
+  cmd as operation,
+  qual as using_expression,
+  with_check as check_expression
+FROM pg_policies
+WHERE schemaname = 'public' 
+  AND tablename = 'articles';
 
-/*
-DROP POLICY IF EXISTS "Service role access user_progress" ON public.user_progress;
-DROP POLICY IF EXISTS "Users can view own progress" ON public.user_progress;
-DROP POLICY IF EXISTS "Users can update own progress" ON public.user_progress;
+-- ============================================================================
+-- 3. DROP ANY RESTRICTIVE SELECT POLICIES (if they exist)
+-- ============================================================================
+-- This removes old policies that might be blocking public reads
 
-CREATE POLICY "Service role full access to user_progress"
-  ON public.user_progress
-  FOR ALL
-  USING (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role');
+-- Be careful: Only drop if you know what policies exist
+-- DROP POLICY IF EXISTS "articles_select_policy" ON articles;
+-- DROP POLICY IF EXISTS "Users can view published articles" ON articles;
+-- DROP POLICY IF EXISTS "Public articles are viewable by everyone" ON articles;
 
-CREATE POLICY "Users can view own progress"
-  ON public.user_progress
-  FOR SELECT
-  USING (auth.uid()::text = user_id);
+-- ============================================================================
+-- 4. CREATE NEW POLICY: Allow Public SELECT on ALL Articles
+-- ============================================================================
+-- This allows ANYONE (authenticated or not) to read articles
+-- The Edge Function uses service role, so this shouldn't be the issue,
+-- but we'll add it anyway for safety
 
-CREATE POLICY "Users can update own progress"
-  ON public.user_progress
-  FOR UPDATE
-  USING (auth.uid()::text = user_id);
-*/
+-- Drop existing policy with this name if it exists
+DROP POLICY IF EXISTS "Enable read access for all users" ON articles;
 
+-- Create new policy
+CREATE POLICY "Enable read access for all users"
+ON articles
+FOR SELECT
+USING (true);
 
--- ============================================
--- OPTIONAL: wallets policies (if RLS enabled)
--- ============================================
--- Uncomment and run ONLY if wallets has RLS enabled
+-- This policy says: Anyone can SELECT (read) any row where true (always)
 
-/*
-DROP POLICY IF EXISTS "Service role access wallets" ON public.wallets;
-DROP POLICY IF EXISTS "Users can view own wallet" ON public.wallets;
+-- ============================================================================
+-- 5. ALTERNATIVE: Disable RLS Entirely (Nuclear Option)
+-- ============================================================================
+-- Only use this if you want articles to be completely public
+-- This removes ALL restrictions
 
-CREATE POLICY "Service role full access to wallets"
-  ON public.wallets
-  FOR ALL
-  USING (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role');
+-- WARNING: This makes the table completely open for SELECT operations
+-- ALTER TABLE articles DISABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own wallet"
-  ON public.wallets
-  FOR SELECT
-  USING (auth.uid()::text = user_id);
-*/
+-- ============================================================================
+-- 6. ENSURE OTHER OPERATIONS REMAIN PROTECTED
+-- ============================================================================
+-- Make sure INSERT/UPDATE/DELETE still require authentication
 
+-- Drop old policies if they exist
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON articles;
+DROP POLICY IF EXISTS "Enable update for users based on author_id" ON articles;
+DROP POLICY IF EXISTS "Enable delete for users based on author_id" ON articles;
 
--- ============================================
--- OPTIONAL: profiles policies (if RLS enabled)
--- ============================================
--- Uncomment and run ONLY if profiles has RLS enabled
+-- Allow authenticated users to INSERT
+CREATE POLICY "Enable insert for authenticated users only"
+ON articles
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
 
-/*
-DROP POLICY IF EXISTS "Service role access profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+-- Allow users to UPDATE only their own articles
+CREATE POLICY "Enable update for users based on author_id"
+ON articles
+FOR UPDATE
+TO authenticated
+USING (auth.uid()::text = author_id)
+WITH CHECK (auth.uid()::text = author_id);
 
-CREATE POLICY "Service role full access to profiles"
-  ON public.profiles
-  FOR ALL
-  USING (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role');
+-- Allow users to DELETE only their own articles
+CREATE POLICY "Enable delete for users based on author_id"
+ON articles
+FOR DELETE
+TO authenticated
+USING (auth.uid()::text = author_id);
 
-CREATE POLICY "Users can view own profile"
-  ON public.profiles
-  FOR SELECT
-  USING (auth.uid()::text = id);
-
-CREATE POLICY "Users can update own profile"
-  ON public.profiles
-  FOR UPDATE
-  USING (auth.uid()::text = id);
-*/
-
-
--- ============================================
--- VERIFICATION
--- ============================================
-
--- Check all policies on article_views
+-- ============================================================================
+-- 7. VERIFY POLICIES ARE WORKING
+-- ============================================================================
+-- Check all policies
 SELECT 
   policyname,
   cmd as operation,
-  CASE 
-    WHEN qual IS NOT NULL THEN 'Has USING clause'
-    ELSE 'No USING clause'
-  END as using_status,
-  CASE 
-    WHEN with_check IS NOT NULL THEN 'Has WITH CHECK clause'
-    ELSE 'No WITH CHECK clause'
-  END as with_check_status
+  roles
 FROM pg_policies
-WHERE schemaname = 'public'
-  AND tablename = 'article_views'
-ORDER BY policyname;
+WHERE schemaname = 'public' 
+  AND tablename = 'articles'
+ORDER BY cmd;
 
--- Check all policies on article_swipe_stats
-SELECT 
-  policyname,
-  cmd as operation
-FROM pg_policies
-WHERE schemaname = 'public'
-  AND tablename = 'article_swipe_stats'
-ORDER BY policyname;
+-- Should show:
+-- 1. SELECT policy for all users (anon + authenticated)
+-- 2. INSERT policy for authenticated only
+-- 3. UPDATE policy for authenticated matching author_id
+-- 4. DELETE policy for authenticated matching author_id
 
+-- ============================================================================
+-- 8. TEST PUBLIC SELECT (as anon user)
+-- ============================================================================
+-- This simulates what the Edge Function does
+SELECT COUNT(*) as total_articles
+FROM articles;
 
--- ============================================
--- SUMMARY
--- ============================================
+-- Should return 64 (your total articles)
+-- If it returns 0 or errors, RLS is still blocking
 
+-- ============================================================================
+-- 9. GRANT PUBLIC SELECT PERMISSIONS
+-- ============================================================================
+-- Ensure the anon role can SELECT from articles table
+GRANT SELECT ON articles TO anon;
+GRANT SELECT ON articles TO authenticated;
+
+-- ============================================================================
+-- ✅ RECOMMENDED FIX: Run This
+-- ============================================================================
+
+-- Step 1: Create public SELECT policy
+DROP POLICY IF EXISTS "Enable read access for all users" ON articles;
+CREATE POLICY "Enable read access for all users"
+ON articles FOR SELECT
+USING (true);
+
+-- Step 2: Grant permissions
+GRANT SELECT ON articles TO anon;
+GRANT SELECT ON articles TO authenticated;
+
+-- Step 3: Verify
+SELECT COUNT(*) FROM articles;
+
+-- Should show 64 articles!
+
+-- ============================================================================
+-- 🔥 IF STILL NOT WORKING: Nuclear Option
+-- ============================================================================
 /*
-✅ WHAT THIS FIXES:
+-- This completely disables RLS for the articles table
+-- Use ONLY if the above doesn't work
 
-1. article_views policies now properly allow:
-   - Service role: Full access (SELECT, INSERT, UPDATE, DELETE)
-   - Users: Can only access their own records
+ALTER TABLE articles DISABLE ROW LEVEL SECURITY;
 
-2. article_swipe_stats policies now properly allow:
-   - Everyone: Can read (SELECT)
-   - Service role only: Can modify (INSERT, UPDATE, DELETE)
+-- Then verify:
+SELECT COUNT(*) FROM articles; -- Should show 64
 
-3. The error "Failed to fetch user progress" should be resolved
-
-IMPORTANT:
-- The backend server uses the service_role key, so it needs service_role access
-- Individual users use the anon key, so they get user-level access
-- This maintains security while allowing the backend to function
+-- Note: This makes articles completely public for SELECT
+-- INSERT/UPDATE/DELETE will still be controlled by application logic
 */

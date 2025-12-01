@@ -5,7 +5,7 @@ import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
 import { ProductDetailModal } from './ProductDetailModal'
 import { BadgeRequirementModal } from './BadgeRequirementModal'
-import { ExternalShopConfirmModal } from './ExternalShopConfirmModal'
+import { PurchaseModal } from './PurchaseModal'
 
 interface SwagProduct {
   id: string
@@ -18,8 +18,8 @@ interface SwagProduct {
   stock_quantity: number | null
   is_published: boolean
   is_featured: boolean
-  is_external_link: boolean
   external_shop_url: string | null
+  external_shop_platform?: string | null
   badge_gated: boolean
   required_badge_type: string | null
   company?: {
@@ -30,6 +30,17 @@ interface SwagProduct {
   }
   created_at: string
   updated_at: string
+  
+  // Provenance fields
+  hemp_source?: string | null
+  hemp_source_country?: string | null
+  certifications?: string[] | null
+  carbon_footprint?: number | null
+  processing_method?: string | null
+  fair_trade_verified?: boolean
+  provenance_verified?: boolean
+  conscious_score?: number | null
+  conscious_score_breakdown?: any
 }
 
 interface SwagMarketplaceProps {
@@ -57,7 +68,7 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
   const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high' | 'featured'>('featured')
   const [selectedProduct, setSelectedProduct] = useState<SwagProduct | null>(null)
   const [showBadgeRequirementModal, setShowBadgeRequirementModal] = useState(false)
-  const [showExternalShopConfirmModal, setShowExternalShopConfirmModal] = useState(false)
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false)
 
   useEffect(() => {
     fetchProducts()
@@ -105,11 +116,23 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
       .slice(0, 4)
   }
 
-  // Handle purchase
+  // Handle purchase (for internal products - not implemented yet)
   const handlePurchase = async (productId: string) => {
-    // TODO: Implement purchase logic with backend
-    // For now, this is a placeholder
-    console.log('Purchasing product:', productId)
+    // TODO: Phase 2 - Implement internal checkout with Stripe
+    console.log('Internal purchase (Phase 2):', productId)
+  }
+
+  // Handle external shop purchase
+  const handleExternalShopPurchase = () => {
+    if (selectedProduct && selectedProduct.external_shop_url) {
+      setShowPurchaseModal(true)
+    }
+  }
+
+  // Callback after purchase modal completes
+  const handlePurchaseComplete = () => {
+    // Refresh products to get updated analytics
+    fetchProducts()
   }
 
   if (loading) {
@@ -342,7 +365,7 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
             relatedProducts={getRelatedProducts(selectedProduct)}
             onProductClick={(product) => setSelectedProduct(product)}
             onBadgeRequirement={() => setShowBadgeRequirementModal(true)}
-            onExternalShopConfirm={() => setShowExternalShopConfirmModal(true)}
+            onExternalShopPurchase={handleExternalShopPurchase}
           />
         )}
 
@@ -358,21 +381,22 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
           />
         )}
 
-        {/* External Shop Confirm Modal */}
-        {showExternalShopConfirmModal && selectedProduct && (
-          <ExternalShopConfirmModal
-            isOpen={showExternalShopConfirmModal}
-            onClose={() => setShowExternalShopConfirmModal(false)}
-            onConfirm={() => {
-              if (selectedProduct.external_shop_url) {
-                window.open(selectedProduct.external_shop_url, '_blank')
-              }
+        {/* Purchase Modal (External Shop) */}
+        {showPurchaseModal && selectedProduct && selectedProduct.company && userId && (
+          <PurchaseModal
+            isOpen={showPurchaseModal}
+            onClose={() => setShowPurchaseModal(false)}
+            product={selectedProduct}
+            company={{
+              id: selectedProduct.company.id,
+              name: selectedProduct.company.name,
+              logo_url: selectedProduct.company.logo_url,
+              is_association: selectedProduct.company.is_association || false
             }}
-            productName={selectedProduct.name}
-            organizationName={selectedProduct.company?.name || 'Organization'}
-            organizationLogo={selectedProduct.company?.logo_url}
-            externalShopUrl={selectedProduct.external_shop_url || ''}
-            isAssociation={selectedProduct.company?.is_association}
+            userId={userId}
+            accessToken={accessToken}
+            serverUrl={serverUrl}
+            onPurchaseComplete={handlePurchaseComplete}
           />
         )}
       </div>

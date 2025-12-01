@@ -41,7 +41,7 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
 
   return (
     <div 
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300 ${
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 transition-all duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
       style={{ 
@@ -54,7 +54,7 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
         {[...Array(50)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-3 h-3 animate-confetti"
+            className="absolute w-2 h-2 sm:w-3 sm:h-3 animate-confetti"
             style={{
               left: '50%',
               top: '50%',
@@ -74,7 +74,7 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
         {[...Array(12)].map((_, i) => (
           <div
             key={i}
-            className="absolute left-1/2 top-1/2 w-2 h-1/2 origin-top animate-spin-slow"
+            className="absolute left-1/2 top-1/2 w-1 sm:w-2 h-1/2 origin-top animate-spin-slow"
             style={{
               background: `linear-gradient(to bottom, rgba(251, 191, 36, 0.3), transparent)`,
               transform: `rotate(${i * 30}deg)`,
@@ -92,12 +92,12 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
         }`}
       >
         {/* Outer glow */}
-        <div className="absolute -inset-8 bg-gradient-to-r from-amber-500 via-purple-500 to-pink-500 rounded-3xl blur-3xl opacity-75 animate-pulse" />
+        <div className="absolute -inset-3 sm:-inset-8 bg-gradient-to-r from-amber-500 via-purple-500 to-pink-500 rounded-2xl sm:rounded-3xl blur-2xl sm:blur-3xl opacity-75 animate-pulse" />
         
         {/* Card container with comic border */}
-        <div className="relative bg-gradient-to-br from-card via-card to-card border-8 border-foreground rounded-3xl overflow-hidden"
+        <div className="relative bg-gradient-to-br from-card via-card to-card border-4 sm:border-8 border-foreground rounded-2xl sm:rounded-3xl overflow-hidden"
           style={{
-            boxShadow: '16px 16px 0px 0px rgba(0, 0, 0, 0.5), 32px 32px 0px 0px rgba(0, 0, 0, 0.2)'
+            boxShadow: '8px 8px 0px 0px rgba(0, 0, 0, 0.5), 16px 16px 0px 0px rgba(0, 0, 0, 0.2)'
           }}
         >
           {/* Comic halftone pattern overlay */}
@@ -110,7 +110,7 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
           />
 
           {/* Top burst badge */}
-          <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 py-8 px-6 border-b-8 border-foreground overflow-hidden">
+          <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 py-4 sm:py-8 px-4 sm:px-6 border-b-4 sm:border-b-8 border-foreground overflow-hidden">
             {/* Animated stripes */}
             <div 
               className="absolute inset-0 opacity-20"
@@ -126,7 +126,7 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
               }}
             />
 
-            <div className="relative text-center space-y-4">
+            <div className="relative text-center space-y-2 sm:space-y-4">
               {/* Floating trophy with rings */}
               <div className="relative inline-block">
                 {/* Pulsing rings */}
@@ -136,7 +136,7 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
                     className="absolute inset-0 flex items-center justify-center"
                   >
                     <div
-                      className="absolute w-32 h-32 rounded-full border-4 border-white/40 animate-ping"
+                      className="absolute w-20 h-20 sm:w-32 sm:h-32 rounded-full border-2 sm:border-4 border-white/40 animate-ping"
                       style={{
                         animationDuration: `${1.5 + i * 0.5}s`,
                         animationDelay: `${i * 0.2}s`
@@ -146,14 +146,14 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
                 ))}
                 
                 {/* Trophy icon */}
-                <div className="relative bg-white rounded-full p-6 shadow-2xl transform animate-bounce">
-                  <Trophy className="w-16 h-16 text-amber-500" />
+                <div className="relative bg-white rounded-full p-3 sm:p-6 shadow-2xl transform animate-bounce">
+                  <Trophy className="w-10 h-10 sm:w-16 sm:h-16 text-amber-500" />
                   
                   {/* Sparkles around trophy */}
                   {[...Array(8)].map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="absolute w-6 h-6 text-yellow-300 animate-ping"
+                      className="absolute w-4 h-4 sm:w-6 sm:h-6 text-yellow-300 animate-ping"
                       style={{
                         left: `${50 + 60 * Math.cos((i * Math.PI) / 4)}%`,
                         top: `${50 + 60 * Math.sin((i * Math.PI) / 4)}%`,
@@ -168,27 +168,27 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
               {/* MAIN TITLE - COMIC STYLE */}
               <div className="relative">
                 {/* Shadow layers for 3D effect */}
-                <div className="absolute inset-0 translate-x-2 translate-y-2">
-                  <h1 className="text-6xl font-black text-black/50 uppercase tracking-wider">
+                <div className="absolute inset-0 translate-x-1 translate-y-1 sm:translate-x-2 sm:translate-y-2">
+                  <h1 className="text-3xl sm:text-6xl font-black text-black/50 uppercase tracking-wider">
                     Unlocked!
                   </h1>
                 </div>
-                <div className="absolute inset-0 translate-x-1 translate-y-1">
-                  <h1 className="text-6xl font-black text-black/30 uppercase tracking-wider">
+                <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 sm:translate-x-1 sm:translate-y-1">
+                  <h1 className="text-3xl sm:text-6xl font-black text-black/30 uppercase tracking-wider">
                     Unlocked!
                   </h1>
                 </div>
                 
                 {/* Main text with stroke */}
                 <h1 
-                  className="relative text-6xl font-black text-white uppercase tracking-wider"
+                  className="relative text-3xl sm:text-6xl font-black text-white uppercase tracking-wider"
                   style={{
                     textShadow: `
-                      4px 4px 0px rgba(0,0,0,0.8),
-                      -2px -2px 0px rgba(0,0,0,0.5),
-                      2px -2px 0px rgba(0,0,0,0.5),
-                      -2px 2px 0px rgba(0,0,0,0.5),
-                      0px 0px 20px rgba(255,255,255,0.5)
+                      2px 2px 0px rgba(0,0,0,0.8),
+                      -1px -1px 0px rgba(0,0,0,0.5),
+                      1px -1px 0px rgba(0,0,0,0.5),
+                      -1px 1px 0px rgba(0,0,0,0.5),
+                      0px 0px 10px rgba(255,255,255,0.5)
                     `
                   }}
                 >
@@ -199,33 +199,33 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
               {/* Achievement count badge */}
               <div className="inline-block">
                 <div 
-                  className="relative bg-white text-foreground px-8 py-3 rounded-full border-4 border-foreground shadow-lg transform -rotate-2"
+                  className="relative bg-white text-foreground px-4 sm:px-8 py-2 sm:py-3 rounded-full border-2 sm:border-4 border-foreground shadow-lg transform -rotate-2"
                   style={{
-                    boxShadow: '6px 6px 0px 0px rgba(0,0,0,0.5)'
+                    boxShadow: '3px 3px 0px 0px rgba(0,0,0,0.5)'
                   }}
                 >
-                  <div className="text-4xl font-black">
+                  <div className="text-xl sm:text-4xl font-black">
                     {achievements.length} Achievement{achievements.length > 1 ? 's' : ''}!
                   </div>
                 </div>
               </div>
 
               {/* Action lines */}
-              <div className="absolute top-1/2 left-0 w-full flex justify-center gap-4 pointer-events-none">
-                <div className="flex gap-2 -rotate-12">
+              <div className="absolute top-1/2 left-0 w-full flex justify-center gap-2 sm:gap-4 pointer-events-none">
+                <div className="flex gap-1 sm:gap-2 -rotate-12">
                   {[...Array(4)].map((_, i) => (
                     <div
                       key={i}
-                      className="h-1 bg-white/60 rounded-full"
+                      className="h-0.5 sm:h-1 bg-white/60 rounded-full"
                       style={{ width: `${80 - i * 15}px` }}
                     />
                   ))}
                 </div>
-                <div className="flex gap-2 rotate-12">
+                <div className="flex gap-1 sm:gap-2 rotate-12">
                   {[...Array(4)].map((_, i) => (
                     <div
                       key={i}
-                      className="h-1 bg-white/60 rounded-full"
+                      className="h-0.5 sm:h-1 bg-white/60 rounded-full"
                       style={{ width: `${80 - i * 15}px` }}
                     />
                   ))}
@@ -235,28 +235,28 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
           </div>
 
           {/* Achievement details */}
-          <div className="relative p-8 space-y-6">
+          <div className="relative p-4 sm:p-8 space-y-4 sm:space-y-6">
             {/* Current achievement showcase */}
             <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-xl" />
+              <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-r from-emerald-500/20 via-purple-500/20 to-pink-500/20 rounded-xl sm:rounded-2xl blur-lg sm:blur-xl" />
               
-              <div className="relative bg-gradient-to-br from-background via-card to-background border-4 border-border rounded-2xl p-6 space-y-4"
+              <div className="relative bg-gradient-to-br from-background via-card to-background border-2 sm:border-4 border-border rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4"
                 style={{
-                  boxShadow: '8px 8px 0px 0px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '4px 4px 0px 0px rgba(0, 0, 0, 0.1)'
                 }}
               >
                 {/* Progress indicator */}
                 {achievements.length > 1 && (
-                  <div className="flex items-center justify-center gap-2 mb-4">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                     {achievements.map((_, i) => (
                       <div
                         key={i}
-                        className={`h-2 rounded-full transition-all duration-300 ${
+                        className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
                           i === currentIndex 
-                            ? 'w-12 bg-gradient-to-r from-amber-500 to-orange-500' 
+                            ? 'w-8 sm:w-12 bg-gradient-to-r from-amber-500 to-orange-500' 
                             : i < currentIndex
-                            ? 'w-2 bg-emerald-500'
-                            : 'w-2 bg-muted'
+                            ? 'w-1.5 sm:w-2 bg-emerald-500'
+                            : 'w-1.5 sm:w-2 bg-muted'
                         }`}
                       />
                     ))}
@@ -266,9 +266,9 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
                 {/* Achievement icon */}
                 <div className="flex justify-center">
                   <div className="relative">
-                    <div className="absolute -inset-4 bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-full blur-2xl opacity-60 animate-pulse" />
-                    <div className="relative w-24 h-24 bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-full flex items-center justify-center border-4 border-white shadow-2xl">
-                      <Award className="w-12 h-12 text-white" />
+                    <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-full blur-xl sm:blur-2xl opacity-60 animate-pulse" />
+                    <div className="relative w-16 h-16 sm:w-24 sm:h-24 bg-gradient-to-br from-amber-400 via-purple-500 to-pink-500 rounded-full flex items-center justify-center border-2 sm:border-4 border-white shadow-2xl">
+                      <Award className="w-8 h-8 sm:w-12 sm:h-12 text-white" />
                     </div>
                   </div>
                 </div>
@@ -276,13 +276,13 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
                 {/* Achievement name - COMIC STYLE */}
                 <div className="text-center">
                   <div className="relative inline-block">
-                    <div className="absolute inset-0 translate-x-1 translate-y-1">
-                      <h2 className="text-4xl font-black text-black/20">
+                    <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 sm:translate-x-1 sm:translate-y-1">
+                      <h2 className="text-xl sm:text-4xl font-black text-black/20">
                         {currentAchievement.name}
                       </h2>
                     </div>
                     <h2 
-                      className="relative text-4xl font-black bg-gradient-to-r from-amber-500 via-purple-600 to-pink-600 bg-clip-text text-transparent"
+                      className="relative text-xl sm:text-4xl font-black bg-gradient-to-r from-amber-500 via-purple-600 to-pink-600 bg-clip-text text-transparent"
                       style={{
                         filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))'
                       }}
@@ -293,22 +293,22 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
                 </div>
 
                 {/* Description */}
-                <p className="text-center text-xl text-muted-foreground font-medium">
+                <p className="text-center text-sm sm:text-xl text-muted-foreground font-medium">
                   {currentAchievement.description}
                 </p>
 
                 {/* Points badge */}
                 <div className="flex justify-center">
                   <div 
-                    className="relative bg-gradient-to-r from-amber-500 to-orange-500 text-white px-8 py-3 rounded-2xl border-4 border-amber-600 transform rotate-1"
+                    className="relative bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 sm:px-8 py-2 sm:py-3 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-amber-600 transform rotate-1"
                     style={{
-                      boxShadow: '6px 6px 0px 0px rgba(0,0,0,0.3)'
+                      boxShadow: '3px 3px 0px 0px rgba(0,0,0,0.3)'
                     }}
                   >
-                    <div className="flex items-center gap-2">
-                      <Star className="w-6 h-6" />
-                      <span className="text-2xl font-black">+{currentAchievement.points} Points</span>
-                      <Star className="w-6 h-6" />
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <Star className="w-4 h-4 sm:w-6 sm:h-6" />
+                      <span className="text-base sm:text-2xl font-black">+{currentAchievement.points} Points</span>
+                      <Star className="w-4 h-4 sm:w-6 sm:h-6" />
                     </div>
                   </div>
                 </div>
@@ -318,11 +318,11 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
             {/* Total points earned (if multiple achievements) */}
             {achievements.length > 1 && (
               <div className="text-center">
-                <div className="inline-block bg-muted border-4 border-border rounded-2xl px-6 py-3">
-                  <div className="text-sm text-muted-foreground font-bold uppercase tracking-wide mb-1">
+                <div className="inline-block bg-muted border-2 sm:border-4 border-border rounded-xl sm:rounded-2xl px-4 sm:px-6 py-2 sm:py-3">
+                  <div className="text-xs sm:text-sm text-muted-foreground font-bold uppercase tracking-wide mb-1">
                     Total Bonus
                   </div>
-                  <div className="text-3xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                  <div className="text-xl sm:text-3xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
                     +{totalPoints} Points
                   </div>
                 </div>
@@ -330,49 +330,49 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
             )}
 
             {/* Action buttons - COMIC STYLE */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-2 sm:gap-4 pt-2 sm:pt-4">
               {currentIndex < achievements.length - 1 ? (
                 <Button
                   onClick={handleNext}
-                  className="flex-1 group relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-4 border-emerald-700 font-black text-xl py-8 rounded-2xl transition-all duration-200"
+                  className="flex-1 group relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-2 sm:border-4 border-emerald-700 font-black text-sm sm:text-xl py-4 sm:py-8 rounded-xl sm:rounded-2xl transition-all duration-200"
                   style={{
-                    boxShadow: '8px 8px 0px 0px rgba(0,0,0,0.4)',
+                    boxShadow: '4px 4px 0px 0px rgba(0,0,0,0.4)',
                     transform: 'translateY(0)'
                   }}
                   onMouseDown={(e) => {
-                    e.currentTarget.style.boxShadow = '4px 4px 0px 0px rgba(0,0,0,0.4)'
-                    e.currentTarget.style.transform = 'translate(4px, 4px)'
+                    e.currentTarget.style.boxShadow = '2px 2px 0px 0px rgba(0,0,0,0.4)'
+                    e.currentTarget.style.transform = 'translate(2px, 2px)'
                   }}
                   onMouseUp={(e) => {
-                    e.currentTarget.style.boxShadow = '8px 8px 0px 0px rgba(0,0,0,0.4)'
+                    e.currentTarget.style.boxShadow = '4px 4px 0px 0px rgba(0,0,0,0.4)'
                     e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
-                  <div className="flex items-center justify-center gap-3">
+                  <div className="flex items-center justify-center gap-2 sm:gap-3">
                     <span>Next Achievement</span>
-                    <Zap className="w-6 h-6" />
+                    <Zap className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
                 </Button>
               ) : (
                 <Button
                   onClick={handleClose}
-                  className="flex-1 group relative overflow-hidden bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-4 border-amber-700 font-black text-xl py-8 rounded-2xl transition-all duration-200"
+                  className="flex-1 group relative overflow-hidden bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-2 sm:border-4 border-amber-700 font-black text-sm sm:text-xl py-4 sm:py-8 rounded-xl sm:rounded-2xl transition-all duration-200"
                   style={{
-                    boxShadow: '8px 8px 0px 0px rgba(0,0,0,0.4)',
+                    boxShadow: '4px 4px 0px 0px rgba(0,0,0,0.4)',
                     transform: 'translateY(0)'
                   }}
                   onMouseDown={(e) => {
-                    e.currentTarget.style.boxShadow = '4px 4px 0px 0px rgba(0,0,0,0.4)'
-                    e.currentTarget.style.transform = 'translate(4px, 4px)'
+                    e.currentTarget.style.boxShadow = '2px 2px 0px 0px rgba(0,0,0,0.4)'
+                    e.currentTarget.style.transform = 'translate(2px, 2px)'
                   }}
                   onMouseUp={(e) => {
-                    e.currentTarget.style.boxShadow = '8px 8px 0px 0px rgba(0,0,0,0.4)'
+                    e.currentTarget.style.boxShadow = '4px 4px 0px 0px rgba(0,0,0,0.4)'
                     e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
-                  <div className="flex items-center justify-center gap-3">
+                  <div className="flex items-center justify-center gap-2 sm:gap-3">
                     <span>Awesome!</span>
-                    <Sparkles className="w-6 h-6" />
+                    <Sparkles className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
                 </Button>
               )}
@@ -382,7 +382,7 @@ export function AchievementCelebration({ achievements, totalPoints, onClose }: A
             {achievements.length > 1 && currentIndex < achievements.length - 1 && (
               <button
                 onClick={handleClose}
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+                className="w-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 Skip to end ({achievements.length - currentIndex - 1} remaining)
               </button>

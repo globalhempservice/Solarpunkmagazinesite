@@ -16,8 +16,8 @@ interface SwagProduct {
   stock_quantity: number | null
   is_published: boolean
   is_featured: boolean
-  is_external_link: boolean
   external_shop_url: string | null
+  external_shop_platform?: string | null
   badge_gated: boolean
   required_badge_type: string | null
   company?: {
@@ -40,7 +40,7 @@ interface ProductDetailModalProps {
   relatedProducts?: SwagProduct[]
   onProductClick?: (product: SwagProduct) => void
   onBadgeRequirement?: () => void
-  onExternalShopConfirm?: () => void
+  onExternalShopPurchase?: () => void
 }
 
 const BADGE_ICONS: Record<string, any> = {
@@ -59,7 +59,7 @@ export function ProductDetailModal({
   relatedProducts = [],
   onProductClick,
   onBadgeRequirement,
-  onExternalShopConfirm
+  onExternalShopPurchase
 }: ProductDetailModalProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [purchasing, setPurchasing] = useState(false)
@@ -343,14 +343,14 @@ export function ProductDetailModal({
 
                 {/* Purchase Button */}
                 <div className="space-y-3">
-                  {product.is_external_link ? (
+                  {product.external_shop_url ? (
                     <Button
                       size="lg"
-                      className="w-full gap-2 bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-400 hover:to-blue-500 text-white font-black text-lg py-6 border-2 border-teal-400/30"
-                      onClick={() => onExternalShopConfirm?.()}
+                      className="w-full gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-lg py-6 border-2 border-emerald-400/30"
+                      onClick={() => onExternalShopPurchase?.()}
                     >
-                      Visit External Shop
-                      <ExternalLink className="w-5 h-5" />
+                      Purchase Product
+                      <ShoppingCart className="w-5 h-5" />
                     </Button>
                   ) : (
                     <Button
@@ -383,7 +383,7 @@ export function ProductDetailModal({
                     </Button>
                   )}
 
-                  {!product.is_external_link && (
+                  {!product.external_shop_url && (
                     <p className="text-xs text-emerald-200/50 text-center">
                       Secure checkout powered by NADA Points
                     </p>

@@ -13,6 +13,7 @@ interface CommunityMarketLoaderProps {
   userId: string | null
   accessToken: string | null
   serverUrl: string
+  publicAnonKey: string
   onBack: () => void
   onNavigateToBrowse?: () => void
   onFeatureUnlock: (featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization') => void
@@ -22,6 +23,7 @@ interface CommunityMarketLoaderProps {
   onNavigateToSwagShop?: () => void
   onNavigateToSwagMarketplace?: () => void
   onNavigateToSettings?: () => void
+  onNavigateToPlacesDirectory?: () => void
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   marketUnlocked?: boolean

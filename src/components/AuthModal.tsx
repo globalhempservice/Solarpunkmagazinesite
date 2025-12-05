@@ -65,25 +65,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onLogin, onS
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto bg-card border-2 border-border text-card-foreground">
-          {/* Hemp texture overlay */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23059669' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          {/* Hemp texture overlay - subtle universal pattern */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
             backgroundSize: '80px 80px'
           }} />
 
           <DialogHeader className="relative">
-            {/* Logo */}
-            <div className="flex justify-center mb-4">
-              <div className="relative">
-                <div className="absolute -inset-4 bg-primary/30 rounded-full blur-2xl" />
-                <div className="relative bg-primary rounded-full p-3 shadow-xl">
-                  <BrandLogo size="md" showAnimation={true} />
-                </div>
-              </div>
-            </div>
-
             <DialogTitle className="text-center text-2xl font-black text-foreground">
-              {isLogin ? 'Welcome Back!' : 'Join DEWII'}
+              {isLogin ? 'Sign In' : 'Join DEWII'}
             </DialogTitle>
             <DialogDescription className="text-center text-muted-foreground">
               {isLogin ? 'Sign in to continue your journey' : 'Start earning NADA points today'}
@@ -324,7 +314,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onLogin, onS
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-500" />
+              <Zap className="w-5 h-5 text-primary" />
               Marketing Newsletter
             </DialogTitle>
             <DialogDescription asChild>

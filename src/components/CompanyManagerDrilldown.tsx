@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Plus, Eye, Share2, FileText, Award, Users, Settings, ChevronRight, Shield, MapPin, Globe, Mail, Phone, Calendar, Briefcase, EyeOff, ArrowLeft, ShoppingBag, BookOpen } from 'lucide-react'
+import { Building2, Plus, Eye, Share2, FileText, Award, Users, Settings, ChevronRight, Shield, MapPin, Globe, Mail, Phone, Calendar, Briefcase, EyeOff, ArrowLeft, ShoppingBag, BookOpen, Link2 } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { motion, AnimatePresence, PanInfo } from 'motion/react'
@@ -7,6 +7,8 @@ import { SwagManagementTab } from './SwagManagementTab'
 import { OrganizationPublicationsTab } from './OrganizationPublicationsTab'
 import OrganizationMembersTab from './OrganizationMembersTab'
 import OrganizationBadgesTab from './OrganizationBadgesTab'
+import { OrganizationPlacesTab } from './OrganizationPlacesTab'
+import { OrganizationRelationshipsTab } from './OrganizationRelationshipsTab'
 
 interface Company {
   id: string
@@ -42,7 +44,7 @@ interface CompanyManagerDrilldownProps {
 type NavigationState = 
   | { level: 1 }
   | { level: 2, companyId: string }
-  | { level: 3, companyId: string, view: 'overview' | 'profile' | 'swag' | 'publications' | 'badges' | 'members' }
+  | { level: 3, companyId: string, view: 'overview' | 'profile' | 'swag' | 'publications' | 'badges' | 'members' | 'places' | 'relationships' }
 
 export function CompanyManagerDrilldown({ userId, accessToken, serverUrl, onClose }: CompanyManagerDrilldownProps) {
   const [companies, setCompanies] = useState<Company[]>([])
@@ -298,6 +300,18 @@ export function CompanyManagerDrilldown({ userId, accessToken, serverUrl, onClos
                   onClick={() => setNavigation({ level: 3, companyId: selectedCompany.id, view: 'publications' })}
                   isActive={navigation.level === 3 && navigation.view === 'publications'}
                 />
+                <MenuItem
+                  icon={MapPin}
+                  label="Places"
+                  onClick={() => setNavigation({ level: 3, companyId: selectedCompany.id, view: 'places' })}
+                  isActive={navigation.level === 3 && navigation.view === 'places'}
+                />
+                <MenuItem
+                  icon={Link2}
+                  label="Relationships"
+                  onClick={() => setNavigation({ level: 3, companyId: selectedCompany.id, view: 'relationships' })}
+                  isActive={navigation.level === 3 && navigation.view === 'relationships'}
+                />
               </div>
             </motion.div>
           )}
@@ -363,6 +377,22 @@ export function CompanyManagerDrilldown({ userId, accessToken, serverUrl, onClos
                     company={selectedCompany} 
                     onTogglePublish={() => handleTogglePublish(selectedCompany)}
                     isPublishing={publishingIds.has(selectedCompany.id)}
+                  />
+                )}
+                {navigation.view === 'places' && (
+                  <OrganizationPlacesTab
+                    organizationId={selectedCompany.id}
+                    accessToken={accessToken}
+                    serverUrl={serverUrl}
+                    userRole={selectedCompany.ownerId === userId ? 'owner' : 'admin'}
+                  />
+                )}
+                {navigation.view === 'relationships' && (
+                  <OrganizationRelationshipsTab
+                    organizationId={selectedCompany.id}
+                    accessToken={accessToken}
+                    serverUrl={serverUrl}
+                    userRole={selectedCompany.ownerId === userId ? 'owner' : 'admin'}
                   />
                 )}
               </div>

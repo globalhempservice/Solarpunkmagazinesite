@@ -12,6 +12,7 @@ import { ArticleReader } from './components/ArticleReader'
 import { AdminDashboard } from './components/AdminDashboard'
 import { ReadingHistory } from './components/ReadingHistory'
 import { LinkedInImporter } from './components/LinkedInImporter'
+import { PlacesDirectory } from './components/PlacesDirectory'
 import { MatchedArticles } from './components/MatchedArticles'
 import { AccountSettings } from './components/AccountSettings'
 import { PointsSystemPage } from './components/PointsSystemPage'
@@ -83,9 +84,10 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace' | 'globe'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace' | 'globe' | 'places-directory'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
+  const isInitializingRef = useRef<boolean>(true)
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null)
@@ -147,6 +149,12 @@ export default function App() {
     }
   }, [userId])
 
+  // Helper to mark initialization as complete
+  const completeInitialization = () => {
+    setInitializing(false)
+    isInitializingRef.current = false
+  }
+
   // Check for existing session on mount
   useEffect(() => {
     const checkSession = async () => {
@@ -160,34 +168,50 @@ export default function App() {
           // If it's a refresh token error, clear the session
           if (error.message.includes('Refresh Token')) {
             console.log('🧹 Clearing invalid session data')
+            
+            // Clear auth state IMMEDIATELY
+            setIsAuthenticated(false)
+            setAccessToken(null)
+            setUserId(null)
+            setUserEmail(null)
+            setUserProgress(null)
+            
             await supabase.auth.signOut()
           }
-          setInitializing(false)
+          completeInitialization()
           return
         }
         
         if (session?.access_token) {
-          console.log('✅ Session found, validating with server...')
+          console.log('✅ Session found, checking if refresh needed...')
           console.log('🔑 Access token:', session.access_token.substring(0, 20) + '...')
           console.log('👤 User ID:', session.user.id)
           console.log('📧 Email:', session.user.email)
           console.log('⏰ Expires at:', new Date(session.expires_at! * 1000).toLocaleString())
           
-          // ============================================
-          // CRITICAL: Validate token with server before trusting it
-          // ============================================
-          try {
-            const validationResponse = await fetch(`${serverUrl}/my-articles`, {
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`
-              }
-            })
+          // Check if token is expired or about to expire
+          const expiresAt = session.expires_at || 0
+          const now = Math.floor(Date.now() / 1000)
+          const fiveMinutes = 5 * 60
+          
+          let validToken = session.access_token
+          
+          if (expiresAt - now < fiveMinutes) {
+            console.log('🔄 Token expired or expiring soon, attempting refresh...')
+            const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
             
-            if (!validationResponse.ok) {
-              console.error('❌ Token validation failed - session is expired/invalid')
-              console.log('🧹 Clearing expired session...')
+            if (refreshError || !newSession) {
+              console.error('❌ Failed to refresh token:', refreshError?.message)
+              console.log('🧹 Clearing expired session - user needs to log in again')
               
-              // Clear everything
+              // Clear auth state IMMEDIATELY
+              setIsAuthenticated(false)
+              setAccessToken(null)
+              setUserId(null)
+              setUserEmail(null)
+              setUserProgress(null)
+              
+              // Clear everything from Supabase
               await supabase.auth.signOut()
               
               // Clear localStorage
@@ -201,21 +225,75 @@ export default function App() {
               keysToRemove.forEach(key => localStorage.removeItem(key))
               
               console.log('✅ Expired session cleared - user will see login screen')
-              setInitializing(false)
+              completeInitialization()
+              return
+            }
+            
+            console.log('✅ Token refreshed successfully')
+            console.log('🔑 New access token:', newSession.access_token.substring(0, 20) + '...')
+            console.log('⏰ New expires at:', new Date(newSession.expires_at! * 1000).toLocaleString())
+            validToken = newSession.access_token
+          }
+          
+          // ============================================
+          // CRITICAL: Validate token with server before trusting it
+          // ============================================
+          try {
+            console.log('🔍 Validating token with server...')
+            const validationResponse = await fetch(`${serverUrl}/my-articles`, {
+              headers: {
+                'Authorization': `Bearer ${validToken}`
+              }
+            })
+            
+            if (!validationResponse.ok) {
+              console.error('❌ Token validation failed - session is invalid')
+              console.log('🧹 Clearing invalid session...')
+              
+              // Clear auth state IMMEDIATELY
+              setIsAuthenticated(false)
+              setAccessToken(null)
+              setUserId(null)
+              setUserEmail(null)
+              setUserProgress(null)
+              
+              // Clear everything from Supabase
+              await supabase.auth.signOut()
+              
+              // Clear localStorage
+              const keysToRemove = []
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                if (key && key.includes('supabase')) {
+                  keysToRemove.push(key)
+                }
+              }
+              keysToRemove.forEach(key => localStorage.removeItem(key))
+              
+              console.log('✅ Invalid session cleared - user will see login screen')
+              completeInitialization()
               return
             }
             
             console.log('✅ Token validated successfully with server')
           } catch (validationError) {
             console.error('❌ Token validation request failed:', validationError)
+            
+            // Clear auth state IMMEDIATELY
+            setIsAuthenticated(false)
+            setAccessToken(null)
+            setUserId(null)
+            setUserEmail(null)
+            setUserProgress(null)
+            
             // Network error - clear session to be safe
             await supabase.auth.signOut()
-            setInitializing(false)
+            completeInitialization()
             return
           }
           
           // Token is valid - set auth state
-          setAccessToken(session.access_token)
+          setAccessToken(validToken)
           setUserId(session.user.id)
           setUserEmail(session.user.email)
           setIsAuthenticated(true)
@@ -224,10 +302,18 @@ export default function App() {
         }
       } catch (error: any) {
         console.error('❌ Error checking session:', error.message)
+        
+        // Clear auth state IMMEDIATELY
+        setIsAuthenticated(false)
+        setAccessToken(null)
+        setUserId(null)
+        setUserEmail(null)
+        setUserProgress(null)
+        
         // Clear any corrupted session data
         await supabase.auth.signOut()
       } finally {
-        setInitializing(false)
+        completeInitialization()
       }
     }
     
@@ -242,7 +328,7 @@ export default function App() {
         console.log('🔑 Recovery token detected in URL - showing reset modal')
         setResetToken(token)
         setShowResetPasswordModal(true)
-        setInitializing(false)
+        completeInitialization()
         // Don't proceed with normal session check - just show the modal
         return
       }
@@ -251,7 +337,7 @@ export default function App() {
     // Check if we're on the reset password page (legacy)
     if (window.location.pathname === '/reset-password') {
       setCurrentView('reset-password')
-      setInitializing(false)
+      completeInitialization()
       return
     }
     
@@ -261,6 +347,13 @@ export default function App() {
     console.log('👂 Setting up auth state listener...')
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('🔔 Auth state changed:', event)
+      
+      // CRITICAL: Don't update auth state during initialization
+      // The checkSession function handles auth state during init
+      if (isInitializingRef.current) {
+        console.log('⏳ Still initializing - skipping auth state update from listener')
+        return
+      }
       
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.access_token) {
@@ -310,9 +403,9 @@ export default function App() {
     fetchArticles()
   }, []) // Run once on mount
 
-  // Fetch user-specific data when authenticated
+  // Fetch user-specific data when authenticated (but not during initialization)
   useEffect(() => {
-    if (isAuthenticated && userId && accessToken) {
+    if (isAuthenticated && userId && accessToken && !initializing) {
       console.log('🔐 User authenticated: Fetching user-specific data')
       fetchUserProgress()
       fetchUserArticles()
@@ -320,7 +413,7 @@ export default function App() {
       // Re-fetch articles to get user-specific data (like if they've read them)
       fetchArticles()
     }
-  }, [isAuthenticated, userId, accessToken])
+  }, [isAuthenticated, userId, accessToken, initializing])
 
   // Apply theme globally when user progress loads or theme changes
   useEffect(() => {
@@ -434,13 +527,22 @@ export default function App() {
   }
 
   const fetchUserBadges = async () => {
-    if (!userId || !accessToken) return
+    if (!userId) return
 
     try {
       console.log('🏅 Fetching user association badges...')
+      
+      // Get a valid token (will refresh if needed)
+      const validToken = await getValidAccessToken()
+      
+      if (!validToken) {
+        console.log('⚠️ No valid token available for fetching badges')
+        return
+      }
+      
       const response = await fetch(`${serverUrl}/user-association-badges/${userId}`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${validToken}`
         }
       })
 
@@ -486,22 +588,31 @@ export default function App() {
   }
 
   const fetchUserArticles = async () => {
-    if (!userId || !accessToken) {
-      console.log('⚠️ fetchUserArticles: Missing credentials', { 
-        userId: userId ? 'present' : 'missing', 
-        accessToken: accessToken ? 'present' : 'missing' 
-      })
+    if (!userId) {
+      console.log('⚠️ fetchUserArticles: Missing userId')
       return
     }
 
     try {
       console.log('📥 Fetching user articles for user:', userId)
-      console.log('🔑 Using access token:', accessToken.substring(0, 20) + '...')
-      console.log('🔑 Token length:', accessToken.length)
+      
+      // Get a valid token (will refresh if needed)
+      const validToken = await getValidAccessToken()
+      
+      if (!validToken) {
+        console.log('⚠️ No valid token available - user needs to log in')
+        toast.error('🔐 Your session has expired. Please log in again.', {
+          duration: 5000,
+        })
+        return
+      }
+      
+      console.log('🔑 Using access token:', validToken.substring(0, 20) + '...')
+      console.log('🔑 Token length:', validToken.length)
       
       const response = await fetch(`${serverUrl}/my-articles`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${validToken}`
         }
       })
 
@@ -511,9 +622,9 @@ export default function App() {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('❌ Failed to fetch user articles. Status:', response.status, 'Error:', errorData)
         
-        // If authentication failed, handle gracefully
+        // If authentication failed after refresh attempt, sign out
         if (response.status === 401) {
-          console.log('⚠️ Session expired or invalid (401) - logging out silently')
+          console.log('⚠️ Session expired or invalid (401) - logging out')
           
           // Show notification to user
           toast.error('🔐 Your session has expired. Please log in again.', {
@@ -574,6 +685,54 @@ export default function App() {
       setCurrentView('article')
     } catch (error: any) {
       console.error('Error fetching shared article:', error)
+    }
+  }
+
+  // Helper function to get a valid access token (refreshes if needed)
+  const getValidAccessToken = async (): Promise<string | null> => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('❌ Error getting session:', error)
+        return null
+      }
+      
+      if (!session) {
+        console.log('ℹ️ No active session found')
+        return null
+      }
+      
+      // Check if token is expired or about to expire (within 5 minutes)
+      const expiresAt = session.expires_at || 0
+      const now = Math.floor(Date.now() / 1000)
+      const fiveMinutes = 5 * 60
+      
+      if (expiresAt - now < fiveMinutes) {
+        console.log('🔄 Token expired or expiring soon, refreshing...')
+        const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
+        
+        if (refreshError || !newSession) {
+          console.error('❌ Failed to refresh token:', refreshError)
+          // Sign out if refresh fails
+          await supabase.auth.signOut()
+          setAccessToken(null)
+          setUserId(null)
+          setUserEmail(null)
+          setIsAuthenticated(false)
+          return null
+        }
+        
+        console.log('✅ Token refreshed successfully')
+        setAccessToken(newSession.access_token)
+        return newSession.access_token
+      }
+      
+      // Token is still valid
+      return session.access_token
+    } catch (error) {
+      console.error('❌ Error in getValidAccessToken:', error)
+      return null
     }
   }
 
@@ -986,8 +1145,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hide Header when in Community Market, Globe, or full-screen views */}
-      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && currentView !== 'globe' && (
+      {/* Hide Header when in Community Market, Globe, Places Directory, or full-screen views */}
+      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && currentView !== 'globe' && currentView !== 'places-directory' && (
         <Header
           currentView={currentView}
           onNavigate={setCurrentView}
@@ -1067,9 +1226,9 @@ export default function App() {
         />
       )}
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' ? 'p-0 pt-0' : 'py-8 pb-32'}>
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' ? 'p-0 pt-0' : 'py-8 pb-32'}>
         {/* Content with its own container for padding */}
-        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
+        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
             <div className="space-y-6">
@@ -1341,6 +1500,7 @@ export default function App() {
               userId={userId}
               accessToken={accessToken}
               serverUrl={serverUrl}
+              publicAnonKey={publicAnonKey}
               onBack={() => setCurrentView('dashboard')}
               onNavigateToBrowse={() => setCurrentView('browse')}
               onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
@@ -1358,6 +1518,16 @@ export default function App() {
               onNavigateToSwagShop={() => setCurrentView('swag-shop')}
               onNavigateToSwagMarketplace={() => setCurrentView('swag-marketplace')}
               onNavigateToSettings={() => setCurrentView('settings')}
+              onNavigateToPlacesDirectory={() => setCurrentView('places-directory')}
+            />
+          )}
+
+          {/* Places Directory */}
+          {currentView === 'places-directory' && (
+            <PlacesDirectory
+              serverUrl={serverUrl}
+              onBack={() => setCurrentView('community-market')}
+              onViewOnGlobe={() => setCurrentView('globe')}
             />
           )}
           

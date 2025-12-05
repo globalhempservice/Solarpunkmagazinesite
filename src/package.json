@@ -1,6 +1,7 @@
 {
-  "name": "dewii-magazine",
-  "version": "0.1.0",
+  "name": "hempin-universe",
+  "version": "1.1.0",
+  "description": "Hemp'in Universe - A solarpunk operating system for the global hemp industry",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +16,7 @@
     "@supabase/supabase-js": "^2.39.7",
     "react-globe.gl": "^2.27.2",
     "three": "^0.160.0",
+    "@types/three": "^0.160.0",
     "lucide-react": "^0.344.0",
     "recharts": "^2.10.4",
     "react-slick": "^0.30.2",
@@ -72,7 +74,6 @@
   "devDependencies": {
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
-    "@types/three": "^0.160.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitejs/plugin-react": "^4.2.1",
@@ -89,5 +90,22 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/hempin-universe.git"
+  },
+  "keywords": [
+    "hemp",
+    "cannabis",
+    "solarpunk",
+    "magazine",
+    "marketplace",
+    "gamification",
+    "3d-globe",
+    "react",
+    "supabase"
+  ],
+  "author": "Hemp'in Team",
+  "license": "UNLICENSED"
 }

@@ -290,6 +290,17 @@
   }
 }
 
+@layer utilities {
+  .hide-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
 /**
  * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
  */

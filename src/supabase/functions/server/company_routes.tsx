@@ -1,5 +1,6 @@
 import { Hono } from 'npm:hono'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { parseGoogleMapsUrl, isGoogleMapsUrl } from './google_maps_parser.tsx'
 
 // Initialize Supabase client with SERVICE_ROLE_KEY for server operations
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -1089,6 +1090,129 @@ app.delete('/make-server-053bcd80/admin/companies/:companyId/badges/:badgeId', r
   }
 })
 
+// Admin: Update company (superadmin can update any company)
+app.put('/make-server-053bcd80/admin/companies/:companyId', requireAuth, requireAdmin, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    const body = await c.req.json()
+    
+    console.log('🏢 [ADMIN] Updating company:', companyId)
+    
+    // Admin can update any company, no ownership check needed
+    
+    // Prepare update data
+    const updateData: any = {}
+    
+    if (body.name) updateData.name = body.name.trim()
+    if (body.description !== undefined) updateData.description = body.description?.trim() || null
+    if (body.website !== undefined) updateData.website = body.website?.trim() || null
+    if (body.logo_url !== undefined) updateData.logo_url = body.logo_url || null
+    if (body.location !== undefined) updateData.location = body.location?.trim() || null
+    if (body.country !== undefined) updateData.country = body.country?.trim() || null
+    if (body.founded_year !== undefined) updateData.founded_year = body.founded_year || null
+    if (body.company_size !== undefined) {
+      // Sanitize company_size: convert legacy '1-10' to '2-10'
+      let sanitizedSize = body.company_size
+      if (sanitizedSize === '1-10') {
+        sanitizedSize = '2-10'
+        console.log('⚠️ Converted legacy company_size from \"1-10\" to \"2-10\" in admin update')
+      }
+      updateData.company_size = sanitizedSize || null
+    }
+    if (body.contact_email !== undefined) updateData.contact_email = body.contact_email?.trim() || null
+    if (body.contact_phone !== undefined) updateData.contact_phone = body.contact_phone?.trim() || null
+    if (body.linkedin_url !== undefined) updateData.linkedin_url = body.linkedin_url?.trim() || null
+    if (body.twitter_url !== undefined) updateData.twitter_url = body.twitter_url?.trim() || null
+    if (body.instagram_url !== undefined) updateData.instagram_url = body.instagram_url?.trim() || null
+    if (body.facebook_url !== undefined) updateData.facebook_url = body.facebook_url?.trim() || null
+    if (typeof body.is_association === 'boolean') updateData.is_association = body.is_association
+    if (typeof body.is_published === 'boolean') updateData.is_published = body.is_published
+    
+    // Handle category update
+    if (body.category_id) {
+      // Direct UUID provided
+      updateData.category_id = body.category_id
+    } else if (body.category) {
+      // Legacy: category name provided (convert to UUID)
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('company_categories')
+        .select('id')
+        .eq('name', body.category)
+        .single()
+      
+      if (!categoryError && categoryData) {
+        updateData.category_id = categoryData.id
+      }
+    }
+    
+    // Update company
+    const { data: company, error } = await supabase
+      .from('companies')
+      .update(updateData)
+      .eq('id', companyId)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('❌ [ADMIN] Error updating company:', error)
+      return c.json({ error: 'Failed to update company', details: error.message }, 500)
+    }
+    
+    // Get category
+    let category = null
+    if (company.category_id) {
+      const { data: categoryData } = await supabase
+        .from('company_categories')
+        .select('id, name, icon')
+        .eq('id', company.category_id)
+        .single()
+      category = categoryData
+    }
+    
+    // Get badges
+    const { data: badges } = await supabase
+      .from('company_badges')
+      .select('*')
+      .eq('company_id', company.id)
+    
+    console.log('✅ [ADMIN] Company updated:', company.id)
+    return c.json({
+      ...company,
+      category,
+      badges: badges || []
+    })
+  } catch (error: any) {
+    console.error('❌ [ADMIN] Error in admin update company route:', error)
+    return c.json({ error: 'Failed to update company', details: error.message }, 500)
+  }
+})
+
+// Admin: Delete company (superadmin can delete any company)
+app.delete('/make-server-053bcd80/admin/companies/:companyId', requireAuth, requireAdmin, async (c) => {
+  try {
+    const companyId = c.req.param('companyId')
+    
+    console.log('🏢 [ADMIN] Deleting company:', companyId)
+    
+    // Admin can delete any company, no ownership check needed
+    const { error } = await supabase
+      .from('companies')
+      .delete()
+      .eq('id', companyId)
+    
+    if (error) {
+      console.error('❌ [ADMIN] Error deleting company:', error)
+      return c.json({ error: 'Failed to delete company', details: error.message }, 500)
+    }
+    
+    console.log('✅ [ADMIN] Company deleted:', companyId)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ [ADMIN] Error in delete company route:', error)
+    return c.json({ error: 'Failed to delete company', details: error.message }, 500)
+  }
+})
+
 // Admin: Get all badge requests
 app.get('/make-server-053bcd80/admin/badge-requests', requireAuth, requireAdmin, async (c) => {
   try {
@@ -2110,6 +2234,592 @@ app.delete('/make-server-053bcd80/admin/badges/:badgeId', requireAuth, requireAd
   } catch (error: any) {
     console.error('❌ Error in admin delete badge route:', error)
     return c.json({ error: 'Failed to delete badge', details: error.message }, 500)
+  }
+})
+
+// ============================================================================
+// ORGANIZATION-PLACE RELATIONSHIPS ROUTES
+// ============================================================================
+
+// ⚠️ IMPORTANT: Search route MUST come before other /places routes to prevent "search" being interpreted as :relationshipId
+// Search places for adding relationships (public places only)
+app.get('/make-server-053bcd80/organizations/:id/places/search', requireAuth, async (c) => {
+  try {
+    const organizationId = c.req.param('id')
+    const userId = c.get('userId')
+    const searchQuery = c.req.query('q') || ''
+    const category = c.req.query('category')
+    const type = c.req.query('type')
+    
+    console.log('🔍 Searching places for organization:', organizationId, 'query:', searchQuery)
+    
+    // Verify user is owner OR member of this organization
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', organizationId)
+      .single()
+    
+    if (!company) {
+      return c.json({ error: 'Organization not found' }, 404)
+    }
+    
+    // Check if user is owner
+    const isOwner = company.owner_id === userId
+    
+    // Check if user is a member (if not owner)
+    let isMember = false
+    if (!isOwner) {
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', organizationId)
+        .eq('user_id', userId)
+        .single()
+      
+      isMember = !!membership
+    }
+    
+    if (!isOwner && !isMember) {
+      return c.json({ error: 'Unauthorized - not a member of this organization' }, 403)
+    }
+    
+    // Build search query
+    let query = supabase
+      .from('places')
+      .select('id, name, type, category, city, state_province, country, latitude, longitude, status')
+      .eq('status', 'active')
+    
+    // Apply search filter
+    if (searchQuery) {
+      query = query.or(`name.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%,country.ilike.%${searchQuery}%`)
+    }
+    
+    // Apply category filter
+    if (category) {
+      query = query.eq('category', category)
+    }
+    
+    // Apply type filter
+    if (type) {
+      query = query.eq('type', type)
+    }
+    
+    query = query.order('name', { ascending: true }).limit(50)
+    
+    const { data: places, error } = await query
+    
+    if (error) {
+      console.error('❌ Error searching places:', error)
+      return c.json({ error: 'Failed to search places', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Found ${places.length} places matching search`)
+    return c.json({ places })
+  } catch (error: any) {
+    console.error('❌ Error in search places route:', error)
+    return c.json({ error: 'Failed to search places', details: error.message }, 500)
+  }
+})
+
+// Get all place relationships for an organization
+app.get('/make-server-053bcd80/organizations/:id/places', requireAuth, async (c) => {
+  try {
+    const organizationId = c.req.param('id')
+    const userId = c.get('userId')
+    
+    console.log('📍 Fetching place relationships for organization:', organizationId)
+    
+    // Verify user is owner OR member of this organization
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', organizationId)
+      .single()
+    
+    if (!company) {
+      return c.json({ error: 'Organization not found' }, 404)
+    }
+    
+    // Check if user is owner
+    const isOwner = company.owner_id === userId
+    
+    // Check if user is a member (if not owner)
+    let isMember = false
+    if (!isOwner) {
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', organizationId)
+        .eq('user_id', userId)
+        .single()
+      
+      isMember = !!membership
+    }
+    
+    if (!isOwner && !isMember) {
+      return c.json({ error: 'Unauthorized - not a member of this organization' }, 403)
+    }
+    
+    // Fetch place relationships with full place details
+    const { data: relationships, error } = await supabase
+      .from('organization_place_relationships')
+      .select(`
+        *,
+        place:places (
+          id,
+          name,
+          type,
+          category,
+          description,
+          latitude,
+          longitude,
+          address_line1,
+          address_line2,
+          city,
+          state_province,
+          postal_code,
+          country,
+          phone,
+          email,
+          website,
+          status
+        )
+      `)
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('❌ Error fetching place relationships:', error)
+      return c.json({ error: 'Failed to fetch place relationships', details: error.message }, 500)
+    }
+    
+    console.log(`✅ Fetched ${relationships.length} place relationships`)
+    return c.json({ relationships })
+  } catch (error: any) {
+    console.error('❌ Error in get organization places route:', error)
+    return c.json({ error: 'Failed to fetch place relationships', details: error.message }, 500)
+  }
+})
+
+// Create a new place relationship
+app.post('/make-server-053bcd80/organizations/:id/places', requireAuth, async (c) => {
+  try {
+    const organizationId = c.req.param('id')
+    const userId = c.get('userId')
+    const body = await c.req.json()
+    
+    console.log('➕ Creating place relationship for organization:', organizationId)
+    
+    // Verify user is owner OR admin/owner member of this organization
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', organizationId)
+      .single()
+    
+    if (!company) {
+      return c.json({ error: 'Organization not found' }, 404)
+    }
+    
+    // Check if user is owner
+    const isOwner = company.owner_id === userId
+    
+    // Check if user is admin (if not owner)
+    let isAdmin = false
+    if (!isOwner) {
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', organizationId)
+        .eq('user_id', userId)
+        .single()
+      
+      isAdmin = membership && ['owner', 'admin'].includes(membership.role)
+    }
+    
+    if (!isOwner && !isAdmin) {
+      return c.json({ error: 'Unauthorized - must be admin or owner' }, 403)
+    }
+    
+    // Validate required fields
+    if (!body.place_id || !body.relationship_type) {
+      return c.json({ error: 'Missing required fields: place_id, relationship_type' }, 400)
+    }
+    
+    // Create relationship
+    const { data: relationship, error } = await supabase
+      .from('organization_place_relationships')
+      .insert({
+        organization_id: organizationId,
+        place_id: body.place_id,
+        relationship_type: body.relationship_type,
+        notes: body.notes || null,
+        status: 'pending' // Default to pending, admin can verify later
+      })
+      .select(`
+        *,
+        place:places (
+          id,
+          name,
+          type,
+          category,
+          city,
+          country
+        )
+      `)
+      .single()
+    
+    if (error) {
+      console.error('❌ Error creating place relationship:', error)
+      
+      // Handle unique constraint violation
+      if (error.code === '23505') {
+        return c.json({ error: 'This relationship already exists' }, 409)
+      }
+      
+      return c.json({ error: 'Failed to create relationship', details: error.message }, 500)
+    }
+    
+    console.log('✅ Place relationship created:', relationship.id)
+    return c.json({ relationship })
+  } catch (error: any) {
+    console.error('❌ Error in create place relationship route:', error)
+    return c.json({ error: 'Failed to create relationship', details: error.message }, 500)
+  }
+})
+
+// Update a place relationship
+app.put('/make-server-053bcd80/organizations/:id/places/:relationshipId', requireAuth, async (c) => {
+  try {
+    const organizationId = c.req.param('id')
+    const relationshipId = c.req.param('relationshipId')
+    const userId = c.get('userId')
+    const body = await c.req.json()
+    
+    console.log('✏️ Updating place relationship:', relationshipId)
+    
+    // Verify user is owner OR admin member of this organization
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', organizationId)
+      .single()
+    
+    if (!company) {
+      return c.json({ error: 'Organization not found' }, 404)
+    }
+    
+    const isOwner = company.owner_id === userId
+    
+    let isAdmin = false
+    if (!isOwner) {
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', organizationId)
+        .eq('user_id', userId)
+        .single()
+      
+      isAdmin = membership && ['owner', 'admin'].includes(membership.role)
+    }
+    
+    if (!isOwner && !isAdmin) {
+      return c.json({ error: 'Unauthorized - must be admin or owner' }, 403)
+    }
+    
+    // Update relationship
+    const updateData: any = {}
+    if (body.relationship_type) updateData.relationship_type = body.relationship_type
+    if (body.notes !== undefined) updateData.notes = body.notes
+    if (body.status) updateData.status = body.status
+    
+    const { data: relationship, error } = await supabase
+      .from('organization_place_relationships')
+      .update(updateData)
+      .eq('id', relationshipId)
+      .eq('organization_id', organizationId)
+      .select(`
+        *,
+        place:places (
+          id,
+          name,
+          type,
+          category,
+          city,
+          country
+        )
+      `)
+      .single()
+    
+    if (error) {
+      console.error('❌ Error updating place relationship:', error)
+      return c.json({ error: 'Failed to update relationship', details: error.message }, 500)
+    }
+    
+    console.log('✅ Place relationship updated:', relationshipId)
+    return c.json({ relationship })
+  } catch (error: any) {
+    console.error('❌ Error in update place relationship route:', error)
+    return c.json({ error: 'Failed to update relationship', details: error.message }, 500)
+  }
+})
+
+// Delete a place relationship
+app.delete('/make-server-053bcd80/organizations/:id/places/:relationshipId', requireAuth, async (c) => {
+  try {
+    const organizationId = c.req.param('id')
+    const relationshipId = c.req.param('relationshipId')
+    const userId = c.get('userId')
+    
+    console.log('🗑️ Deleting place relationship:', relationshipId)
+    
+    // Verify user is owner OR admin member of this organization
+    const { data: company } = await supabase
+      .from('companies')
+      .select('owner_id')
+      .eq('id', organizationId)
+      .single()
+    
+    if (!company) {
+      return c.json({ error: 'Organization not found' }, 404)
+    }
+    
+    const isOwner = company.owner_id === userId
+    
+    let isAdmin = false
+    if (!isOwner) {
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', organizationId)
+        .eq('user_id', userId)
+        .single()
+      
+      isAdmin = membership && ['owner', 'admin'].includes(membership.role)
+    }
+    
+    if (!isOwner && !isAdmin) {
+      return c.json({ error: 'Unauthorized - must be admin or owner' }, 403)
+    }
+    
+    // Delete relationship
+    const { error } = await supabase
+      .from('organization_place_relationships')
+      .delete()
+      .eq('id', relationshipId)
+      .eq('organization_id', organizationId)
+    
+    if (error) {
+      console.error('❌ Error deleting place relationship:', error)
+      return c.json({ error: 'Failed to delete relationship', details: error.message }, 500)
+    }
+    
+    console.log('✅ Place relationship deleted:', relationshipId)
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ Error in delete place relationship route:', error)
+    return c.json({ error: 'Failed to delete relationship', details: error.message }, 500)
+  }
+})
+
+// Admin: Get ALL place relationships across all organizations
+app.get('/make-server-053bcd80/admin/place-relationships', requireAuth, requireAdmin, async (c) => {
+  try {
+    const status = c.req.query('status') // 'pending', 'verified', 'rejected', or 'all'
+    
+    console.log('🔗 [ADMIN] Fetching all place relationships...', { status })
+    
+    let query = supabase
+      .from('organization_place_relationships')
+      .select(`
+        *,
+        organization:companies!organization_place_relationships_organization_id_fkey (
+          id,
+          name,
+          logo_url
+        ),
+        place:places (
+          id,
+          name,
+          type,
+          category,
+          city,
+          state_province,
+          country,
+          latitude,
+          longitude
+        )
+      `)
+      .order('created_at', { ascending: false })
+    
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      query = query.eq('status', status)
+    }
+    
+    const { data: relationships, error } = await query
+    
+    if (error) {
+      console.error('❌ Error fetching relationships:', error)
+      return c.json({ error: 'Failed to fetch relationships', details: error.message }, 500)
+    }
+    
+    console.log(`✅ [ADMIN] Fetched ${relationships?.length || 0} place relationships`)
+    return c.json({ relationships: relationships || [] })
+  } catch (error: any) {
+    console.error('❌ Error in admin place relationships route:', error)
+    return c.json({ error: 'Failed to fetch relationships', details: error.message }, 500)
+  }
+})
+
+// Admin: Update relationship status (verify/reject)
+app.put('/make-server-053bcd80/admin/place-relationships/:id', requireAuth, requireAdmin, async (c) => {
+  try {
+    const relationshipId = c.req.param('id')
+    const body = await c.req.json()
+    
+    console.log('🔗 [ADMIN] Updating relationship status:', relationshipId, body.status)
+    
+    const updateData: any = {}
+    if (body.status) updateData.status = body.status
+    if (body.notes !== undefined) updateData.notes = body.notes
+    if (body.relationship_type) updateData.relationship_type = body.relationship_type
+    
+    const { data: relationship, error} = await supabase
+      .from('organization_place_relationships')
+      .update(updateData)
+      .eq('id', relationshipId)
+      .select(`
+        *,
+        organization:companies!organization_place_relationships_organization_id_fkey (
+          id,
+          name,
+          logo_url
+        ),
+        place:places (
+          id,
+          name,
+          type,
+          category,
+          city,
+          country
+        )
+      `)
+      .single()
+    
+    if (error) {
+      console.error('❌ Error updating relationship:', error)
+      return c.json({ error: 'Failed to update relationship', details: error.message }, 500)
+    }
+    
+    console.log('✅ [ADMIN] Relationship updated:', relationshipId)
+    return c.json({ relationship })
+  } catch (error: any) {
+    console.error('❌ Error in admin update relationship route:', error)
+    return c.json({ error: 'Failed to update relationship', details: error.message }, 500)
+  }
+})
+
+// Create a new place (user-submitted, starts as active)
+app.post('/make-server-053bcd80/places/create', requireAuth, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const body = await c.req.json()
+    
+    console.log('📍 User creating new place:', body.name)
+    
+    // Validation - only require essential fields
+    if (!body.name || !body.name.trim()) {
+      return c.json({ error: 'Place name is required' }, 400)
+    }
+    if (!body.type) {
+      return c.json({ error: 'Place type is required' }, 400)
+    }
+    if (!body.category) {
+      return c.json({ error: 'Place category is required' }, 400)
+    }
+    if (!body.city) {
+      return c.json({ error: 'City is required' }, 400)
+    }
+    if (!body.country) {
+      return c.json({ error: 'Country is required' }, 400)
+    }
+    
+    // Build insert data
+    const insertData: any = {
+      name: body.name.trim(),
+      type: body.type,
+      category: body.category,
+      description: body.description?.trim() || null,
+      status: 'active', // FIXED: Changed from 'pending' to 'active' to match database constraint
+      created_by: userId,
+      // Location
+      latitude: body.latitude || null,
+      longitude: body.longitude || null,
+      // Address
+      address_line1: body.address_line1?.trim() || null,
+      address_line2: body.address_line2?.trim() || null,
+      city: body.city.trim(),
+      state_province: body.state_province?.trim() || null,
+      postal_code: body.postal_code?.trim() || null,
+      country: body.country.trim(),
+      // Contact
+      phone: body.phone?.trim() || null,
+      email: body.email?.trim() || null,
+      website: body.website?.trim() || null,
+      // Association
+      company_id: body.company_id || null,
+      // Media
+      logo_url: body.logo_url || null
+    }
+    
+    // Create place
+    const { data: place, error } = await supabase
+      .from('places')
+      .insert(insertData)
+      .select('id, name, type, category, city, state_province, country, latitude, longitude, status')
+      .single()
+    
+    if (error) {
+      console.error('❌ Error creating place:', error)
+      console.error('❌ Error details:', JSON.stringify(error, null, 2))
+      console.error('❌ Insert data was:', JSON.stringify(insertData, null, 2))
+      return c.json({ error: 'Failed to create place', details: error.message, hint: error.hint || 'Check if places table exists' }, 500)
+    }
+    
+    console.log('✅ Place created:', place.id)
+    return c.json({ place })
+  } catch (error: any) {
+    console.error('❌ Error in create place route:', error)
+    return c.json({ error: 'Failed to create place', details: error.message }, 500)
+  }
+})
+
+// Parse Google Maps URL to extract place information
+app.post('/make-server-053bcd80/places/parse-google-maps', requireAuth, async (c) => {
+  try {
+    const body = await c.req.json()
+    const { url } = body
+    
+    if (!url || typeof url !== 'string') {
+      return c.json({ error: 'Google Maps URL is required' }, 400)
+    }
+    
+    // Validate it's a Google Maps URL
+    if (!isGoogleMapsUrl(url)) {
+      return c.json({ error: 'Invalid Google Maps URL' }, 400)
+    }
+    
+    console.log('🗺️ Parsing Google Maps URL:', url)
+    
+    const placeData = await parseGoogleMapsUrl(url)
+    
+    console.log('✅ Google Maps data extracted:', placeData)
+    return c.json({ placeData })
+  } catch (error: any) {
+    console.error('❌ Error parsing Google Maps URL:', error)
+    return c.json({ error: 'Failed to parse Google Maps URL', details: error.message }, 500)
   }
 })
 

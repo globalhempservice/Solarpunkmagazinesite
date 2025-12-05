@@ -25,6 +25,7 @@ interface Product {
   images: string[]
   primary_image_url: string | null
   is_published: boolean
+  made_in_country: string | null
   is_active: boolean
   created_at: string
   updated_at: string

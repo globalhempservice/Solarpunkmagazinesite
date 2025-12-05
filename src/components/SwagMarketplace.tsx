@@ -22,6 +22,7 @@ interface SwagProduct {
   external_shop_platform?: string | null
   badge_gated: boolean
   required_badge_type: string | null
+  made_in_country: string | null
   company?: {
     id: string
     name: string

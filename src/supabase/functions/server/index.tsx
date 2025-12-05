@@ -7,7 +7,14 @@ import * as kv from './kv_store.tsx'
 import { parseRSSFeed, generateFeedId, generateArticleId, RSSFeed, RSSArticle } from './rss_parser.tsx'
 import { setupCompanyRoutes } from './company_routes.tsx'
 import { setupSwagRoutes } from './swag_routes.tsx'
+import { setupAdminSwagRoutes } from './admin_swag_routes.tsx'
 import { setupArticleOrganizationRoutes } from './article_organization_routes.tsx'
+import { setupPlacesRoutes } from './places_routes.tsx'
+import { setupSearchAnalyticsRoutes } from './search_analytics_routes.tsx'
+import { setupOrgRelationshipRoutes } from './org_relationship_routes.tsx'
+
+// Server version - Updated 2025-12-05 (Org-to-org relationships added)
+const SERVER_VERSION = '1.2.0'
 
 // Helper function to extract site metadata from URL
 function extractSiteMetadata(url: string) {
@@ -111,34 +118,66 @@ async function requireAuth(c: any, next: any) {
     return c.json({ error: 'Unauthorized', details: 'No access token provided' }, 401)
   }
   
-  // Use the auth client to validate the user token
-  const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
-  
-  if (error) {
-    // Check if token is expired
-    if (error.message?.includes('expired') || error.status === 401) {
+  try {
+    // Use the auth client to validate the user token
+    const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
+    
+    if (error) {
+      console.error('Auth error:', error)
+      
+      // Check if token is expired
+      if (error.message?.includes('expired') || error.status === 401) {
+        return c.json({ 
+          error: 'Unauthorized', 
+          details: 'Session expired. Please log in again.',
+          code: 'token_expired',
+          shouldRefresh: true
+        }, 401)
+      }
+      
+      // Check for connection errors
+      if (error.message?.includes('connection') || error.message?.includes('network')) {
+        return c.json({ 
+          error: 'Service Unavailable', 
+          details: 'Authentication service temporarily unavailable. Please try again.',
+          code: 'connection_error',
+          shouldRetry: true
+        }, 503)
+      }
+      
       return c.json({ 
         error: 'Unauthorized', 
-        details: 'Session expired. Please log in again.',
-        code: 'token_expired',
-        shouldRefresh: true
+        details: error.message || 'Auth session missing!',
+        code: error.code || 'unknown'
       }, 401)
     }
     
+    if (!user) {
+      return c.json({ error: 'Unauthorized', details: 'User not found' }, 401)
+    }
+    
+    c.set('userId', user.id)
+    c.set('user', user)
+    await next()
+  } catch (err: any) {
+    console.error('requireAuth exception:', err)
+    
+    // Handle network/connection errors gracefully
+    if (err.message?.includes('connection') || err.message?.includes('network') || err.message?.includes('reset')) {
+      return c.json({ 
+        error: 'Service Unavailable', 
+        details: 'Authentication service temporarily unavailable. Please try again.',
+        code: 'connection_error',
+        shouldRetry: true
+      }, 503)
+    }
+    
     return c.json({ 
-      error: 'Unauthorized', 
-      details: error.message || 'Auth session missing!',
-      code: error.code || 'unknown'
-    }, 401)
+      error: 'Internal Server Error', 
+      details: 'An unexpected error occurred during authentication',
+      code: 'internal_error'
+    }, 500)
   }
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized', details: 'User not found' }, 401)
-  }
-  
-  c.set('userId', user.id)
-  c.set('user', user)
-  await next()
 }
 
 // Admin middleware - checks if user is the superadmin
@@ -178,10 +217,30 @@ console.log('🛍️ Calling setupSwagRoutes...')
 setupSwagRoutes(app, requireAuth)
 console.log('✅ setupSwagRoutes called')
 
+// Setup admin swag product routes
+console.log('🔐 Setting up admin swag routes...')
+setupAdminSwagRoutes(app, requireAdmin)
+console.log('✅ Admin swag routes setup complete')
+
 // Setup article-organization-authors routes
 console.log('📝 Setting up article-organization-authors routes...')
 setupArticleOrganizationRoutes(app, requireAuth)
 console.log('✅ Article-organization-authors routes setup complete')
+
+// Setup places routes
+console.log('📍 Setting up places routes...')
+setupPlacesRoutes(app, requireAuth, requireAdmin)
+console.log('✅ Places routes setup complete - Updated 2025-12-05 13:55')
+
+// Setup search analytics routes
+console.log('🔍 Setting up search analytics routes...')
+setupSearchAnalyticsRoutes(app, requireAuth, requireAdmin)
+console.log('✅ Search analytics routes setup complete')
+
+// Setup org-to-org relationship routes
+console.log('🔗 Setting up org-to-org relationship routes...')
+setupOrgRelationshipRoutes(app, requireAuth, requireAdmin)
+console.log('✅ Org-to-org relationship routes setup complete')
 
 // ============================================
 // SWAG PURCHASE ANALYTICS ROUTES
@@ -8772,13 +8831,16 @@ app.post('/make-server-053bcd80/update-user-theme', async (c) => {
 
 // DEBUG: Catch-all route to see unmatched requests
 app.all('*', (c) => {
+  const path = new URL(c.req.url).pathname
   console.log('❌ UNMATCHED ROUTE:', c.req.method, c.req.url)
+  console.log('   Path:', path)
   console.log('   Available routes should start with /make-server-053bcd80')
   return c.json({ 
     error: 'Route not found', 
     method: c.req.method,
     path: c.req.url,
-    hint: 'All routes must start with /make-server-053bcd80'
+    pathname: path,
+    hint: 'All routes must start with /make-server-053bcd80. Did you forget to append the route path after the base URL?'
   }, 404)
 })
 

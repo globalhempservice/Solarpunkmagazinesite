@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Plus, Settings, Eye, EyeOff, Edit, Trash2, Award, Send, Users, CheckCircle2, Clock, X, Shield, Crown, Star, MapPin, Globe, Mail, Phone, Calendar, Briefcase, Share2, FileText, ChevronRight, ShoppingBag, BookOpen } from 'lucide-react'
+import { Building2, Plus, Settings, Eye, EyeOff, Edit, Trash2, Award, Send, Users, CheckCircle2, Clock, X, Shield, Crown, Star, MapPin, Globe, Mail, Phone, Calendar, Briefcase, Share2, FileText, ChevronRight, ShoppingBag, BookOpen, Link2 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { motion, AnimatePresence } from 'motion/react'
@@ -7,6 +7,8 @@ import { SwagManagementTab } from './SwagManagementTab'
 import { OrganizationPublicationsTab } from './OrganizationPublicationsTab'
 import OrganizationMembersTab from './OrganizationMembersTab'
 import OrganizationBadgesTab from './OrganizationBadgesTab'
+import { OrganizationPlacesTab } from './OrganizationPlacesTab'
+import { OrganizationRelationshipsTab } from './OrganizationRelationshipsTab'
 
 interface Company {
   id: string
@@ -49,7 +51,7 @@ export function CompanyManager({ userId, accessToken, serverUrl, onClose }: Comp
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [navigationLevel, setNavigationLevel] = useState<NavigationLevel>({ level: 'organizations' })
-  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'swag' | 'publications' | 'badges' | 'members'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'swag' | 'publications' | 'places' | 'relationships' | 'badges' | 'members'>('overview')
   const [publishingIds, setPublishingIds] = useState<Set<string>>(new Set())
   const [successIds, setSuccessIds] = useState<Set<string>>(new Set())
 
@@ -501,6 +503,28 @@ export function CompanyManager({ userId, accessToken, serverUrl, onClose }: Comp
                         Publications
                       </button>
                       <button
+                        onClick={() => setActiveTab('places')}
+                        className={`flex-1 px-4 py-2.5 rounded-xl font-black text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap flex items-center justify-center gap-2 ${
+                          activeTab === 'places'
+                            ? 'bg-emerald-500/20 shadow-sm text-emerald-200 border border-emerald-400/30'
+                            : 'hover:bg-emerald-900/50 text-emerald-400/60 hover:text-emerald-300'
+                        }`}
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Places
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('relationships')}
+                        className={`flex-1 px-4 py-2.5 rounded-xl font-black text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap flex items-center justify-center gap-2 ${
+                          activeTab === 'relationships'
+                            ? 'bg-emerald-500/20 shadow-sm text-emerald-200 border border-emerald-400/30'
+                            : 'hover:bg-emerald-900/50 text-emerald-400/60 hover:text-emerald-300'
+                        }`}
+                      >
+                        <Link2 className="w-4 h-4" />
+                        Connections
+                      </button>
+                      <button
                         onClick={() => setActiveTab('badges')}
                         className={`flex-1 px-4 py-2.5 rounded-xl font-black text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap ${
                           activeTab === 'badges'
@@ -669,6 +693,28 @@ export function CompanyManager({ userId, accessToken, serverUrl, onClose }: Comp
                           accessToken={accessToken}
                           serverUrl={serverUrl}
                           userRole="owner"
+                        />
+                      </div>
+                    )}
+
+                    {activeTab === 'places' && (
+                      <div className="space-y-4">
+                        <OrganizationPlacesTab
+                          organizationId={selectedCompany.id}
+                          accessToken={accessToken}
+                          serverUrl={serverUrl}
+                          userRole={selectedCompany.ownerId === userId ? 'owner' : 'member'}
+                        />
+                      </div>
+                    )}
+
+                    {activeTab === 'relationships' && (
+                      <div className="space-y-4">
+                        <OrganizationRelationshipsTab
+                          organizationId={selectedCompany.id}
+                          accessToken={accessToken}
+                          serverUrl={serverUrl}
+                          userRole={selectedCompany.ownerId === userId ? 'owner' : 'member'}
                         />
                       </div>
                     )}

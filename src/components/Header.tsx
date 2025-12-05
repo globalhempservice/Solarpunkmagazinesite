@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
-import { BrandLogo } from "./BrandLogo"
-import { Sparkles, Grid, Flame, ArrowLeft, BookOpen, Settings, Zap, Shield } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { motion, AnimatePresence } from 'motion/react'
+import { Shield, ArrowLeft, Flame, Zap, Sparkles, Settings } from 'lucide-react'
+import { BrandLogo } from './BrandLogo'
 import { WalletPanel } from './WalletPanel'
 import { PointsRulesModal } from './PointsRulesModal'
+import { BubbleController } from './BubbleController'
+import { WikiPage } from './WikiPage'
 
 interface HeaderProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'settings'
@@ -40,6 +42,10 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   const [showDewiiAnimation, setShowDewiiAnimation] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [showPointsRulesModal, setShowPointsRulesModal] = useState(false)
+  const [showBubbleController, setShowBubbleController] = useState(false)
+  const [showWikiPage, setShowWikiPage] = useState(false)
+  const [bubblePosition, setBubblePosition] = useState({ x: 0, y: 0 })
+  const logoButtonRef = useRef<HTMLButtonElement>(null)
 
   // Check if user is admin
   useEffect(() => {
@@ -60,7 +66,7 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
         setIsAdmin(data.isAdmin)
       }
     } catch (error) {
-      console.error('Error checking admin status:', error)
+      // Silently fail - no need to log errors for unauthenticated users
     }
   }
 
@@ -87,10 +93,12 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
     const savedTheme = localStorage.getItem('theme') as Theme | null
     if (savedTheme && ['light', 'dark', 'hempin'].includes(savedTheme)) {
       setTheme(savedTheme)
+      applyTheme(savedTheme)
     } else {
       // Check system preference
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         setTheme('dark')
+        applyTheme('dark')
       }
     }
   }, [])
@@ -120,14 +128,50 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   }
 
   const handleLogoClick = () => {
-    cycleTheme()
-    setShowDewiiAnimation(true)
-    setTimeout(() => setShowDewiiAnimation(false), 2000)
+    // If not authenticated, just cycle theme (landing page behavior)
+    if (!isAuthenticated) {
+      cycleTheme()
+      setShowDewiiAnimation(true)
+      setTimeout(() => setShowDewiiAnimation(false), 2000)
+      return
+    }
+
+    // If authenticated, show bubble controller
+    if (logoButtonRef.current) {
+      const rect = logoButtonRef.current.getBoundingClientRect()
+      setBubblePosition({
+        x: rect.left + rect.width / 2,
+        y: rect.bottom + 10
+      })
+    }
+    setShowBubbleController(!showBubbleController)
     
     // Toggle category menu if on browse page
     if (currentView === 'browse' && onToggleCategoryMenu) {
       onToggleCategoryMenu()
     }
+  }
+
+  const handleWikiClick = () => {
+    setShowBubbleController(false)
+    setShowWikiPage(true)
+  }
+
+  const handleCloseBubble = () => {
+    setShowBubbleController(false)
+  }
+
+  const handleCloseWiki = () => {
+    setShowWikiPage(false)
+  }
+
+  const handleThemeSelect = (selectedTheme: Theme) => {
+    applyTheme(selectedTheme)
+    setShowBubbleController(false)
+    
+    // Trigger animation
+    setIsAnimating(true)
+    setTimeout(() => setIsAnimating(false), 600)
   }
 
   // Get theme colors for the glow effect
@@ -197,9 +241,10 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
 
         {/* CENTER: Large Logo Button (Always Centered) */}
         <button
+          ref={logoButtonRef}
           onClick={handleLogoClick}
           className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95 z-10"
-          aria-label="Change theme"
+          aria-label={isAuthenticated ? "Open menu" : "Change theme"}
         >
           {/* Animated glow background - Transparent */}
           <div className={`absolute -inset-8 bg-gradient-to-r ${getThemeGlow()} rounded-full blur-3xl opacity-10 group-hover:opacity-20 transition-all duration-500 ${isAnimating ? 'opacity-30 animate-pulse' : ''}`} />
@@ -428,6 +473,25 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
       <PointsRulesModal
         isOpen={showPointsRulesModal}
         onClose={() => setShowPointsRulesModal(false)}
+      />
+
+      {/* Bubble Controller - Only shown when authenticated */}
+      {isAuthenticated && (
+        <BubbleController
+          isVisible={showBubbleController}
+          onWikiClick={handleWikiClick}
+          onThemeClick={cycleTheme}
+          onThemeSelect={handleThemeSelect}
+          onClose={handleCloseBubble}
+          position={bubblePosition}
+          currentTheme={theme}
+        />
+      )}
+
+      {/* Wiki Page */}
+      <WikiPage
+        isOpen={showWikiPage}
+        onClose={handleCloseWiki}
       />
     </header>
   )

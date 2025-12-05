@@ -6,6 +6,7 @@ import { motion, AnimatePresence, PanInfo } from 'motion/react'
 import { SwagManagementTab } from './SwagManagementTab'
 import OrganizationMembersTab from './OrganizationMembersTab'
 import OrganizationBadgesTab from './OrganizationBadgesTab'
+import { OrganizationPlacesTab } from './OrganizationPlacesTab'
 
 interface Company {
   id: string
@@ -41,7 +42,7 @@ interface CompanyManagerMobileProps {
 type NavigationState = 
   | { level: 1 }
   | { level: 2, companyId: string }
-  | { level: 3, companyId: string, view: 'overview' | 'profile' | 'swag' | 'publications' | 'badges' | 'members' }
+  | { level: 3, companyId: string, view: 'overview' | 'profile' | 'swag' | 'publications' | 'badges' | 'members' | 'places' }
 
 export function CompanyManagerMobile({ userId, accessToken, serverUrl, onClose }: CompanyManagerMobileProps) {
   const [companies, setCompanies] = useState<Company[]>([])
@@ -342,6 +343,14 @@ export function CompanyManagerMobile({ userId, accessToken, serverUrl, onClose }
                   setNavigation({ level: 3, companyId: selectedCompany.id, view: 'members' })
                 }}
               />
+              <MenuItem
+                icon={MapPin}
+                label="Places"
+                onClick={() => {
+                  setDragDirection(-1)
+                  setNavigation({ level: 3, companyId: selectedCompany.id, view: 'places' })
+                }}
+              />
             </div>
           </motion.div>
         )}
@@ -410,6 +419,14 @@ export function CompanyManagerMobile({ userId, accessToken, serverUrl, onClose }
                   isOwner={selectedCompany.ownerId === userId}
                   userRole={selectedCompany.ownerId === userId ? 'owner' : null}
                   canManageMembers={selectedCompany.ownerId === userId}
+                />
+              )}
+              {navigation.view === 'places' && (
+                <OrganizationPlacesTab
+                  organizationId={selectedCompany.id}
+                  accessToken={accessToken}
+                  serverUrl={serverUrl}
+                  userRole={selectedCompany.ownerId === userId ? 'owner' : 'admin'}
                 />
               )}
             </div>

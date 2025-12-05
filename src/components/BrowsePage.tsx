@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ArticleCard } from './ArticleCard'
 import { Skeleton } from './ui/skeleton'
-import { ChevronLeft, ChevronRight, Sun, Lightbulb, Users, Sprout, Eye, Wind, Sparkles, Grid3x3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sun, Lightbulb, Users, Sprout, Eye, Wind, Sparkles, Grid3x3, Flame, Trophy, Target, Star, Zap, ShoppingBag } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 
 interface Article {
@@ -45,37 +45,52 @@ const categories = [
     name: 'Renewable Energy', 
     icon: Sun, 
     color: 'from-amber-500 to-orange-500',
+    description: 'Solar, wind & clean power'
   },
   { 
     name: 'Sustainable Tech', 
     icon: Lightbulb, 
     color: 'from-blue-500 to-cyan-500',
+    description: 'Innovation for tomorrow'
   },
   { 
     name: 'Green Cities', 
     icon: Sprout, 
     color: 'from-emerald-500 to-teal-500',
+    description: 'Urban sustainability'
   },
   { 
     name: 'Eco Innovation', 
     icon: Sparkles, 
     color: 'from-purple-500 to-pink-500',
+    description: 'Creative solutions'
   },
   { 
     name: 'Climate Action', 
     icon: Wind, 
     color: 'from-sky-500 to-blue-500',
+    description: 'Fighting climate change'
   },
   { 
     name: 'Community', 
     icon: Users, 
     color: 'from-rose-500 to-red-500',
+    description: 'Together we grow'
   },
   { 
     name: 'Future Vision', 
     icon: Eye, 
     color: 'from-violet-500 to-purple-500',
+    description: 'Tomorrow\'s world'
   },
+]
+
+// Gamification features
+const features = [
+  { icon: Flame, label: 'Daily Streaks', color: 'from-orange-500 to-red-500' },
+  { icon: Trophy, label: '35+ Achievements', color: 'from-yellow-500 to-amber-500' },
+  { icon: Target, label: 'NADA Points', color: 'from-emerald-500 to-teal-500' },
+  { icon: Star, label: 'Unlock Rewards', color: 'from-purple-500 to-pink-500' },
 ]
 
 export function BrowsePage({ articles, onArticleClick, loading = false, categoryMenuOpen = true, browseCategoryIndex, setBrowseCategoryIndex }: BrowsePageProps) {
@@ -209,99 +224,81 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
 
   return (
     <div ref={pageTopRef} className="relative min-h-screen pb-24">
-      {/* Sub-Navbar - Fixed carousel extending from top navbar */}
+      {/* Category Circle Icons Navigation - Sticky below header */}
       <AnimatePresence>
         {categoryMenuOpen && (
           <motion.div
-            initial={{ y: -100, opacity: 0 }}
+            initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
+            exit={{ y: -20, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-20 left-0 right-0 z-40 w-full"
+            className="sticky top-20 z-40 w-full bg-background/95 backdrop-blur-lg border-b border-border"
           >
-            {/* Blurred background with gradient - strongest in center, fading at top/bottom */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div 
-                className="absolute inset-0 bg-background/40"
-                style={{
-                  backdropFilter: 'blur(2px)',
-                }}
-              />
-              <div 
-                className="absolute inset-0"
-                style={{
-                  background: 'radial-gradient(ellipse 80% 100% at center, rgba(0,0,0,0.15) 0%, transparent 100%)',
-                  backdropFilter: 'blur(20px)',
-                }}
-              />
-            </div>
-            
-            {/* 5-column carousel - full width with mobile padding */}
-            <div className="relative h-20 flex items-center justify-center px-2 sm:px-6">
-              <div className="flex items-center gap-2 sm:gap-6">
-                {/* Left Arrow */}
-                <button
-                  onClick={spinToPrevious}
-                  disabled={isSpinning}
-                  className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-background/80 border border-border/50 hover:border-primary/50 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-
-                {/* Category Icons: 1-2 left + Center + 1-2 right (responsive) */}
-                <div className="flex items-center gap-2 sm:gap-4">
-                  {visibleCategories.map(({ icon: Icon, color, offset, index, name }) => {
-                    const isCenter = offset === 0
+            {/* Category Circle Icons Carousel - Active in Center */}
+            <div className="relative flex items-start justify-center gap-3 sm:gap-4 px-4 py-5">
+              {visibleCategories.map(({ icon: Icon, color, offset, index, name }) => {
+                const isCenter = offset === 0
+                
+                return (
+                  <motion.button
+                    key={index}
+                    onClick={() => jumpToCategory(index)}
+                    disabled={isSpinning || isCenter}
+                    initial={false}
+                    animate={{
+                      scale: isCenter ? 1 : 0.75,
+                      opacity: isCenter ? 1 : 0.4,
+                    }}
+                    transition={{
+                      duration: 0.5,
+                      ease: [0.4, 0, 0.2, 1],
+                    }}
+                    className={`flex flex-col items-center gap-2 min-w-[60px] ${
+                      isSpinning ? 'pointer-events-none' : ''
+                    } ${!isCenter ? 'cursor-pointer' : 'cursor-default'}`}
+                  >
+                    {/* Circle Icon */}
+                    <div 
+                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-500 ${
+                        isCenter
+                          ? `bg-gradient-to-br ${color} shadow-lg`
+                          : 'bg-muted/40 hover:bg-muted/60'
+                      }`}
+                    >
+                      <Icon 
+                        className={`w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-500 ${
+                          isCenter 
+                            ? 'text-white' 
+                            : 'text-muted-foreground'
+                        }`} 
+                      />
+                    </div>
                     
-                    return (
-                      <motion.button
-                        key={index}
-                        onClick={() => jumpToCategory(index)}
-                        disabled={isSpinning || isCenter}
-                        initial={false}
-                        animate={{
-                          scale: isCenter ? (isMobile ? 1 : 1.1) : (isMobile ? 0.65 : 0.75),
-                          opacity: isCenter ? 1 : 0.4,
-                        }}
-                        transition={{
-                          duration: 0.5,
-                          ease: [0.4, 0, 0.2, 1],
-                        }}
-                        className={`flex-shrink-0 p-2.5 sm:p-4 rounded-full transition-all duration-500 ease-out ${
-                          isCenter
-                            ? `bg-gradient-to-br ${color} shadow-xl cursor-default`
-                            : 'bg-muted/40 hover:bg-muted/60 hover:scale-90 cursor-pointer'
-                        } ${isSpinning ? 'pointer-events-none' : ''}`}
-                        title={name}
-                      >
-                        <Icon 
-                          className={`w-5 h-5 sm:w-7 sm:h-7 transition-colors duration-500 ${
-                            isCenter 
-                              ? 'text-white' 
-                              : 'text-muted-foreground'
-                          }`} 
-                        />
-                      </motion.button>
-                    )
-                  })}
-                </div>
-
-                {/* Right Arrow */}
-                <button
-                  onClick={spinToNext}
-                  disabled={isSpinning}
-                  className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-background/80 border border-border/50 hover:border-primary/50 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
+                    {/* Category Name - Only show for center/selected */}
+                    <AnimatePresence>
+                      {isCenter && (
+                        <motion.span
+                          key={index}
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          transition={{ duration: 0.3 }}
+                          className="text-xs font-medium whitespace-nowrap"
+                        >
+                          {name}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+                )
+              })}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Articles Grid */}
-      <div className={`container mx-auto px-4 transition-all duration-300 ${categoryMenuOpen ? 'pt-28' : 'pt-8'}`}>
+      <div className="container mx-auto px-4 pt-28">
         <AnimatePresence mode="wait">
           {showArticles && (
             <>

@@ -24,6 +24,7 @@ interface SwagProduct {
   is_active: boolean
   is_featured: boolean
   is_published: boolean
+  made_in_country: string | null
   created_at: string
   updated_at: string
   // Analytics fields (when fetched with analytics)

@@ -276,11 +276,41 @@ app.post('/make-server-053bcd80/swag-products', requireAuth, async (c) => {
     
     const { company_id, ...productData } = body
     
+    // If no company_id provided, this is a user submission (pending review)
     if (!company_id) {
-      console.log('❌ No company_id provided')
-      return c.json({ error: 'Bad Request: company_id is required' }, 400)
+      console.log('📝 User product submission (no company)')
+      
+      // Generate slug from name if not provided
+      const slug = productData.slug || productData.name
+        ?.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+      
+      console.log('🏷️ Generated slug:', slug)
+      
+      // Create product without company (for admin review)
+      const { data, error } = await supabase
+        .from('swag_products_053bcd80')
+        .insert({
+          ...productData,
+          slug,
+          created_by: userId,
+          is_published: false, // Unpublished until admin reviews
+          company_id: null // No company association yet
+        })
+        .select()
+        .single()
+      
+      if (error) {
+        console.log('❌ Database error:', error)
+        return c.json({ error: 'Failed to create product', details: error.message }, 500)
+      }
+      
+      console.log('✅ User product submission created:', data.id)
+      return c.json(data, 201)
     }
     
+    // Company-based product creation (original flow)
     // Verify ownership
     const { data: company, error: companyError } = await supabase
       .from('companies')

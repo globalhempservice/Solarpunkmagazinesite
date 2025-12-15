@@ -13,6 +13,7 @@ import { AdminDashboard } from './components/AdminDashboard'
 import { ReadingHistory } from './components/ReadingHistory'
 import { LinkedInImporter } from './components/LinkedInImporter'
 import { PlacesDirectory } from './components/PlacesDirectory'
+import { SwapLoader } from './components/swap/SwapLoader'
 import { MatchedArticles } from './components/MatchedArticles'
 import { AccountSettings } from './components/AccountSettings'
 import { PointsSystemPage } from './components/PointsSystemPage'
@@ -39,6 +40,12 @@ import { toast } from 'sonner@2.0.3'
 import { Toaster } from './components/ui/sonner'
 import { SwagShop } from './components/SwagShop'
 import { SwagMarketplace } from './components/SwagMarketplace'
+import { MEButtonDrawer } from './components/MEButtonDrawer'
+import { UserProfile } from './components/UserProfile'
+import { DiscoveryDashboard } from './components/discovery/DiscoveryDashboard'
+import { MessagePanel } from './components/messaging/MessagePanel'
+import { MyInventory } from './components/swap/MyInventory'
+import { SwapInbox } from './components/swap/SwapInbox'
 
 interface Article {
   id: string
@@ -84,7 +91,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace' | 'globe' | 'places-directory'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace' | 'globe' | 'places-directory' | 'profile' | 'my-inventory' | 'swap-inbox'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const isInitializingRef = useRef<boolean>(true)
@@ -104,6 +111,19 @@ export default function App() {
   const [featureUnlockModal, setFeatureUnlockModal] = useState<{ featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization'; isOpen: boolean } | null>(null)
   const [isWalletOpen, setIsWalletOpen] = useState(false)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(true)
+  const [meDrawerOpen, setMEDrawerOpen] = useState(false)
+  const [discoveryMatchOpen, setDiscoveryMatchOpen] = useState(false)
+  const [messagePanelOpen, setMessagePanelOpen] = useState(false)
+  const [messagePanelParams, setMessagePanelParams] = useState<{
+    initialInboxType?: string
+    initialRecipientId?: string
+    initialContextType?: string
+    initialContextId?: string
+    initialContextName?: string
+  }>({})
+  const [displayName, setDisplayName] = useState<string>('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [hasNewDiscoveryMatches, setHasNewDiscoveryMatches] = useState(false)
   const [browseCategoryIndex, setBrowseCategoryIndex] = useState(() => {
     // Always start with "All Articles" (index 0) as the default view
     // User can navigate to other categories, and we'll remember their selection
@@ -149,6 +169,13 @@ export default function App() {
     }
   }, [userId])
 
+  // Load user profile data when userId is available
+  useEffect(() => {
+    if (userId) {
+      loadUserProfile()
+    }
+  }, [userId])
+
   // Helper to mark initialization as complete
   const completeInitialization = () => {
     setInitializing(false)
@@ -176,6 +203,9 @@ export default function App() {
             setUserEmail(null)
             setUserProgress(null)
             
+            // Clear token from localStorage
+            localStorage.removeItem('supabase_access_token')
+            
             await supabase.auth.signOut()
           }
           completeInitialization()
@@ -201,8 +231,13 @@ export default function App() {
             const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
             
             if (refreshError || !newSession) {
-              console.error('❌ Failed to refresh token:', refreshError?.message)
-              console.log('🧹 Clearing expired session - user needs to log in again')
+              // Silently handle invalid refresh tokens - this is normal when tokens expire
+              if (refreshError?.message?.includes('Invalid Refresh Token') || 
+                  refreshError?.message?.includes('Refresh Token Not Found')) {
+                console.log('ℹ️ Session expired, clearing auth state')
+              } else {
+                console.warn('⚠️ Session refresh failed:', refreshError?.message)
+              }
               
               // Clear auth state IMMEDIATELY
               setIsAuthenticated(false)
@@ -210,6 +245,9 @@ export default function App() {
               setUserId(null)
               setUserEmail(null)
               setUserProgress(null)
+              
+              // Clear token from localStorage
+              localStorage.removeItem('supabase_access_token')
               
               // Clear everything from Supabase
               await supabase.auth.signOut()
@@ -257,6 +295,9 @@ export default function App() {
               setUserEmail(null)
               setUserProgress(null)
               
+              // Clear token from localStorage
+              localStorage.removeItem('supabase_access_token')
+              
               // Clear everything from Supabase
               await supabase.auth.signOut()
               
@@ -286,6 +327,9 @@ export default function App() {
             setUserEmail(null)
             setUserProgress(null)
             
+            // Clear token from localStorage
+            localStorage.removeItem('supabase_access_token')
+            
             // Network error - clear session to be safe
             await supabase.auth.signOut()
             completeInitialization()
@@ -297,6 +341,9 @@ export default function App() {
           setUserId(session.user.id)
           setUserEmail(session.user.email)
           setIsAuthenticated(true)
+          
+          // Store token in localStorage for components that need it
+          localStorage.setItem('supabase_access_token', validToken)
         } else {
           console.log('ℹ️ No active session found')
         }
@@ -309,6 +356,9 @@ export default function App() {
         setUserId(null)
         setUserEmail(null)
         setUserProgress(null)
+        
+        // Clear token from localStorage
+        localStorage.removeItem('supabase_access_token')
         
         // Clear any corrupted session data
         await supabase.auth.signOut()
@@ -365,6 +415,9 @@ export default function App() {
           setUserId(session.user.id)
           setUserEmail(session.user.email)
           setIsAuthenticated(true)
+          
+          // Store token in localStorage for components that need it
+          localStorage.setItem('supabase_access_token', session.access_token)
         }
       } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
         console.log('👋 Auth state:', event === 'SIGNED_OUT' ? 'User signed out' : 'Token refresh failed')
@@ -373,12 +426,18 @@ export default function App() {
         setUserEmail(null)
         setIsAuthenticated(false)
         setUserProgress(null)
+        
+        // Clear token from localStorage
+        localStorage.removeItem('supabase_access_token')
       } else if (event === 'USER_UPDATED') {
         console.log('🔄 Auth state: User updated')
         if (session?.access_token) {
           setAccessToken(session.access_token)
           setUserId(session.user.id)
           setUserEmail(session.user.email)
+          
+          // Store token in localStorage for components that need it
+          localStorage.setItem('supabase_access_token', session.access_token)
         }
       }
     })
@@ -410,10 +469,22 @@ export default function App() {
       fetchUserProgress()
       fetchUserArticles()
       fetchUserBadges()
+      checkForNewDiscoveryMatches()
       // Re-fetch articles to get user-specific data (like if they've read them)
       fetchArticles()
     }
   }, [isAuthenticated, userId, accessToken, initializing])
+
+  // Poll for new discovery matches every 30 seconds
+  useEffect(() => {
+    if (!isAuthenticated || !userId || !accessToken) return
+
+    const interval = setInterval(() => {
+      checkForNewDiscoveryMatches()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [isAuthenticated, userId, accessToken])
 
   // Apply theme globally when user progress loads or theme changes
   useEffect(() => {
@@ -523,6 +594,83 @@ export default function App() {
         console.error('   supabase functions deploy make-server-053bcd80')
         console.error('   OR deploy via Supabase Dashboard → Edge Functions')
       }
+    }
+  }
+
+  const loadUserProfile = async () => {
+    if (!userId) return
+    
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('display_name, avatar_url')
+        .eq('id', userId)
+        .maybeSingle() // Use maybeSingle() instead of single() to handle 0 rows gracefully
+      
+      console.log('👤 loadUserProfile result:', { data, error, userId })
+      
+      if (error) {
+        console.error('❌ Error loading user profile from DB:', error)
+        // Fallback to email-based name if profile doesn't exist
+        setDisplayName(userEmail?.split('@')[0] || 'User')
+      } else if (data) {
+        setDisplayName(data.display_name || userEmail?.split('@')[0] || 'User')
+        setAvatarUrl(data.avatar_url)
+        console.log('✅ User profile loaded:', { displayName: data.display_name, avatarUrl: data.avatar_url })
+      } else {
+        // No data and no error - profile might not exist yet (normal for new users)
+        console.log('ℹ️ No user profile found, using email fallback (normal for new users)')
+        setDisplayName(userEmail?.split('@')[0] || 'User')
+      }
+    } catch (err) {
+      console.error('Error loading user profile:', err)
+      // Fallback to email-based name
+      setDisplayName(userEmail?.split('@')[0] || 'User')
+    }
+  }
+
+  const openMessagePanelWith = (params: {
+    inboxType?: string
+    recipientId?: string
+    contextType?: string
+    contextId?: string
+    contextName?: string  // Add context name (e.g., place name)
+  }) => {
+    setMessagePanelParams({
+      initialInboxType: params.inboxType,
+      initialRecipientId: params.recipientId,
+      initialContextType: params.contextType,
+      initialContextId: params.contextId,
+      initialContextName: params.contextName
+    })
+    setMessagePanelOpen(true)
+  }
+
+  const checkForNewDiscoveryMatches = async () => {
+    if (!accessToken || !userId || !projectId) return
+    
+    try {
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/discovery/my-requests`
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const hasNew = data.requests?.some((req: any) => req.hasNewRecommendations) || false
+        setHasNewDiscoveryMatches(hasNew)
+      } else {
+        // Silently fail - endpoint might not be ready yet or user has no requests
+        // This is normal behavior, not an error
+      }
+    } catch (err) {
+      // Silently fail - don't show errors to user for optional features
+      // Network issues, CORS, or endpoint not ready are all acceptable
     }
   }
 
@@ -713,7 +861,13 @@ export default function App() {
         const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
         
         if (refreshError || !newSession) {
-          console.error('❌ Failed to refresh token:', refreshError)
+          // Silently handle invalid refresh tokens - this is normal when tokens expire
+          if (refreshError?.message?.includes('Invalid Refresh Token') || 
+              refreshError?.message?.includes('Refresh Token Not Found')) {
+            console.log('ℹ️ Session expired, clearing auth state')
+          } else {
+            console.warn('⚠️ Token refresh failed:', refreshError?.message)
+          }
           // Sign out if refresh fails
           await supabase.auth.signOut()
           setAccessToken(null)
@@ -725,6 +879,10 @@ export default function App() {
         
         console.log('✅ Token refreshed successfully')
         setAccessToken(newSession.access_token)
+        
+        // Store token in localStorage for components that need it
+        localStorage.setItem('supabase_access_token', newSession.access_token)
+        
         return newSession.access_token
       }
       
@@ -751,6 +909,9 @@ export default function App() {
       setUserId(data.user.id)
       setUserEmail(data.user.email)
       setIsAuthenticated(true)
+      
+      // Store token in localStorage for components that need it
+      localStorage.setItem('supabase_access_token', data.session.access_token)
     }
   }
 
@@ -1125,6 +1286,9 @@ export default function App() {
                 setUserId(session.user.id)
                 setUserEmail(session.user.email)
                 setIsAuthenticated(true)
+                
+                // Store token in localStorage for components that need it
+                localStorage.setItem('supabase_access_token', session.access_token)
               }
             }}
             onClose={() => {
@@ -1145,8 +1309,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hide Header when in Community Market, Globe, Places Directory, or full-screen views */}
-      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && currentView !== 'globe' && currentView !== 'places-directory' && (
+      {/* Hide Header when in Community Market, Globe, or full-screen views */}
+      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && currentView !== 'globe' && (
         <Header
           currentView={currentView}
           onNavigate={setCurrentView}
@@ -1164,6 +1328,9 @@ export default function App() {
           isWalletOpen={isWalletOpen}
           onWalletOpenChange={setIsWalletOpen}
           onToggleCategoryMenu={() => setCategoryMenuOpen(prev => !prev)}
+          onOpenMessages={() => setMessagePanelOpen(true)}
+          projectId={projectId}
+          publicAnonKey={publicAnonKey}
           onExchangePoints={async (pointsToExchange) => {
             if (!userId || !accessToken) return
             
@@ -1226,9 +1393,9 @@ export default function App() {
         />
       )}
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' ? 'p-0 pt-0' : 'py-8 pb-32'}>
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? 'p-0 pt-0' : 'py-8 pb-32'}>
         {/* Content with its own container for padding */}
-        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
+        <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
             <div className="space-y-6">
@@ -1246,6 +1413,8 @@ export default function App() {
                 nadaPoints={userProgress?.nadaPoints || 0}
                 marketUnlocked={userProgress?.marketUnlocked || false}
                 onNavigateToMarket={() => setCurrentView('community-market')}
+                onNavigateToPlaces={() => setCurrentView('places-directory')}
+                onNavigateToSwap={() => setCurrentView('swap-shop')}
                 onMarketUnlock={async () => {
                   try {
                     // Call server to unlock market for 10 NADA
@@ -1473,6 +1642,25 @@ export default function App() {
             />
           )}
 
+          {currentView === 'profile' && (
+            <UserProfile
+              userId={userId || undefined}
+              onClose={() => setCurrentView('feed')}
+            />
+          )}
+
+          {currentView === 'my-inventory' && userId && accessToken && (
+            <MyInventory
+              userId={userId}
+              accessToken={accessToken}
+              onBack={() => setCurrentView('feed')}
+            />
+          )}
+
+          {currentView === 'swap-inbox' && (
+            <SwapInbox />
+          )}
+
           {currentView === 'reset-password' && (
             <ResetPasswordPage 
               onBack={() => {
@@ -1518,7 +1706,6 @@ export default function App() {
               onNavigateToSwagShop={() => setCurrentView('swag-shop')}
               onNavigateToSwagMarketplace={() => setCurrentView('swag-marketplace')}
               onNavigateToSettings={() => setCurrentView('settings')}
-              onNavigateToPlacesDirectory={() => setCurrentView('places-directory')}
             />
           )}
 
@@ -1526,8 +1713,31 @@ export default function App() {
           {currentView === 'places-directory' && (
             <PlacesDirectory
               serverUrl={serverUrl}
-              onBack={() => setCurrentView('community-market')}
+              onBack={() => setCurrentView('feed')}
               onViewOnGlobe={() => setCurrentView('globe')}
+              currentUserId={userId}
+              currentUserName={displayName}
+              currentUserAvatar={avatarUrl}
+              accessToken={accessToken}
+              onMessagePlace={(ownerId: string, placeId: string, placeName: string) => {
+                openMessagePanelWith({
+                  inboxType: 'place',  // FIXED: Place inbox, not 'personal'
+                  recipientId: ownerId,
+                  contextType: 'place',
+                  contextId: placeId,
+                  contextName: placeName  // Pass the place name
+                })
+              }}
+            />
+          )}
+
+          {/* SWAP Shop - Infinite Feed */}
+          {currentView === 'swap-shop' && (
+            <SwapLoader
+              userId={userId}
+              accessToken={accessToken}
+              onBack={() => setCurrentView('feed')}
+              onPlusButtonTrigger={() => {}} // Enable global modal trigger
             />
           )}
           
@@ -1584,6 +1794,106 @@ export default function App() {
             isAnimating: swipeModeRef.current?.isAnimating || false
           } : undefined}
           closeWallet={() => setIsWalletOpen(false)}
+          onMEButtonClick={() => setMEDrawerOpen(true)}
+          meDrawerOpen={meDrawerOpen}
+          hasNewDiscoveryMatches={hasNewDiscoveryMatches}
+          onContextualPlusClick={(action) => {
+            console.log('🎯 Contextual + button clicked:', action)
+            
+            switch (action) {
+              case 'create-article':
+                setCurrentView('editor')
+                break
+              case 'list-swap-item':
+                // Trigger the modal via global function set by SwapInfiniteFeed
+                if ((window as any).__swapOpenAddModal) {
+                  (window as any).__swapOpenAddModal()
+                }
+                break
+              case 'add-place':
+                setShowAddPlaceModal(true)
+                break
+              case 'browse-swag':
+                setCurrentView('swag-marketplace')
+                break
+              case 'submit-swag-product':
+                // Trigger the swag product modal via window global
+                if ((window as any).__swagMarketplaceOpenAddModal) {
+                  (window as any).__swagMarketplaceOpenAddModal()
+                }
+                break
+              case 'create-rfp':
+                console.log('💼 Create RFP triggered')
+                break
+              case 'quick-action':
+                console.log('⚡ Quick action triggered')
+                break
+            }
+          }}
+        />
+      )}
+
+      {/* ME Button Drawer */}
+      {isAuthenticated && userId && (
+        <MEButtonDrawer
+          isOpen={meDrawerOpen}
+          onClose={() => setMEDrawerOpen(false)}
+          userId={userId}
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          onProfileClick={() => setCurrentView('profile')}
+          onMyArticlesClick={() => {
+            setCurrentView('dashboard')
+            setMEDrawerOpen(false)
+          }}
+          onInventoryClick={() => {
+            setCurrentView('my-inventory')
+            setMEDrawerOpen(false)
+          }}
+          onSwapInboxClick={() => {
+            setCurrentView('swap-inbox')
+            setMEDrawerOpen(false)
+          }}
+          onSettingsClick={() => setCurrentView('settings')}
+          onDiscoveryMatchClick={() => setDiscoveryMatchOpen(true)}
+        />
+      )}
+
+      {/* Discovery Dashboard */}
+      {isAuthenticated && userId && accessToken && discoveryMatchOpen && (
+        <DiscoveryDashboard
+          userId={userId}
+          accessToken={accessToken}
+          onClose={() => {
+            setDiscoveryMatchOpen(false)
+            // Reload user profile to refresh notification state
+            loadUserProfile()
+          }}
+          onOpenMessages={() => {
+            // Open message panel when messaging from discovery
+            setMessagePanelOpen(true)
+          }}
+        />
+      )}
+
+      {/* Message Panel */}
+      {isAuthenticated && userId && accessToken && (
+        <MessagePanel
+          isOpen={messagePanelOpen}
+          onClose={() => {
+            setMessagePanelOpen(false)
+            setMessagePanelParams({})
+          }}
+          userId={userId}
+          accessToken={accessToken}
+          projectId={projectId}
+          publicAnonKey={publicAnonKey}
+          serverUrl={serverUrl}
+          initialInboxType={messagePanelParams.initialInboxType}
+          initialRecipientId={messagePanelParams.initialRecipientId}
+          initialContextType={messagePanelParams.initialContextType}
+          initialContextId={messagePanelParams.initialContextId}
+          initialContextName={messagePanelParams.initialContextName}
         />
       )}
 

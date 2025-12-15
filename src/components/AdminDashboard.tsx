@@ -43,7 +43,8 @@ import {
   Layers,
   Star,
   PenTool,
-  Share2
+  Share2,
+  Compass
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -54,6 +55,8 @@ import { MonitoringBot } from './MonitoringBot'
 import { RSSFeedManager } from './RSSFeedManager'
 import { CompaniesAdminTab } from './CompaniesAdminTab'
 import { BadgeVerificationTab } from './BadgeVerificationTab'
+import { AdminDiscoveryManager } from './admin/AdminDiscoveryManager'
+import { DiscoveryOverview } from './admin/DiscoveryOverview'
 
 interface DashboardStats {
   totalUsers: number
@@ -215,9 +218,9 @@ interface AdminDashboardProps {
   onNavigateToSwagAdmin?: () => void
 }
 
-type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss' | 'companies' | 'badges'
+type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss' | 'companies' | 'badges' | 'discovery'
 type ViewMode = 'classic' | 'feature'
-type FeatureTab = 'content' | 'swipe' | 'users' | 'gamification' | 'security' | 'analytics'
+type FeatureTab = 'content' | 'swipe' | 'users' | 'gamification' | 'security' | 'analytics' | 'discovery'
 
 export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, onNavigateToSwagAdmin }: AdminDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -234,6 +237,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [viewMode, setViewMode] = useState<ViewMode>('classic')
   const [featureTab, setFeatureTab] = useState<FeatureTab>('analytics')
+  const [selectedDiscoveryRequestId, setSelectedDiscoveryRequestId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchAdminData()
@@ -510,6 +514,7 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           { id: 'articles', label: 'Articles' },
           { id: 'companies', label: '🏢 Companies' },
           { id: 'badges', label: '🏅 Badge Verification' },
+          { id: 'discovery', label: '🎯 Discovery' },
           { id: 'rankings', label: 'Rankings' },
           { id: 'gamification', label: 'Gamification' },
           { id: 'swipeStats', label: 'Swipe Stats' },
@@ -2020,6 +2025,30 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           serverUrl={serverUrl}
         />
       )}
+
+      {/* Discovery Tab */}
+      {activeTab === 'discovery' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+              <Compass className="w-7 h-7" />
+              Discovery Match System
+            </h2>
+            <p className="text-muted-foreground">
+              Overview of discovery requests, submissions data, and matching analytics
+            </p>
+          </div>
+
+          <DiscoveryOverview 
+            accessToken={accessToken}
+            onManageRequest={(requestId) => {
+              setSelectedDiscoveryRequestId(requestId);
+              setViewMode('feature');
+              setFeatureTab('discovery');
+            }}
+          />
+        </div>
+      )}
       </>
       )}
 
@@ -2034,7 +2063,8 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
               { id: 'swipe', label: '💫 Swipe', icon: Heart },
               { id: 'users', label: '👥 Users', icon: Users },
               { id: 'gamification', label: '🎮 Gamification', icon: Zap },
-              { id: 'security', label: '🔒 Security', icon: Shield }
+              { id: 'security', label: '🔒 Security', icon: Shield },
+              { id: 'discovery', label: '🎯 Discovery', icon: Compass }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -2802,6 +2832,51 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
                   </div>
                 </Card>
               </div>
+            </div>
+          )}
+
+          {/* Discovery Tab */}
+          {featureTab === 'discovery' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">🎯 Discovery Match System</h2>
+                <Badge variant="outline" className="text-xs">
+                  Admin Tools
+                </Badge>
+              </div>
+
+              {/* Discovery Sub-tabs */}
+              <Card className="p-6">
+                <div className="flex gap-4 mb-6 border-b">
+                  <button
+                    onClick={() => setSelectedDiscoveryRequestId(null)}
+                    className="px-4 py-2 border-b-2 border-primary text-primary font-medium"
+                  >
+                    📊 Overview & Analytics
+                  </button>
+                </div>
+
+                {selectedDiscoveryRequestId ? (
+                  <AdminDiscoveryManager 
+                    accessToken={accessToken} 
+                    initialRequestId={selectedDiscoveryRequestId}
+                    onBack={() => setSelectedDiscoveryRequestId(null)}
+                  />
+                ) : (
+                  <DiscoveryOverview 
+                    accessToken={accessToken}
+                    onManageRequest={(requestId) => setSelectedDiscoveryRequestId(requestId)}
+                  />
+                )}
+              </Card>
+
+              {/* Manual Matching Section - Only show when not viewing a specific request */}
+              {!selectedDiscoveryRequestId && (
+                <Card className="p-6">
+                  <h3 className="font-bold mb-4 text-lg">🎯 Manual Match Management</h3>
+                  <AdminDiscoveryManager accessToken={accessToken} />
+                </Card>
+              )}
             </div>
           )}
         </div>

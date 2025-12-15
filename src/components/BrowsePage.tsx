@@ -100,6 +100,7 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
   const [showArticles, setShowArticles] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const pageTopRef = useRef<HTMLDivElement>(null)
+  const autoScrollRef = useRef<number | null>(null)
 
   const currentCategory = categories[currentCategoryIndex]
   const totalCategories = categories.length
@@ -140,6 +141,48 @@ export function BrowsePage({ articles, onArticleClick, loading = false, category
     window.scrollTo({ top: 0, behavior: 'instant' })
     pageTopRef.current?.scrollIntoView({ behavior: 'instant' })
   }, [])
+
+  // AUTO-SCROLL ANIMATION - Works on both desktop and mobile
+  useEffect(() => {
+    if (displayedArticles.length === 0) return;
+
+    let frameCount = 0;
+    // Increase scroll speed on mobile for better visibility
+    const scrollSpeed = isMobile ? 1.0 : 0.5; // 60px/sec on mobile, 30px/sec on desktop
+
+    const autoScroll = () => {
+      const { scrollY, innerHeight, document: doc } = window;
+      const { scrollHeight } = doc.documentElement;
+      
+      // Direct window scroll manipulation (more reliable on mobile)
+      window.scrollTo(0, window.scrollY + scrollSpeed);
+      
+      // Debug log every 120 frames (every 2 seconds)
+      frameCount++;
+      if (frameCount === 120) {
+        console.log('🎵 Magazine Auto-scroll active -', isMobile ? 'MOBILE' : 'DESKTOP', '- scrollY:', Math.round(window.scrollY));
+        frameCount = 0;
+      }
+      
+      // Loop back to top when reaching the end
+      if (window.scrollY + innerHeight >= scrollHeight - 100) {
+        window.scrollTo(0, 0);
+        console.log('🎵 Auto-scroll looped back to top (vinyl style - Magazine)');
+      }
+      
+      autoScrollRef.current = requestAnimationFrame(autoScroll);
+    };
+
+    autoScrollRef.current = requestAnimationFrame(autoScroll);
+    console.log('🎵 Auto-scroll started for Magazine feed -', isMobile ? 'MOBILE' : 'DESKTOP');
+
+    return () => {
+      if (autoScrollRef.current) {
+        cancelAnimationFrame(autoScrollRef.current);
+        console.log('🎵 Auto-scroll stopped for Magazine feed');
+      }
+    };
+  }, [displayedArticles.length, isMobile]);
 
   // Shuffle articles when category changes
   useEffect(() => {

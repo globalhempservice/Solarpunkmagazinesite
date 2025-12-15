@@ -23,7 +23,6 @@ interface CommunityMarketLoaderProps {
   onNavigateToSwagShop?: () => void
   onNavigateToSwagMarketplace?: () => void
   onNavigateToSettings?: () => void
-  onNavigateToPlacesDirectory?: () => void
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   marketUnlocked?: boolean

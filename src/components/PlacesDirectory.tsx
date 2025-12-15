@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react'
-import { MapPin, Search, Filter, Building2, ArrowLeft, ExternalLink, Phone, Mail, Globe as GlobeIcon, Calendar, Users } from 'lucide-react'
+import { MapPin, Search, Filter, Building2, ArrowLeft, ExternalLink, Phone, Mail, Globe as GlobeIcon, Calendar, Users, List, Grid3x3, Plus, Wheat, Factory, Package, ShoppingCart, Cross, Building, Lock, Star, MessageCircle } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Badge } from './ui/badge'
 import { motion } from 'motion/react'
+import { PlaceDetailModal } from './places/PlaceDetailModal'
+import { AddPlaceModal } from './places/AddPlaceModal'
 
 interface PlacesDirectoryProps {
   serverUrl: string
   onBack: () => void
   onViewOnGlobe?: () => void
+  onMessagePlace?: (ownerId: string, placeId: string, placeName: string) => void
+  currentUserId?: string | null // Current logged-in user ID
+  currentUserName?: string
+  currentUserAvatar?: string | null
+  accessToken?: string | null
 }
 
 interface Place {
@@ -38,6 +45,7 @@ interface Place {
   specialties?: string[]
   photos?: string[]
   logo_url?: string
+  created_by?: string // Owner user ID
 }
 
 const CATEGORY_COLORS = {
@@ -49,32 +57,41 @@ const CATEGORY_COLORS = {
   other: 'from-slate-500 to-gray-600',
 }
 
-const CATEGORY_ICONS = {
-  agriculture: '🌾',
-  processing: '🏭',
-  storage: '📦',
-  retail: '🛒',
-  medical: '🏥',
-  other: '🏢',
+// Map categories to Lucide React icons
+const getCategoryIcon = (category: string, className: string = "w-5 h-5") => {
+  const iconProps = { className, strokeWidth: 2 }
+  
+  switch (category) {
+    case 'agriculture':
+      return <Wheat {...iconProps} />
+    case 'processing':
+      return <Factory {...iconProps} />
+    case 'storage':
+      return <Package {...iconProps} />
+    case 'retail':
+      return <ShoppingCart {...iconProps} />
+    case 'medical':
+      return <Cross {...iconProps} />
+    case 'other':
+      return <Building {...iconProps} />
+    default:
+      return <MapPin {...iconProps} />
+  }
 }
 
-export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDirectoryProps) {
+export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe, onMessagePlace, currentUserId, currentUserName, currentUserAvatar, accessToken }: PlacesDirectoryProps) {
+  const [view, setView] = useState<'home' | 'browse'>('home')
   const [places, setPlaces] = useState<Place[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [selectedCountry, setSelectedCountry] = useState<string>('all')
-  
-  // Stats
-  const [stats, setStats] = useState({
-    total_places: 0,
-    total_hectares: 0,
-    by_category: {} as any
-  })
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
+  const [autoOpenMessaging, setAutoOpenMessaging] = useState(false)
+  const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false)
 
   useEffect(() => {
     fetchPlaces()
-    fetchStats()
   }, [])
 
   const fetchPlaces = async () => {
@@ -98,24 +115,6 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
     }
   }
 
-  const fetchStats = async () => {
-    try {
-      const { publicAnonKey } = await import('../utils/supabase/info')
-      const response = await fetch(`${serverUrl}/places/stats`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data)
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error)
-    }
-  }
-
   // Get unique countries
   const countries = Array.from(new Set(places.map(p => p.country))).sort()
 
@@ -132,71 +131,223 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
     return matchesSearch && matchesCategory && matchesCountry
   })
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-pink-950/20 to-slate-950">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-gradient-to-r from-pink-900/95 via-rose-900/95 to-pink-900/95 backdrop-blur-xl border-b border-pink-500/30 shadow-2xl">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={onBack}
-                variant="ghost"
-                size="sm"
-                className="gap-2 text-white hover:bg-white/10"
+  // HOME VIEW - Hub Landing Page
+  if (view === 'home') {
+    return (
+      <>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-cyan-950/20 to-slate-950 pt-16">
+          {/* Hero Header */}
+          <div className="relative overflow-hidden">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10" style={{
+              backgroundImage: 'radial-gradient(circle, rgba(6,182,212,0.3) 1px, transparent 1px)',
+              backgroundSize: '30px 30px'
+            }} />
+            
+            <div className="relative z-10 pt-20 pb-16">
+              {/* Hero Content */}
+              <div className="max-w-4xl mx-auto text-center space-y-6 px-4">
+                {/* Icon */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', duration: 0.6 }}
+                  className="inline-block"
+                >
+                  <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-cyan-500 via-teal-500 to-blue-500 flex items-center justify-center shadow-2xl shadow-cyan-500/50 border-4 border-cyan-400/50">
+                    <MapPin className="w-14 h-14 text-white" strokeWidth={2.5} />
+                  </div>
+                </motion.div>
+
+                {/* Title */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <h1 className="text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-teal-300 to-blue-300 mb-4">
+                    Hemp Places Directory
+                  </h1>
+                  <p className="text-xl text-cyan-200/80 max-w-2xl mx-auto">
+                    Discover hemp farms, shops, factories & more worldwide
+                  </p>
+                </motion.div>
+
+                {/* Quick Stats Pills */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex flex-wrap justify-center gap-3"
+                >
+                  <Badge className="bg-cyan-500/20 backdrop-blur-sm text-cyan-200 border-2 border-cyan-400/30 px-4 py-2 text-sm">
+                    {places.length} Places
+                  </Badge>
+                  <Badge className="bg-teal-500/20 backdrop-blur-sm text-teal-200 border-2 border-teal-400/30 px-4 py-2 text-sm">
+                    {countries.length} Countries
+                  </Badge>
+                  <Badge className="bg-blue-500/20 backdrop-blur-sm text-blue-200 border-2 border-blue-400/30 px-4 py-2 text-sm">
+                    6 Categories
+                  </Badge>
+                </motion.div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Cards Grid - 4 Cards Only */}
+          <div className="container mx-auto px-4 py-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              
+              {/* 1. Add Your Place */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                whileHover={{ scale: 1.03, y: -5 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setIsAddPlaceModalOpen(true)}
+                className="group relative overflow-hidden bg-gradient-to-br from-purple-500/10 to-violet-500/10 backdrop-blur-xl border-2 border-purple-400/30 rounded-2xl p-8 cursor-pointer transition-all hover:border-purple-400/60 hover:shadow-2xl hover:shadow-purple-500/20"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-              <div>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg">
-                    <MapPin className="w-7 h-7 text-white" />
+                {/* Glow effect */}
+                <div className="absolute -inset-2 bg-gradient-to-r from-purple-500 to-violet-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity" />
+                
+                <div className="relative space-y-4">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-500 to-violet-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Plus className="w-8 h-8 text-white" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-white">Hemp Places Directory</h1>
-                    <p className="text-sm text-pink-200">
-                      Discover hemp farms, shops, factories & more worldwide
+                    <h3 className="text-2xl font-black text-white mb-2">Add Your Place</h3>
+                    <p className="text-purple-200/70">
+                      Submit your hemp farm, shop, or facility to the global directory
                     </p>
                   </div>
                 </div>
-              </div>
-            </div>
-            
-            {onViewOnGlobe && (
-              <Button
-                onClick={onViewOnGlobe}
-                className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg"
+              </motion.div>
+
+              {/* 2. Claim a Listing */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                whileHover={{ scale: 1.03, y: -5 }}
+                whileTap={{ scale: 0.98 }}
+                className="group relative overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10 backdrop-blur-xl border-2 border-amber-400/30 rounded-2xl p-8 cursor-pointer transition-all hover:border-amber-400/60 hover:shadow-2xl hover:shadow-amber-500/20"
               >
-                <GlobeIcon className="w-4 h-4" />
-                View on 3D Globe
-              </Button>
-            )}
+                {/* Glow effect */}
+                <div className="absolute -inset-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity" />
+                
+                <div className="relative space-y-4">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Star className="w-8 h-8 text-white" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-white mb-2">Claim a Listing</h3>
+                    <p className="text-amber-200/70">
+                      Own or manage a place already listed? Claim it to update and verify
+                    </p>
+                  </div>
+                  <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-400/30 text-xs">
+                    Coming Soon
+                  </Badge>
+                </div>
+              </motion.div>
+
+              {/* 3. Browse Directory */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                whileHover={{ scale: 1.03, y: -5 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setView('browse')}
+                className="group relative overflow-hidden bg-gradient-to-br from-cyan-500/10 to-teal-500/10 backdrop-blur-xl border-2 border-cyan-400/30 rounded-2xl p-8 cursor-pointer transition-all hover:border-cyan-400/60 hover:shadow-2xl hover:shadow-cyan-500/20"
+              >
+                {/* Glow effect */}
+                <div className="absolute -inset-2 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity" />
+                
+                <div className="relative space-y-4">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <List className="w-8 h-8 text-white" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-white mb-2">Browse Directory</h3>
+                    <p className="text-cyan-200/70">
+                      Search and filter through all registered hemp places worldwide
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* 4. 3D Globe View - LOCKED FOR PRO */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                whileHover={{ scale: 1.01 }}
+                className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/10 to-green-500/10 backdrop-blur-xl border-2 border-emerald-400/30 rounded-2xl p-8 cursor-not-allowed transition-all opacity-75"
+              >
+                {/* Lock Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/60 to-slate-950/60 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="text-center space-y-2">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-yellow-500 to-amber-500 flex items-center justify-center shadow-2xl">
+                      <Lock className="w-8 h-8 text-white" strokeWidth={2.5} />
+                    </div>
+                    <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-sm font-black px-4 py-1">
+                      PRO ONLY
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="relative space-y-4">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-lg">
+                    <GlobeIcon className="w-8 h-8 text-white" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-white mb-2">3D Globe View</h3>
+                    <p className="text-emerald-200/70">
+                      Explore hemp places on an interactive 3D world map
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Stats Bar */}
-      <div className="bg-gradient-to-r from-pink-900/50 to-rose-900/50 border-b border-pink-500/20">
-        <div className="container mx-auto px-4 py-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-pink-400">{stats.total_places}</div>
-              <div className="text-xs text-pink-200">Total Places</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">{stats.total_hectares.toFixed(0)}</div>
-              <div className="text-xs text-green-200">Hectares (Agriculture)</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">{countries.length}</div>
-              <div className="text-xs text-blue-200">Countries</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">
-                {Object.keys(stats.by_category || {}).length}
-              </div>
-              <div className="text-xs text-purple-200">Categories</div>
+        {/* Add Place Modal - Available in home view */}
+        <AddPlaceModal
+          isOpen={isAddPlaceModalOpen}
+          onClose={() => setIsAddPlaceModalOpen(false)}
+          serverUrl={serverUrl}
+          accessToken={accessToken || undefined}
+          onPlaceAdded={fetchPlaces}
+        />
+      </>
+    )
+  }
+
+  // BROWSE VIEW - Search & Filter with Cards
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-cyan-950/20 to-slate-950 pt-16">
+      {/* Header */}
+      <div className="sticky top-16 z-40 bg-gradient-to-r from-cyan-900/95 via-teal-900/95 to-cyan-900/95 backdrop-blur-xl border-b border-cyan-500/30 shadow-2xl">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={() => setView('home')}
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-white hover:bg-white/10"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Browse Directory</h1>
+              <p className="text-sm text-cyan-200">
+                {filteredPlaces.length} of {places.length} places
+              </p>
             </div>
           </div>
         </div>
@@ -207,30 +358,30 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
             <Input
               placeholder="Search places..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-slate-900/50 border-pink-500/30 text-white placeholder:text-slate-400"
+              className="pl-10 bg-slate-900/50 border-cyan-500/30 text-white placeholder:text-slate-400 focus:border-cyan-500/50"
             />
           </div>
           
           {/* Category Filter */}
           <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-pink-400" />
+            <Filter className="w-5 h-5 text-cyan-400" />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 bg-slate-900/50 border border-pink-500/30 rounded-md text-white"
+              className="px-4 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white focus:border-cyan-500/50 outline-none"
             >
               <option value="all">All Categories</option>
-              <option value="agriculture">🌾 Agriculture</option>
-              <option value="processing">🏭 Processing</option>
-              <option value="storage">📦 Storage</option>
-              <option value="retail">🛒 Retail</option>
-              <option value="medical">🏥 Medical</option>
-              <option value="other">🏢 Other</option>
+              <option value="agriculture">Agriculture</option>
+              <option value="processing">Processing</option>
+              <option value="storage">Storage</option>
+              <option value="retail">Retail</option>
+              <option value="medical">Medical</option>
+              <option value="other">Other</option>
             </select>
           </div>
           
@@ -239,7 +390,7 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
             <select
               value={selectedCountry}
               onChange={(e) => setSelectedCountry(e.target.value)}
-              className="px-4 py-2 bg-slate-900/50 border border-pink-500/30 rounded-md text-white"
+              className="px-4 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white focus:border-cyan-500/50 outline-none"
             >
               <option value="all">All Countries</option>
               {countries.map(country => (
@@ -249,15 +400,10 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
           </div>
         </div>
 
-        {/* Results */}
-        <div className="mb-4 text-sm text-slate-400">
-          Showing {filteredPlaces.length} of {places.length} places
-        </div>
-
         {/* Places Grid */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-pink-500/20 border-t-pink-500" />
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-cyan-500/20 border-t-cyan-500" />
             <p className="text-slate-400 mt-4">Loading places...</p>
           </div>
         ) : filteredPlaces.length === 0 ? (
@@ -272,11 +418,12 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
                 key={place.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-pink-500/20 rounded-xl overflow-hidden hover:border-pink-500/50 transition-all shadow-lg hover:shadow-2xl hover:shadow-pink-500/20"
+                onClick={() => setSelectedPlace(place)}
+                className="bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-cyan-500/20 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all shadow-lg hover:shadow-2xl hover:shadow-cyan-500/20 cursor-pointer"
               >
                 {/* Image/Logo */}
                 {(place.logo_url || place.photos?.[0] || place.company?.logo_url) && (
-                  <div className="h-48 overflow-hidden bg-gradient-to-br from-pink-900/20 to-slate-900/50">
+                  <div className="h-48 overflow-hidden bg-gradient-to-br from-cyan-900/20 to-slate-900/50">
                     <img
                       src={place.logo_url || place.photos?.[0] || place.company?.logo_url}
                       alt={place.name}
@@ -291,10 +438,11 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-white mb-2">{place.name}</h3>
                       <div className="flex flex-wrap gap-2 mb-3">
-                        <Badge className={`bg-gradient-to-r ${CATEGORY_COLORS[place.category as keyof typeof CATEGORY_COLORS]} text-white border-0`}>
-                          {CATEGORY_ICONS[place.category as keyof typeof CATEGORY_ICONS]} {place.category}
+                        <Badge className={`bg-gradient-to-r ${CATEGORY_COLORS[place.category as keyof typeof CATEGORY_COLORS]} text-white border-0 flex items-center gap-1.5`}>
+                          {getCategoryIcon(place.category, "w-3.5 h-3.5")}
+                          <span className="capitalize">{place.category}</span>
                         </Badge>
-                        <Badge variant="outline" className="border-pink-500/50 text-pink-400">
+                        <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
                           {place.type.replace(/_/g, ' ')}
                         </Badge>
                       </div>
@@ -312,7 +460,7 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
                   <div className="space-y-2 mb-4">
                     {/* Location */}
                     <div className="flex items-center gap-2 text-sm text-slate-300">
-                      <MapPin className="w-4 h-4 text-pink-400 flex-shrink-0" />
+                      <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                       <span className="truncate">
                         {[place.city, place.state_province, place.country].filter(Boolean).join(', ')}
                       </span>
@@ -345,7 +493,7 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
                     {/* Area (for farms) */}
                     {place.area_hectares && (
                       <div className="flex items-center gap-2 text-sm text-green-300">
-                        <span className="text-green-400">🌾</span>
+                        <Wheat className="w-4 h-4 text-green-400 flex-shrink-0" />
                         <span>{place.area_hectares.toFixed(2)} hectares</span>
                       </div>
                     )}
@@ -368,11 +516,27 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
                   
                   {/* Contact Actions */}
                   <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700">
+                    {/* Message Button - Only show if user is NOT the owner */}
+                    {place.created_by && onMessagePlace && place.created_by !== currentUserId && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-2 border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                        onClick={() => {
+                          // Open the detail modal (which has inline messaging)
+                          setSelectedPlace(place)
+                          setAutoOpenMessaging(true)
+                        }}
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Message Place
+                      </Button>
+                    )}
                     {place.website && (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 gap-2 border-pink-500/50 text-pink-400 hover:bg-pink-500/10"
+                        className="flex-1 gap-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
                         onClick={() => window.open(place.website, '_blank')}
                       >
                         <GlobeIcon className="w-4 h-4" />
@@ -408,6 +572,34 @@ export function PlacesDirectory({ serverUrl, onBack, onViewOnGlobe }: PlacesDire
           </div>
         )}
       </div>
+
+      {/* Place Detail Modal */}
+      {selectedPlace && (
+        <PlaceDetailModal
+          place={selectedPlace}
+          isOpen={!!selectedPlace}
+          onClose={() => {
+            setSelectedPlace(null)
+            setAutoOpenMessaging(false) // Reset the flag
+          }}
+          onMessagePlace={onMessagePlace}
+          currentUserId={currentUserId || undefined}
+          currentUserName={currentUserName}
+          currentUserAvatar={currentUserAvatar}
+          serverUrl={serverUrl}
+          accessToken={accessToken || undefined}
+          autoOpenMessaging={autoOpenMessaging}
+        />
+      )}
+
+      {/* Add Place Modal */}
+      <AddPlaceModal
+        isOpen={isAddPlaceModalOpen}
+        onClose={() => setIsAddPlaceModalOpen(false)}
+        serverUrl={serverUrl}
+        accessToken={accessToken || undefined}
+        onPlaceAdded={fetchPlaces}
+      />
     </div>
   )
 }

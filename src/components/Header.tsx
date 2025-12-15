@@ -8,6 +8,7 @@ import { WalletPanel } from './WalletPanel'
 import { PointsRulesModal } from './PointsRulesModal'
 import { BubbleController } from './BubbleController'
 import { WikiPage } from './WikiPage'
+import { MessageIcon } from './messaging/MessageIcon'
 
 interface HeaderProps {
   currentView: 'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'matched-articles' | 'achievements' | 'browse' | 'settings'
@@ -29,11 +30,38 @@ interface HeaderProps {
   isWalletOpen?: boolean
   onWalletOpenChange?: (isOpen: boolean) => void
   onToggleCategoryMenu?: () => void
+  onOpenMessages?: () => void
+  projectId?: string
+  publicAnonKey?: string
 }
 
 type Theme = 'light' | 'dark' | 'hempin'
 
-export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, nadaPoints = 0, onPointsAnimationComplete, homeButtonTheme, userId, accessToken, serverUrl, onExchangePoints, isWalletOpen = false, onWalletOpenChange, onToggleCategoryMenu }: HeaderProps) {
+// NADA Ripple Icon from Wallet
+function NadaRippleIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 100 100" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      {/* Center droplet */}
+      <circle cx="50" cy="50" r="8" fill="currentColor" opacity="1" />
+      
+      {/* First ripple */}
+      <circle cx="50" cy="50" r="20" stroke="currentColor" strokeWidth="3" opacity="0.7" fill="none" />
+      
+      {/* Second ripple */}
+      <circle cx="50" cy="50" r="32" stroke="currentColor" strokeWidth="2.5" opacity="0.5" fill="none" />
+      
+      {/* Third ripple */}
+      <circle cx="50" cy="50" r="44" stroke="currentColor" strokeWidth="2" opacity="0.3" fill="none" />
+    </svg>
+  )
+}
+
+export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, onSwitchToGrid, currentStreak, onBack, userPoints = 0, nadaPoints = 0, onPointsAnimationComplete, homeButtonTheme, userId, accessToken, serverUrl, onExchangePoints, isWalletOpen = false, onWalletOpenChange, onToggleCategoryMenu, onOpenMessages, projectId, publicAnonKey }: HeaderProps) {
   const [theme, setTheme] = useState<Theme>('light')
   const [isAnimating, setIsAnimating] = useState(false)
   const [previousPoints, setPreviousPoints] = useState(userPoints)
@@ -267,50 +295,70 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
 
         {/* RIGHT SIDE: Points Counter & Action Button */}
         <div className="absolute right-4 flex items-center gap-2">
-          {/* Points Counter - Right of Logo - CLICKABLE! */}
-          <motion.button
-            onClick={() => onWalletOpenChange?.(true)}
-            key={userPoints}
-            initial={{ scale: 1 }}
-            animate={{ 
-              scale: showPointsAnimation ? [1, 1.3, 1] : 1,
-            }}
-            transition={{ duration: 0.5 }}
-            className="relative group cursor-pointer"
-          >
-            <Badge 
-              variant="secondary"
-              className="gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all"
+          {/* Points Counters Stack - Right of Logo - CLICKABLE! */}
+          <div className="flex flex-col gap-1">
+            {/* Power Up Points */}
+            <motion.button
+              onClick={() => onWalletOpenChange?.(true)}
+              key={userPoints}
+              initial={{ scale: 1 }}
+              animate={{ 
+                scale: showPointsAnimation ? [1, 1.3, 1] : 1,
+              }}
+              transition={{ duration: 0.5 }}
+              className="relative group cursor-pointer"
             >
-              <Zap className={`w-3 h-3 sm:w-4 sm:h-4 fill-amber-500 ${showPointsAnimation ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
-              <span className="font-bold">{userPoints.toLocaleString()}</span>
-            </Badge>
+              <Badge 
+                variant="secondary"
+                className="gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all"
+              >
+                <Zap className={`w-3 h-3 sm:w-4 sm:h-4 fill-amber-500 ${showPointsAnimation ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
+                <span className="font-bold">{userPoints.toLocaleString()}</span>
+              </Badge>
+              
+              {/* Sparkle effect on points gain */}
+              {showPointsAnimation && (
+                <>
+                  <motion.div
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 2, opacity: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full blur-xl"
+                  />
+                  <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-500 animate-ping" />
+                  
+                  {/* Floating +Points text */}
+                  <motion.div
+                    initial={{ y: 0, opacity: 1, scale: 0.5 }}
+                    animate={{ y: -40, opacity: 0, scale: 1.2 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none"
+                  >
+                    <span className="text-lg font-bold text-amber-500 drop-shadow-lg whitespace-nowrap">
+                      +{pointsGained}
+                    </span>
+                  </motion.div>
+                </>
+              )}
+            </motion.button>
             
-            {/* Sparkle effect on points gain */}
-            {showPointsAnimation && (
-              <>
-                <motion.div
-                  initial={{ scale: 0, opacity: 1 }}
-                  animate={{ scale: 2, opacity: 0 }}
-                  transition={{ duration: 0.6 }}
-                  className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full blur-xl"
-                />
-                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-500 animate-ping" />
-                
-                {/* Floating +Points text */}
-                <motion.div
-                  initial={{ y: 0, opacity: 1, scale: 0.5 }}
-                  animate={{ y: -40, opacity: 0, scale: 1.2 }}
-                  transition={{ duration: 1.5, ease: "easeOut" }}
-                  className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none"
-                >
-                  <span className="text-lg font-bold text-amber-500 drop-shadow-lg whitespace-nowrap">
-                    +{pointsGained}
-                  </span>
-                </motion.div>
-              </>
-            )}
-          </motion.button>
+            {/* NADA Points */}
+            <motion.button
+              onClick={() => onWalletOpenChange?.(true)}
+              className="relative group cursor-pointer"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Badge 
+                variant="secondary"
+                className="gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-400/30 text-emerald-600 dark:text-emerald-400 shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all"
+              >
+                {/* NADA Ripple Icon */}
+                <NadaRippleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 group-hover:rotate-12 transition-transform" />
+                <span className="font-bold">{(nadaPoints || 0).toLocaleString()}</span>
+              </Badge>
+            </motion.button>
+          </div>
           
           {/* Settings button - Colorful Pill - ONLY on ME page */}
           {currentView === 'dashboard' && (
@@ -331,6 +379,17 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
                 </span>
               </div>
             </motion.button>
+          )}
+          
+          {/* Messages button - Available in Mag environment (feed, browse, dashboard, article) */}
+          {(currentView === 'feed' || currentView === 'browse' || currentView === 'dashboard' || currentView === 'article') && onOpenMessages && userId && accessToken && projectId && publicAnonKey && (
+            <MessageIcon
+              onClick={onOpenMessages}
+              userId={userId}
+              accessToken={accessToken}
+              projectId={projectId}
+              publicAnonKey={publicAnonKey}
+            />
           )}
         </div>
       </div>

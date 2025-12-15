@@ -83,7 +83,6 @@ interface CommunityMarketProps {
   onNavigateToSwagShop?: () => void
   onNavigateToSwagMarketplace?: () => void
   onNavigateToSettings?: () => void
-  onNavigateToPlacesDirectory?: () => void
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   marketUnlocked?: boolean
@@ -103,7 +102,6 @@ export default function CommunityMarket({
   onNavigateToSwagShop,
   onNavigateToSwagMarketplace,
   onNavigateToSettings,
-  onNavigateToPlacesDirectory,
   equippedBadgeId,
   profileBannerUrl,
   marketUnlocked = false
@@ -822,47 +820,6 @@ export default function CommunityMarket({
                   onClick={() => onNavigateToBrowse && onNavigateToBrowse()}
                 >
                   Read DEWII
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 5 - Places Directory */}
-          <div className="relative">
-            <div className="group relative overflow-hidden rounded-[2rem] backdrop-blur-xl border-3 border-cyan-400/40 hover:border-cyan-300/70 transition-all duration-500 hover:scale-105 hover:-translate-y-3 shadow-[0_20px_60px_rgba(6,182,212,0.3)] hover:shadow-[0_30px_80px_rgba(6,182,212,0.5)]">
-              {/* Organic texture pattern */}
-              <div className="absolute inset-0 opacity-30" style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='15' r='8' fill='%2306b6d4' fill-opacity='0.3'/%3E%3Cpath d='M30 23 L30 45' stroke='%2306b6d4' stroke-width='2' stroke-opacity='0.3'/%3E%3Ccircle cx='30' cy='50' r='3' fill='%2306b6d4' fill-opacity='0.5'/%3E%3C/svg%3E")`,
-                backgroundSize: '40px 40px'
-              }} />
-              
-              {/* Gradient background with depth */}
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/80 via-teal-900/70 to-blue-900/80" />
-              
-              {/* Depth layers */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-cyan-500/10 to-teal-500/10" />
-              
-              {/* Outer glow */}
-              <div className="absolute -inset-2 bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-500 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-              
-              <div className="relative p-8 space-y-6">
-                {/* Icon and Title - Side by Side */}
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 flex-shrink-0 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-2xl shadow-cyan-500/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-3xl font-black text-white drop-shadow-lg">Places</h3>
-                </div>
-                
-                <Button 
-                  className="w-full bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-500 hover:from-cyan-600 hover:via-teal-600 hover:to-blue-600 text-white font-black text-base py-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:scale-105"
-                  onClick={() => onNavigateToPlacesDirectory && onNavigateToPlacesDirectory()}
-                >
-                  Browse Directory
                 </Button>
               </div>
             </div>

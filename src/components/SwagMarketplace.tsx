@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ShoppingBag, Package, Star, Shield, Crown, ExternalLink, Filter, Search, X, ChevronDown, Tag, Building2, Sparkles, ArrowLeft } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { ProductDetailModal } from './ProductDetailModal'
 import { BadgeRequirementModal } from './BadgeRequirementModal'
 import { PurchaseModal } from './PurchaseModal'
+import { AddSwagProductModal } from './swag/AddSwagProductModal'
 
 interface SwagProduct {
   id: string
@@ -70,10 +71,67 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
   const [selectedProduct, setSelectedProduct] = useState<SwagProduct | null>(null)
   const [showBadgeRequirementModal, setShowBadgeRequirementModal] = useState(false)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
+  const [showAddProductModal, setShowAddProductModal] = useState(false)
+  const autoScrollRef = useRef<number | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     fetchProducts()
   }, [])
+
+  // Listen for contextual + button trigger
+  useEffect(() => {
+    (window as any).__swagMarketplaceOpenAddModal = () => setShowAddProductModal(true);
+    
+    return () => {
+      delete (window as any).__swagMarketplaceOpenAddModal;
+    };
+  }, [])
+
+  // AUTO-SCROLL ANIMATION - Works on both desktop and mobile (scrolls content area only)
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (loading || products.length === 0 || !scrollContainer) return;
+
+    let frameCount = 0;
+    const isMobile = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+    // Increase scroll speed on mobile for better visibility
+    const scrollSpeed = isMobile ? 1.0 : 0.5; // 60px/sec on mobile, 30px/sec on desktop
+
+    const autoScroll = () => {
+      if (!scrollContainer) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      
+      // Direct scroll manipulation (more reliable on mobile)
+      scrollContainer.scrollTop += scrollSpeed;
+      
+      // Debug log every 120 frames (every 2 seconds)
+      frameCount++;
+      if (frameCount === 120) {
+        console.log('🎵 SWAG Auto-scroll active -', isMobile ? 'MOBILE' : 'DESKTOP', '- scrollTop:', Math.round(scrollContainer.scrollTop));
+        frameCount = 0;
+      }
+      
+      // Loop back to top when reaching the end
+      if (scrollTop + clientHeight >= scrollHeight - 100) {
+        scrollContainer.scrollTop = 0;
+        console.log('🎵 Auto-scroll looped back to top (vinyl style - SWAG)');
+      }
+      
+      autoScrollRef.current = requestAnimationFrame(autoScroll);
+    };
+
+    autoScrollRef.current = requestAnimationFrame(autoScroll);
+    console.log('🎵 Auto-scroll started for SWAG Marketplace (content area) -', isMobile ? 'MOBILE' : 'DESKTOP');
+
+    return () => {
+      if (autoScrollRef.current) {
+        cancelAnimationFrame(autoScrollRef.current);
+        console.log('🎵 Auto-scroll stopped for SWAG Marketplace');
+      }
+    };
+  }, [loading, products.length]);
 
   const fetchProducts = async () => {
     try {
@@ -182,10 +240,10 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
   const featuredProducts = filteredProducts.filter(p => p.is_featured)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950 flex flex-col">
+      {/* FIXED HERO HEADER - DOESN'T SCROLL */}
+      <div className="sticky top-0 z-40 bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950 border-b-2 border-emerald-500/20 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Back Button */}
           <Button
             onClick={onBack}
@@ -196,7 +254,7 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
             Back to Market
           </Button>
 
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3">
             <div className="relative p-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-2xl border-2 border-emerald-400/30">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-teal-400/20 blur-xl" />
               <ShoppingBag className="w-7 h-7 text-white relative z-10" strokeWidth={2.5} />
@@ -207,199 +265,215 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Search and Filters */}
-        <div className="bg-emerald-950/50 border-2 border-emerald-500/20 rounded-2xl p-4 mb-6 backdrop-blur-sm">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400/50" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products, organizations..."
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-emerald-900/30 border-2 border-emerald-500/20 text-white placeholder:text-emerald-300/40 focus:border-emerald-400/50 focus:outline-none transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400/50 hover:text-emerald-300 transition-colors"
+      {/* SCROLLABLE CONTENT AREA - AUTO-SCROLLS */}
+      <div className="flex-1 overflow-y-auto" id="swag-scroll-container" ref={scrollContainerRef}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Search and Filters */}
+          <div className="bg-emerald-950/50 border-2 border-emerald-500/20 rounded-2xl p-4 mb-6 backdrop-blur-sm">
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400/50" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products, organizations..."
+                  className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-emerald-900/30 border-2 border-emerald-500/20 text-white placeholder:text-emerald-300/40 focus:border-emerald-400/50 focus:outline-none transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400/50 hover:text-emerald-300 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Sort */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="appearance-none pl-4 pr-10 py-2.5 rounded-xl bg-emerald-900/30 border-2 border-emerald-500/20 text-white font-bold focus:border-emerald-400/50 focus:outline-none transition-colors cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
-                </button>
+                  <option value="featured">Featured First</option>
+                  <option value="newest">Newest First</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400/50 pointer-events-none" />
+              </div>
+
+              {/* Filter Toggle */}
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
+                variant={showFilters ? "default" : "outline"}
+                className={`gap-2 font-black ${
+                  showFilters
+                    ? 'bg-emerald-500 hover:bg-emerald-600 border-emerald-400/50 text-white'
+                    : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                Filters
+              </Button>
+            </div>
+
+            {/* Category Filters */}
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-4 mt-4 border-t border-emerald-500/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tag className="w-4 h-4 text-emerald-400" />
+                      <h3 className="font-black text-sm uppercase tracking-wide text-emerald-300">Categories</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map(category => (
+                        <button
+                          key={category}
+                          onClick={() => setSelectedCategory(category)}
+                          className={`px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95 ${
+                            selectedCategory === category
+                              ? 'bg-emerald-500 text-white border-2 border-emerald-400/50 shadow-lg'
+                              : 'bg-emerald-900/30 text-emerald-300 border-2 border-emerald-500/10 hover:border-emerald-500/30'
+                          }`}
+                        >
+                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
               )}
-            </div>
-
-            {/* Sort */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="appearance-none pl-4 pr-10 py-2.5 rounded-xl bg-emerald-900/30 border-2 border-emerald-500/20 text-white font-bold focus:border-emerald-400/50 focus:outline-none transition-colors cursor-pointer"
-              >
-                <option value="featured">Featured First</option>
-                <option value="newest">Newest First</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400/50 pointer-events-none" />
-            </div>
-
-            {/* Filter Toggle */}
-            <Button
-              onClick={() => setShowFilters(!showFilters)}
-              variant={showFilters ? "default" : "outline"}
-              className={`gap-2 font-black ${
-                showFilters
-                  ? 'bg-emerald-500 hover:bg-emerald-600 border-emerald-400/50 text-white'
-                  : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-              Filters
-            </Button>
+            </AnimatePresence>
           </div>
 
-          {/* Category Filters */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="pt-4 mt-4 border-t border-emerald-500/20">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Tag className="w-4 h-4 text-emerald-400" />
-                    <h3 className="font-black text-sm uppercase tracking-wide text-emerald-300">Categories</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {categories.map(category => (
-                      <button
-                        key={category}
-                        onClick={() => setSelectedCategory(category)}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95 ${
-                          selectedCategory === category
-                            ? 'bg-emerald-500 text-white border-2 border-emerald-400/50 shadow-lg'
-                            : 'bg-emerald-900/30 text-emerald-300 border-2 border-emerald-500/10 hover:border-emerald-500/30'
-                        }`}
-                      >
-                        {category.charAt(0).toUpperCase() + category.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Featured Products Section */}
-        {featuredProducts.length > 0 && selectedCategory === 'all' && !searchQuery && (
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              <h2 className="font-black text-xl text-white">Featured Products</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredProducts.slice(0, 3).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  hasRequiredBadge={hasRequiredBadge(product)}
-                  isFeatured={true}
-                  onClick={() => setSelectedProduct(product)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* All Products Grid */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-black text-xl text-white">
-              {searchQuery ? 'Search Results' : selectedCategory === 'all' ? 'All Products' : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Products`}
-            </h2>
-            <p className="text-emerald-200/60 font-bold">
-              {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
-            </p>
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <div className="bg-emerald-950/50 border-2 border-dashed border-emerald-500/20 rounded-2xl p-12 text-center">
-              <Package className="w-16 h-16 mx-auto mb-4 text-emerald-400/50" />
-              <h3 className="font-black text-xl mb-2 text-white">No Products Found</h3>
-              <p className="text-emerald-200/60">
-                {searchQuery
-                  ? 'Try adjusting your search or filters'
-                  : 'No products available in this category yet'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  hasRequiredBadge={hasRequiredBadge(product)}
-                  isFeatured={false}
-                  onClick={() => setSelectedProduct(product)}
-                />
-              ))}
+          {/* Featured Products Section */}
+          {featuredProducts.length > 0 && selectedCategory === 'all' && !searchQuery && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                <h2 className="font-black text-xl text-white">Featured Products</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {featuredProducts.slice(0, 3).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    hasRequiredBadge={hasRequiredBadge(product)}
+                    isFeatured={true}
+                    onClick={() => setSelectedProduct(product)}
+                  />
+                ))}
+              </div>
             </div>
           )}
+
+          {/* All Products Grid */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-black text-xl text-white">
+                {searchQuery ? 'Search Results' : selectedCategory === 'all' ? 'All Products' : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Products`}
+              </h2>
+              <p className="text-emerald-200/60 font-bold">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+              </p>
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div className="bg-emerald-950/50 border-2 border-dashed border-emerald-500/20 rounded-2xl p-12 text-center">
+                <Package className="w-16 h-16 mx-auto mb-4 text-emerald-400/50" />
+                <h3 className="font-black text-xl mb-2 text-white">No Products Found</h3>
+                <p className="text-emerald-200/60">
+                  {searchQuery
+                    ? 'Try adjusting your search or filters'
+                    : 'No products available in this category yet'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    hasRequiredBadge={hasRequiredBadge(product)}
+                    isFeatured={false}
+                    onClick={() => setSelectedProduct(product)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Product Detail Modal */}
+          {selectedProduct && (
+            <ProductDetailModal
+              product={selectedProduct}
+              isOpen={!!selectedProduct}
+              onClose={() => setSelectedProduct(null)}
+              hasRequiredBadge={hasRequiredBadge(selectedProduct)}
+              nadaPoints={nadaPoints}
+              onPurchase={handlePurchase}
+              relatedProducts={getRelatedProducts(selectedProduct)}
+              onProductClick={(product) => setSelectedProduct(product)}
+              onBadgeRequirement={() => setShowBadgeRequirementModal(true)}
+              onExternalShopPurchase={handleExternalShopPurchase}
+            />
+          )}
+
+          {/* Badge Requirement Modal */}
+          {showBadgeRequirementModal && selectedProduct && (
+            <BadgeRequirementModal
+              isOpen={showBadgeRequirementModal}
+              onClose={() => setShowBadgeRequirementModal(false)}
+              badgeType={selectedProduct.required_badge_type || 'Shield'}
+              organizationName={selectedProduct.company?.name || 'Organization'}
+              organizationLogo={selectedProduct.company?.logo_url}
+              hasRequiredBadge={hasRequiredBadge(selectedProduct)}
+            />
+          )}
+
+          {/* Purchase Modal (External Shop) */}
+          {showPurchaseModal && selectedProduct && selectedProduct.company && userId && (
+            <PurchaseModal
+              isOpen={showPurchaseModal}
+              onClose={() => setShowPurchaseModal(false)}
+              product={selectedProduct}
+              company={{
+                id: selectedProduct.company.id,
+                name: selectedProduct.company.name,
+                logo_url: selectedProduct.company.logo_url,
+                is_association: selectedProduct.company.is_association || false
+              }}
+              userId={userId}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              onPurchaseComplete={handlePurchaseComplete}
+            />
+          )}
+
+          {/* Add Product Modal */}
+          {showAddProductModal && (
+            <AddSwagProductModal
+              isOpen={showAddProductModal}
+              onClose={() => setShowAddProductModal(false)}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              onProductAdded={fetchProducts}
+            />
+          )}
         </div>
-
-        {/* Product Detail Modal */}
-        {selectedProduct && (
-          <ProductDetailModal
-            product={selectedProduct}
-            isOpen={!!selectedProduct}
-            onClose={() => setSelectedProduct(null)}
-            hasRequiredBadge={hasRequiredBadge(selectedProduct)}
-            nadaPoints={nadaPoints}
-            onPurchase={handlePurchase}
-            relatedProducts={getRelatedProducts(selectedProduct)}
-            onProductClick={(product) => setSelectedProduct(product)}
-            onBadgeRequirement={() => setShowBadgeRequirementModal(true)}
-            onExternalShopPurchase={handleExternalShopPurchase}
-          />
-        )}
-
-        {/* Badge Requirement Modal */}
-        {showBadgeRequirementModal && selectedProduct && (
-          <BadgeRequirementModal
-            isOpen={showBadgeRequirementModal}
-            onClose={() => setShowBadgeRequirementModal(false)}
-            badgeType={selectedProduct.required_badge_type || 'Shield'}
-            organizationName={selectedProduct.company?.name || 'Organization'}
-            organizationLogo={selectedProduct.company?.logo_url}
-            hasRequiredBadge={hasRequiredBadge(selectedProduct)}
-          />
-        )}
-
-        {/* Purchase Modal (External Shop) */}
-        {showPurchaseModal && selectedProduct && selectedProduct.company && userId && (
-          <PurchaseModal
-            isOpen={showPurchaseModal}
-            onClose={() => setShowPurchaseModal(false)}
-            product={selectedProduct}
-            company={{
-              id: selectedProduct.company.id,
-              name: selectedProduct.company.name,
-              logo_url: selectedProduct.company.logo_url,
-              is_association: selectedProduct.company.is_association || false
-            }}
-            userId={userId}
-            accessToken={accessToken}
-            serverUrl={serverUrl}
-            onPurchaseComplete={handlePurchaseComplete}
-          />
-        )}
       </div>
     </div>
   )

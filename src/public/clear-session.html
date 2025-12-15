@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Session - Hemp'in Universe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        p {
+            color: #94a3b8;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .button.secondary {
+            background: rgba(71, 85, 105, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+        
+        .status {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .status.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+        }
+        
+        .status.info {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #06b6d4;
+        }
+        
+        .code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-top: 10px;
+            overflow-x: auto;
+            color: #10b981;
+        }
+        
+        .emoji {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emoji">🧹</div>
+        <h1>Clear Authentication Session</h1>
+        <p>If you're experiencing login issues or seeing refresh token errors, use this tool to clear your session and start fresh.</p>
+        
+        <button class="button" onclick="clearSession()">
+            Clear Session
+        </button>
+        
+        <button class="button secondary" onclick="clearAndReload()">
+            Clear Session & Reload
+        </button>
+        
+        <div id="status" class="status"></div>
+        
+        <p style="margin-top: 30px; font-size: 14px; color: #64748b;">
+            <strong>What this does:</strong><br>
+            • Clears all authentication tokens<br>
+            • Removes session data from browser<br>
+            • Logs you out completely<br>
+            • Allows you to log in fresh
+        </p>
+    </div>
+
+    <script>
+        function clearSession() {
+            const status = document.getElementById('status');
+            let clearedCount = 0;
+            
+            try {
+                // Get all localStorage keys
+                const keysToRemove = [];
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (
+                        key.includes('auth') || 
+                        key.includes('token') || 
+                        key.includes('supabase') ||
+                        key.includes('dewii') ||
+                        key.includes('sb-')
+                    )) {
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                // Remove all auth-related keys
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    clearedCount++;
+                    console.log(`Cleared: ${key}`);
+                });
+                
+                // Also clear sessionStorage
+                const sessionKeysToRemove = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (
+                        key.includes('auth') || 
+                        key.includes('token') || 
+                        key.includes('supabase') ||
+                        key.includes('dewii')
+                    )) {
+                        sessionKeysToRemove.push(key);
+                    }
+                }
+                
+                sessionKeysToRemove.forEach(key => {
+                    sessionStorage.removeItem(key);
+                    clearedCount++;
+                    console.log(`Cleared: ${key}`);
+                });
+                
+                // Show success message
+                status.className = 'status success';
+                status.style.display = 'block';
+                status.innerHTML = `
+                    ✅ <strong>Session Cleared Successfully!</strong><br>
+                    Removed ${clearedCount} authentication items.<br>
+                    <div class="code">You can now log in again with fresh credentials.</div>
+                `;
+                
+                console.log(`✅ Cleared ${clearedCount} authentication items`);
+                
+            } catch (error) {
+                status.className = 'status info';
+                status.style.display = 'block';
+                status.innerHTML = `
+                    ⚠️ <strong>Error:</strong><br>
+                    ${error.message}<br>
+                    <div class="code">Try clearing manually via browser settings.</div>
+                `;
+                console.error('Error clearing session:', error);
+            }
+        }
+        
+        function clearAndReload() {
+            clearSession();
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+        
+        // Make clearSession available globally
+        window.clearAuthSession = clearSession;
+    </script>
+</body>
+</html>

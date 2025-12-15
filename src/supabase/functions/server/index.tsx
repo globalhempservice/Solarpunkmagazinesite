@@ -12,9 +12,14 @@ import { setupArticleOrganizationRoutes } from './article_organization_routes.ts
 import { setupPlacesRoutes } from './places_routes.tsx'
 import { setupSearchAnalyticsRoutes } from './search_analytics_routes.tsx'
 import { setupOrgRelationshipRoutes } from './org_relationship_routes.tsx'
+import discoveryRoutes from './discovery_routes.tsx'
+import { setupAdminDiscoveryRoutes } from './admin_discovery_routes.tsx'
+import { setupMessagingRoutes } from './messaging_routes.tsx'
+import swapRoutes from './swap_routes.tsx'
+import swapCleanupRoutes from './swap-cleanup.ts'
 
-// Server version - Updated 2025-12-05 (Org-to-org relationships added)
-const SERVER_VERSION = '1.2.0'
+// Server version - Updated 2024-12-09 (SWAP Shop - C2C Barter + Cleanup)
+const SERVER_VERSION = '1.6.1'
 
 // Helper function to extract site metadata from URL
 function extractSiteMetadata(url: string) {
@@ -109,7 +114,7 @@ async function checkSecurityTables() {
 initStorage().catch(() => {})
 checkSecurityTables().catch(() => {})
 
-// Auth middleware
+// Auth middleware with retry logic
 async function requireAuth(c: any, next: any) {
   const authHeader = c.req.header('Authorization')
   const accessToken = authHeader?.split(' ')[1]
@@ -118,25 +123,93 @@ async function requireAuth(c: any, next: any) {
     return c.json({ error: 'Unauthorized', details: 'No access token provided' }, 401)
   }
   
-  try {
-    // Use the auth client to validate the user token
-    const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
-    
-    if (error) {
-      console.error('Auth error:', error)
+  // Retry logic for auth validation with exponential backoff
+  const maxRetries = 3
+  const baseDelay = 100 // ms
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Use the auth client to validate the user token
+      const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken)
       
-      // Check if token is expired
-      if (error.message?.includes('expired') || error.status === 401) {
+      if (error) {
+        // Check if this is a retryable connection error
+        const isConnectionError = error.name === 'AuthRetryableFetchError' || 
+                                   error.message?.includes('connection') || 
+                                   error.message?.includes('network') ||
+                                   error.message?.includes('reset')
+        
+        if (isConnectionError && attempt < maxRetries - 1) {
+          // Retry with exponential backoff
+          const delay = baseDelay * Math.pow(2, attempt)
+          console.log(`🔄 Auth connection error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          continue
+        }
+        
+        // Don't log on last retry - will be handled by final error
+        if (!isConnectionError) {
+          console.error('Auth error:', error)
+        }
+        
+        // Check if token is expired
+        if (error.message?.includes('expired') || error.status === 401) {
+          return c.json({ 
+            error: 'Unauthorized', 
+            details: 'Session expired. Please log in again.',
+            code: 'token_expired',
+            shouldRefresh: true
+          }, 401)
+        }
+        
+        // Connection error after retries exhausted
+        if (isConnectionError) {
+          return c.json({ 
+            error: 'Service Unavailable', 
+            details: 'Authentication service temporarily unavailable. Please try again.',
+            code: 'connection_error',
+            shouldRetry: true
+          }, 503)
+        }
+        
         return c.json({ 
           error: 'Unauthorized', 
-          details: 'Session expired. Please log in again.',
-          code: 'token_expired',
-          shouldRefresh: true
+          details: error.message || 'Auth session missing!',
+          code: error.code || 'unknown'
         }, 401)
       }
       
-      // Check for connection errors
-      if (error.message?.includes('connection') || error.message?.includes('network')) {
+      if (!user) {
+        return c.json({ error: 'Unauthorized', details: 'User not found' }, 401)
+      }
+      
+      // Success! Set user and continue
+      c.set('userId', user.id)
+      c.set('user', user)
+      await next()
+      return
+      
+    } catch (err: any) {
+      // Check if this is a retryable connection error
+      const isConnectionError = err.message?.includes('connection') || 
+                                 err.message?.includes('network') || 
+                                 err.message?.includes('reset')
+      
+      if (isConnectionError && attempt < maxRetries - 1) {
+        // Retry with exponential backoff
+        const delay = baseDelay * Math.pow(2, attempt)
+        console.log(`🔄 Auth exception, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries}):`, err.message)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
+      
+      // Only log on final retry
+      if (!isConnectionError || attempt === maxRetries - 1) {
+        console.error('requireAuth exception:', err)
+      }
+      
+      // Handle network/connection errors gracefully after retries exhausted
+      if (isConnectionError) {
         return c.json({ 
           error: 'Service Unavailable', 
           details: 'Authentication service temporarily unavailable. Please try again.',
@@ -146,38 +219,19 @@ async function requireAuth(c: any, next: any) {
       }
       
       return c.json({ 
-        error: 'Unauthorized', 
-        details: error.message || 'Auth session missing!',
-        code: error.code || 'unknown'
-      }, 401)
+        error: 'Internal Server Error', 
+        details: 'An unexpected error occurred during authentication',
+        code: 'internal_error'
+      }, 500)
     }
-    
-    if (!user) {
-      return c.json({ error: 'Unauthorized', details: 'User not found' }, 401)
-    }
-    
-    c.set('userId', user.id)
-    c.set('user', user)
-    await next()
-  } catch (err: any) {
-    console.error('requireAuth exception:', err)
-    
-    // Handle network/connection errors gracefully
-    if (err.message?.includes('connection') || err.message?.includes('network') || err.message?.includes('reset')) {
-      return c.json({ 
-        error: 'Service Unavailable', 
-        details: 'Authentication service temporarily unavailable. Please try again.',
-        code: 'connection_error',
-        shouldRetry: true
-      }, 503)
-    }
-    
-    return c.json({ 
-      error: 'Internal Server Error', 
-      details: 'An unexpected error occurred during authentication',
-      code: 'internal_error'
-    }, 500)
   }
+  
+  // Should never reach here, but just in case
+  return c.json({ 
+    error: 'Service Unavailable', 
+    details: 'Authentication failed after multiple retries',
+    code: 'retry_exhausted'
+  }, 503)
 }
 
 // Admin middleware - checks if user is the superadmin
@@ -241,6 +295,35 @@ console.log('✅ Search analytics routes setup complete')
 console.log('🔗 Setting up org-to-org relationship routes...')
 setupOrgRelationshipRoutes(app, requireAuth, requireAdmin)
 console.log('✅ Org-to-org relationship routes setup complete')
+
+// Setup discovery match routes (Phase 1 Sprint 1.1)
+console.log('🎯 Setting up discovery match routes...')
+app.route('/make-server-053bcd80/discovery', discoveryRoutes)
+console.log('✅ Discovery match routes setup complete - Phase 1 Sprint 1.1')
+
+// Setup admin discovery management routes (Phase 1 Sprint 1.2)
+console.log('🔐 Setting up admin discovery management routes...')
+setupAdminDiscoveryRoutes(app, requireAdmin)
+console.log('✅ Admin discovery management routes setup complete - Phase 1 Sprint 1.2')
+
+// Setup messaging routes (Phase 1)
+console.log('💬 Setting up messaging routes...')
+setupMessagingRoutes(app, requireAuth)
+console.log('✅ Messaging routes setup complete - Phase 1')
+
+// ============================================
+// SWAP SHOP ROUTES (C2C Barter)
+// ============================================
+console.log('🔄 Setting up SWAP shop routes...')
+app.route('/', swapRoutes)
+console.log('✅ SWAP shop routes setup complete')
+
+// ============================================
+// SWAP CLEANUP ROUTES (Storage Lifecycle)
+// ============================================
+console.log('🧹 Setting up SWAP cleanup routes...')
+app.route('/', swapCleanupRoutes)
+console.log('✅ SWAP cleanup routes setup complete')
 
 // ============================================
 // SWAG PURCHASE ANALYTICS ROUTES

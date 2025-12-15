@@ -35,7 +35,7 @@ export function NadaLockOverlay({ nadaRequired, nadaCurrent }: NadaLockOverlayPr
   const hasEnough = nadaCurrent >= nadaRequired
 
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 backdrop-blur-md rounded-3xl overflow-hidden">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md rounded-3xl overflow-hidden">
       {/* Animated Ripple Background - NADA Pranas */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(5)].map((_, i) => (

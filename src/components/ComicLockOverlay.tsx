@@ -7,23 +7,30 @@ interface ComicLockOverlayProps {
 
 export function ComicLockOverlay({ articlesNeeded }: ComicLockOverlayProps) {
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+    <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
       {/* Dark overlay with gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/30 to-black/40 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/30 to-black/40 backdrop-blur-[2px] rounded-3xl" />
       
-      {/* Comic-style lock badge */}
+      {/* Comic-style lock badge - Floating above card */}
       <motion.div
-        initial={{ scale: 0, rotate: -180 }}
+        initial={{ scale: 0, rotate: -180, y: 0 }}
         animate={{ 
           scale: 1, 
           rotate: 0,
+          y: [0, -8, 0]
         }}
         transition={{ 
           type: 'spring',
           duration: 0.8,
-          bounce: 0.6
+          bounce: 0.6,
+          y: {
+            duration: 2,
+            repeat: Infinity,
+            ease: 'easeInOut'
+          }
         }}
         className="relative z-20 pointer-events-auto"
+        style={{ marginTop: '-40px' }}
       >
         {/* Outer glow ring */}
         <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-full opacity-40 blur-xl animate-pulse" />

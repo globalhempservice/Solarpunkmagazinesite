@@ -1,11 +1,11 @@
-import { Badge } from './ui/badge'
-import { Heart, Zap, BookOpen, Search, Filter, Sparkles, RefreshCw, Flame, TrendingUp, Users, Trophy, Plus, Store } from 'lucide-react'
+import { Heart, Zap, BookOpen, Search, Filter, Sparkles, RefreshCw, Flame, TrendingUp, Users, Trophy, Plus, Store, MapPin, Package } from 'lucide-react'
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 import { ComicLockOverlay } from './ComicLockOverlay'
 import { NadaLockOverlay } from './NadaLockOverlay'
 import { MarketUnlockModal } from './MarketUnlockModal'
 import { BudCharacter } from './BudCharacter'
 import { BudModal } from './BudModal'
+import { Badge } from './ui/badge'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 
@@ -48,6 +48,8 @@ interface HomeCardsProps {
   marketUnlocked?: boolean
   onMarketUnlock?: () => Promise<void>
   onNavigateToMarket?: () => void
+  onNavigateToPlaces?: () => void
+  onNavigateToSwap?: () => void
 }
 
 export function HomeCards({
@@ -64,7 +66,9 @@ export function HomeCards({
   nadaPoints = 0,
   marketUnlocked = false,
   onMarketUnlock,
-  onNavigateToMarket
+  onNavigateToMarket,
+  onNavigateToPlaces,
+  onNavigateToSwap
 }: HomeCardsProps) {
   const [isMarketUnlocking, setIsMarketUnlocking] = useState(false)
   const [showMarketInfo, setShowMarketInfo] = useState(false)
@@ -134,7 +138,7 @@ export function HomeCards({
   const userLevel = Math.max(1, calculateLevelFromXP(totalXP))
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 max-w-5xl mx-auto">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 max-w-5xl mx-auto pt-4">
       {/* 1. BROWSE ARTICLES - Big Neon Button */}
       <motion.div 
         whileHover={{ scale: 1.03, rotate: -1 }}
@@ -235,7 +239,8 @@ export function HomeCards({
           setPreviousView?.('feed')
           onNavigateToSwipe?.()
         }}
-        className="group relative overflow-hidden bg-gradient-to-br from-pink-400 via-rose-500 to-purple-500 rounded-3xl p-6 border-4 border-pink-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(236,72,153,0.5)] cursor-pointer transition-all hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(236,72,153,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1"
+        className="group relative bg-gradient-to-br from-pink-400 via-rose-500 to-purple-500 rounded-3xl p-6 border-4 border-pink-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(236,72,153,0.5)] cursor-pointer transition-all hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(236,72,153,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1"
+        style={{ overflow: isFeatureUnlocked('swipe-mode', userProgress?.totalArticlesRead || 0) ? 'hidden' : 'visible' }}
       >
         {/* Lock overlay */}
         {!isFeatureUnlocked('swipe-mode', userProgress?.totalArticlesRead || 0) && (
@@ -245,7 +250,7 @@ export function HomeCards({
         )}
 
         {/* Comic dots pattern */}
-        <div className="absolute inset-0 opacity-20" style={{
+        <div className="absolute inset-0 opacity-20 rounded-3xl overflow-hidden" style={{
           backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px)',
           backgroundSize: '10px 10px'
         }} />
@@ -294,7 +299,8 @@ export function HomeCards({
           
           onNavigateToEditor?.()
         }}
-        className="group relative overflow-hidden bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 rounded-3xl p-6 border-4 border-emerald-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(16,185,129,0.5)] cursor-pointer transition-all hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(16,185,129,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1"
+        className="group relative bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 rounded-3xl p-6 border-4 border-emerald-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(16,185,129,0.5)] cursor-pointer transition-all hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(16,185,129,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1"
+        style={{ overflow: isFeatureUnlocked('article-creation', userProgress?.totalArticlesRead || 0) ? 'hidden' : 'visible' }}
       >
         {/* Lock overlay */}
         {!isFeatureUnlocked('article-creation', userProgress?.totalArticlesRead || 0) && (
@@ -304,7 +310,7 @@ export function HomeCards({
         )}
 
         {/* Comic dots pattern */}
-        <div className="absolute inset-0 opacity-20" style={{
+        <div className="absolute inset-0 opacity-20 rounded-3xl overflow-hidden" style={{
           backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px)',
           backgroundSize: '10px 10px'
         }} />
@@ -433,6 +439,90 @@ export function HomeCards({
               <span className="text-3xl font-black text-white drop-shadow-lg">10 NADA</span>
             </div>
           )}
+        </div>
+      </motion.div>
+
+      {/* 6. PLACES DIRECTORY - Big Neon Button (NO LOCK - Public Access) */}
+      <motion.div 
+        whileHover={{ scale: 1.03, rotate: -1 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => onNavigateToPlaces?.()}
+        className="group relative overflow-hidden bg-gradient-to-br from-cyan-400 via-teal-500 to-blue-500 rounded-3xl p-6 border-4 border-cyan-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(6,182,212,0.5)] cursor-pointer transition-all hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(6,182,212,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1"
+      >
+        {/* Comic dots pattern */}
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px)',
+          backgroundSize: '10px 10px'
+        }} />
+        
+        {/* Glow effect */}
+        <div className="absolute -inset-2 bg-gradient-to-r from-cyan-400 via-teal-500 to-blue-500 rounded-3xl blur-2xl opacity-30 group-hover:opacity-50 transition-opacity" />
+        
+        {/* Comic shine */}
+        <div className="absolute top-4 right-4 w-12 h-12 bg-white/40 rounded-full blur-md" />
+        
+        <div className="relative space-y-3 flex flex-col items-center">
+          {/* Icon + Title Row - Centered */}
+          <div className="flex items-center justify-center gap-3">
+            <div className="relative flex-shrink-0">
+              <div className="absolute inset-0 bg-white blur-xl opacity-50" />
+              <MapPin className="relative w-10 h-10 text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]" strokeWidth={3} />
+            </div>
+            <h3 className="text-3xl font-black text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.3)] tracking-tight" style={{
+              textShadow: '3px 3px 0 rgba(0,0,0,0.2), -1px -1px 0 rgba(255,255,255,0.1)'
+            }}>
+              PLACES
+            </h3>
+          </div>
+          
+          {/* Badge Row - Centered */}
+          <div className="flex justify-center">
+            <Badge className="bg-white/30 backdrop-blur-sm text-white border-2 border-white/40 shadow-lg px-3 py-1 text-xs font-black">
+              DIRECTORY
+            </Badge>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 7. SWAP SHOP - Big Neon Button (NO LOCK - Public Access) */}
+      <motion.div 
+        whileHover={{ scale: 1.03, rotate: 1 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => onNavigateToSwap?.()}
+        className="group relative overflow-hidden bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-500 rounded-3xl p-6 border-4 border-yellow-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(251,191,36,0.5)] cursor-pointer transition-all hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(251,191,36,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1"
+      >
+        {/* Comic dots pattern */}
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px)',
+          backgroundSize: '10px 10px'
+        }} />
+        
+        {/* Glow effect */}
+        <div className="absolute -inset-2 bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 rounded-3xl blur-2xl opacity-30 group-hover:opacity-50 transition-opacity" />
+        
+        {/* Comic shine */}
+        <div className="absolute top-4 right-4 w-12 h-12 bg-white/40 rounded-full blur-md" />
+        
+        <div className="relative space-y-3 flex flex-col items-center">
+          {/* Icon + Title Row - Centered */}
+          <div className="flex items-center justify-center gap-3">
+            <div className="relative flex-shrink-0">
+              <div className="absolute inset-0 bg-white blur-xl opacity-50" />
+              <Package className="relative w-10 h-10 text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]" strokeWidth={3} />
+            </div>
+            <h3 className="text-3xl font-black text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.3)] tracking-tight" style={{
+              textShadow: '3px 3px 0 rgba(0,0,0,0.2), -1px -1px 0 rgba(255,255,255,0.1)'
+            }}>
+              SWAP
+            </h3>
+          </div>
+          
+          {/* Badge Row - Centered */}
+          <div className="flex justify-center">
+            <Badge className="bg-white/30 backdrop-blur-sm text-white border-2 border-white/40 shadow-lg px-3 py-1 text-xs font-black">
+              BARTER
+            </Badge>
+          </div>
         </div>
       </motion.div>
 

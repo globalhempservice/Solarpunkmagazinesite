@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { X, Home, BookOpen, ArrowLeft, Sparkles, ShoppingBag, Trophy, Globe, Newspaper, Palette } from 'lucide-react'
+import { X, Home, BookOpen, ArrowLeft, Sparkles, ShoppingBag, Trophy, Globe, Newspaper, Palette, Network } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { ScrollArea } from './ui/scroll-area'
+import { threeRailsContent } from './wiki/ThreeRailsContent'
 
 // Markdown Renderer Component
 function MarkdownRenderer({ content }: { content: string }) {
@@ -1736,6 +1737,14 @@ Each capability above unlocks when:
 
 **Built with 💚 for the global hemp community**
 **One feature at a time. One improvement at a time. Together.**`
+    },
+    {
+      id: 'three-rails-architecture',
+      title: 'Three Rails Architecture',
+      description: 'The evolution to marketplace operating system',
+      category: 'updates',
+      icon: Network,
+      content: threeRailsContent
     }
   ]
 

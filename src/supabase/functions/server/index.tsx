@@ -114,6 +114,41 @@ async function checkSecurityTables() {
 initStorage().catch(() => {})
 checkSecurityTables().catch(() => {})
 
+// Generic retry helper for Supabase queries with connection issues
+async function retrySupabaseQuery<T>(
+  queryFn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 100
+): Promise<T> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const result = await queryFn()
+      return result
+    } catch (error: any) {
+      // Check if this is a retryable connection error
+      const isConnectionError = 
+        error.message?.includes('connection') || 
+        error.message?.includes('network') ||
+        error.message?.includes('reset') ||
+        error.message?.includes('timeout') ||
+        error.name?.includes('FetchError')
+      
+      if (isConnectionError && attempt < maxRetries - 1) {
+        // Retry with exponential backoff
+        const delay = baseDelay * Math.pow(2, attempt)
+        console.log(`🔄 Connection error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
+      
+      // Non-retryable error or exhausted retries
+      throw error
+    }
+  }
+  
+  throw new Error('Retry logic failed unexpectedly')
+}
+
 // Auth middleware with retry logic
 async function requireAuth(c: any, next: any) {
   const authHeader = c.req.header('Authorization')
@@ -8807,11 +8842,13 @@ app.get('/make-server-053bcd80/user-association-badges/:userId', async (c) => {
     
     console.log('🎖️ Fetching association badges for user:', userId)
     
-    // Get user's companies
-    const { data: userCompanies } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', userId)
+    // Get user's companies with retry logic
+    const { data: userCompanies } = await retrySupabaseQuery(async () => {
+      return await supabase
+        .from('companies')
+        .select('id')
+        .eq('owner_id', userId)
+    })
     
     if (!userCompanies || userCompanies.length === 0) {
       return c.json({ badges: [] })
@@ -8819,12 +8856,14 @@ app.get('/make-server-053bcd80/user-association-badges/:userId', async (c) => {
     
     const companyIds = userCompanies.map(c => c.id)
     
-    // Get all verified badges for user's companies
-    const { data: badges, error } = await supabase
-      .from('company_badges')
-      .select('*')
-      .in('company_id', companyIds)
-      .eq('verified', true)
+    // Get all verified badges for user's companies with retry logic
+    const { data: badges, error } = await retrySupabaseQuery(async () => {
+      return await supabase
+        .from('company_badges')
+        .select('*')
+        .in('company_id', companyIds)
+        .eq('verified', true)
+    })
     
     if (error) {
       console.error('❌ Error fetching association badges:', error)

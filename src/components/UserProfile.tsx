@@ -4,6 +4,7 @@ import { ProfileHeader } from './profile/ProfileHeader'
 import { ProfileStats } from './profile/ProfileStats'
 import { ProfileTabs } from './profile/ProfileTabs'
 import { EditProfileModal } from './profile/EditProfileModal'
+import { PluginStoreModal } from './profile/PluginStoreModal'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { Button } from './ui/button'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
@@ -11,9 +12,10 @@ import { projectId, publicAnonKey } from '../utils/supabase/info'
 interface UserProfileProps {
   userId?: string // Optional: if not provided, shows current user's profile
   onClose?: () => void // Optional: for modal/drawer usage
+  onProfileUpdate?: () => void // Optional: callback when profile data changes
 }
 
-export function UserProfile({ userId: propUserId, onClose }: UserProfileProps) {
+export function UserProfile({ userId: propUserId, onClose, onProfileUpdate }: UserProfileProps) {
   const supabase = createClient()
   const [profile, setProfile] = useState<any>(null)
   const [userProgress, setUserProgress] = useState<any>(null)
@@ -21,7 +23,9 @@ export function UserProfile({ userId: propUserId, onClose }: UserProfileProps) {
   const [error, setError] = useState<string | null>(null)
   const [isOwnProfile, setIsOwnProfile] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [pluginStoreOpen, setPluginStoreOpen] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
     loadProfile()
@@ -34,7 +38,7 @@ export function UserProfile({ userId: propUserId, onClose }: UserProfileProps) {
 
       console.log('🔍 Starting profile load...')
 
-      // Get current user
+      // Get current user and session
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         console.error('❌ Not authenticated')
@@ -45,6 +49,12 @@ export function UserProfile({ userId: propUserId, onClose }: UserProfileProps) {
 
       console.log('✅ Authenticated user:', user.id)
       setCurrentUserId(user.id)
+      
+      // Get access token
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        setAccessToken(session.access_token)
+      }
 
       // Determine which profile to load
       const profileIdToLoad = propUserId || user.id
@@ -123,6 +133,38 @@ export function UserProfile({ userId: propUserId, onClose }: UserProfileProps) {
   const handleProfileUpdated = () => {
     setEditModalOpen(false)
     loadProfile() // Reload profile data
+    if (onProfileUpdate) {
+      onProfileUpdate()
+    }
+  }
+  
+  const handleThemeSelect = async (theme: string) => {
+    if (!currentUserId || !accessToken) {
+      throw new Error('Not authenticated')
+    }
+    
+    const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`
+    
+    const response = await fetch(`${serverUrl}/users/${currentUserId}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ homeButtonTheme: theme })
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to update theme')
+    }
+    
+    // Reload profile to get updated data
+    await loadProfile()
+    
+    // Notify parent component (App.tsx) to refresh userProgress
+    if (onProfileUpdate) {
+      onProfileUpdate()
+    }
   }
 
   if (loading) {
@@ -160,6 +202,7 @@ export function UserProfile({ userId: propUserId, onClose }: UserProfileProps) {
         profile={profile}
         isOwnProfile={isOwnProfile}
         onEditClick={() => setEditModalOpen(true)}
+        onPluginStoreClick={() => setPluginStoreOpen(true)}
         userProgress={userProgress}
       />
 
@@ -184,6 +227,19 @@ export function UserProfile({ userId: propUserId, onClose }: UserProfileProps) {
           onClose={() => setEditModalOpen(false)}
           profile={profile}
           onProfileUpdated={handleProfileUpdated}
+        />
+      )}
+
+      {/* Plugin Store Modal */}
+      {isOwnProfile && currentUserId && accessToken && (
+        <PluginStoreModal
+          isOpen={pluginStoreOpen}
+          onClose={() => setPluginStoreOpen(false)}
+          currentTheme={userProgress?.homeButtonTheme || 'default'}
+          onThemeSelect={handleThemeSelect}
+          userId={currentUserId}
+          accessToken={accessToken}
+          serverUrl={`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`}
         />
       )}
     </div>

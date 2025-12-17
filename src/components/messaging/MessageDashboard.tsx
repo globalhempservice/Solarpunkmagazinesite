@@ -39,10 +39,9 @@ export function MessageDashboard({
     try {
       setLoading(true)
 
-      // For now, we'll fetch the basic conversation count
-      // In the future, this endpoint will return stats grouped by context_type
+      // Fetch conversations
       console.log('📊 Fetching conversations for inbox stats...')
-      const response = await fetch(
+      const conversationsResponse = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/conversations`,
         {
           headers: {
@@ -52,16 +51,30 @@ export function MessageDashboard({
         }
       )
 
-      console.log('📊 Response status:', response.status, response.statusText)
+      // Fetch SWAP proposals separately (includes pending + accepted)
+      console.log('📊 Fetching SWAP proposals...')
+      const swapProposalsResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/swap/proposals`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
 
-      if (response.ok) {
-        const data = await response.json()
+      let groupedByType: any = {}
+      let swapCount = 0
+      let swapUnread = 0
+
+      if (conversationsResponse.ok) {
+        const data = await conversationsResponse.json()
         const conversations = data.conversations || []
         
         console.log('📊 Fetched conversations:', conversations.length, conversations)
         
         // Group conversations by context_type
-        const groupedByType = conversations.reduce((acc: any, conv: any) => {
+        groupedByType = conversations.reduce((acc: any, conv: any) => {
           const type = conv.context_type || 'personal'
           if (!acc[type]) {
             acc[type] = { count: 0, unread: 0 }
@@ -72,77 +85,93 @@ export function MessageDashboard({
         }, {})
 
         console.log('📊 Grouped by type:', groupedByType)
-        
-        // Initialize inbox categories with actual counts
-        setInboxStats([
-          {
-            id: 'personal',
-            name: 'Personal',
-            description: 'Direct messages & Discovery Matches',
-            icon: MessageCircle,
-            count: groupedByType.personal?.count || 0,
-            unreadCount: groupedByType.personal?.unread || 0,
-            color: '#E8FF00',
-            gradient: 'from-[#E8FF00]/20 to-[#00D9FF]/20',
-            contextType: 'personal'
-          },
-          {
-            id: 'organizations',
-            name: 'Organizations',
-            description: 'Messages from your orgs & teams',
-            icon: Building2,
-            count: groupedByType.organization?.count || 0,
-            unreadCount: groupedByType.organization?.unread || 0,
-            color: '#00D9FF',
-            gradient: 'from-[#00D9FF]/20 to-[#E8FF00]/20',
-            contextType: 'organization'
-          },
-          {
-            id: 'swap',
-            name: 'SWAP Deals',
-            description: 'C2C barter & trade discussions',
-            icon: Package,
-            count: groupedByType.swap?.count || 0,
-            unreadCount: groupedByType.swap?.unread || 0,
-            color: '#FF00E5',
-            gradient: 'from-[#FF00E5]/20 to-[#E8FF00]/20',
-            contextType: 'swap'
-          },
-          {
-            id: 'swag',
-            name: 'SWAG Orders',
-            description: 'Hemp product commerce messages',
-            icon: ShoppingBag,
-            count: groupedByType.swag?.count || 0,
-            unreadCount: groupedByType.swag?.unread || 0,
-            color: '#00FF85',
-            gradient: 'from-[#00FF85]/20 to-[#00D9FF]/20',
-            contextType: 'swag'
-          },
-          {
-            id: 'rfp',
-            name: 'RFP Projects',
-            description: 'Professional matching & proposals',
-            icon: FileText,
-            count: groupedByType.rfp?.count || 0,
-            unreadCount: groupedByType.rfp?.unread || 0,
-            color: '#FF6B00',
-            gradient: 'from-[#FF6B00]/20 to-[#E8FF00]/20',
-            contextType: 'rfp'
-          },
-          {
-            id: 'places',
-            name: 'Places',
-            description: 'Location-based conversations',
-            icon: MapPin,
-            count: groupedByType.place?.count || 0,
-            unreadCount: groupedByType.place?.unread || 0,
-            color: '#9D00FF',
-            gradient: 'from-[#9D00FF]/20 to-[#00D9FF]/20',
-            contextType: 'place'
-          }
-        ])
       }
+
+      // Add SWAP proposal counts
+      if (swapProposalsResponse.ok) {
+        const swapData = await swapProposalsResponse.json()
+        const proposals = swapData.proposals || []
+        
+        console.log('📊 Fetched SWAP proposals:', proposals.length, proposals)
+        
+        // Count total proposals (pending + accepted)
+        swapCount = proposals.length
+        
+        // Count unread = pending proposals (not yet responded to)
+        swapUnread = proposals.filter((p: any) => p.status === 'pending').length
+        
+        console.log('📊 SWAP stats - Total:', swapCount, 'Pending (unread):', swapUnread)
+      }
+        
+      // Initialize inbox categories with actual counts
+      setInboxStats([
+        {
+          id: 'personal',
+          name: 'Personal',
+          description: 'Direct messages & Discovery Matches',
+          icon: MessageCircle,
+          count: groupedByType.personal?.count || 0,
+          unreadCount: groupedByType.personal?.unread || 0,
+          color: '#E8FF00',
+          gradient: 'from-[#E8FF00]/20 to-[#00D9FF]/20',
+          contextType: 'personal'
+        },
+        {
+          id: 'organizations',
+          name: 'Organizations',
+          description: 'Messages from your orgs & teams',
+          icon: Building2,
+          count: groupedByType.organization?.count || 0,
+          unreadCount: groupedByType.organization?.unread || 0,
+          color: '#00D9FF',
+          gradient: 'from-[#00D9FF]/20 to-[#E8FF00]/20',
+          contextType: 'organization'
+        },
+        {
+          id: 'swap',
+          name: 'SWAP Deals',
+          description: 'C2C barter & trade discussions',
+          icon: Package,
+          count: swapCount,
+          unreadCount: swapUnread,
+          color: '#FF00E5',
+          gradient: 'from-[#FF00E5]/20 to-[#E8FF00]/20',
+          contextType: 'swap'
+        },
+        {
+          id: 'swag',
+          name: 'SWAG Orders',
+          description: 'Hemp product commerce messages',
+          icon: ShoppingBag,
+          count: groupedByType.swag?.count || 0,
+          unreadCount: groupedByType.swag?.unread || 0,
+          color: '#00FF85',
+          gradient: 'from-[#00FF85]/20 to-[#00D9FF]/20',
+          contextType: 'swag'
+        },
+        {
+          id: 'rfp',
+          name: 'RFP Projects',
+          description: 'Professional matching & proposals',
+          icon: FileText,
+          count: groupedByType.rfp?.count || 0,
+          unreadCount: groupedByType.rfp?.unread || 0,
+          color: '#FF6B00',
+          gradient: 'from-[#FF6B00]/20 to-[#E8FF00]/20',
+          contextType: 'rfp'
+        },
+        {
+          id: 'places',
+          name: 'Places',
+          description: 'Location-based conversations',
+          icon: MapPin,
+          count: groupedByType.place?.count || 0,
+          unreadCount: groupedByType.place?.unread || 0,
+          color: '#9D00FF',
+          gradient: 'from-[#9D00FF]/20 to-[#00D9FF]/20',
+          contextType: 'place'
+        }
+      ])
     } catch (err) {
       console.error('Error fetching inbox stats:', err)
     } finally {
@@ -161,14 +190,8 @@ export function MessageDashboard({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-6 pb-4">
-        <h2 className="text-white text-2xl mb-1">Messages</h2>
-        <p className="text-white/60 text-sm">Your communication hub across DEWII</p>
-      </div>
-
       {/* Inbox Grid */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
         <div className="space-y-3">
           {inboxStats.map((inbox) => {
             const Icon = inbox.icon
@@ -225,13 +248,6 @@ export function MessageDashboard({
               </button>
             )
           })}
-        </div>
-
-        {/* Future Features Notice */}
-        <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-          <p className="text-xs text-white/60 text-center">
-            <span className="text-[#E8FF00]">Coming Soon:</span> Organizations, SWAP, SWAG, RFP & Places messaging will activate as you engage with those features
-          </p>
         </div>
       </div>
     </div>

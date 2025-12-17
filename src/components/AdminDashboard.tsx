@@ -57,6 +57,7 @@ import { CompaniesAdminTab } from './CompaniesAdminTab'
 import { BadgeVerificationTab } from './BadgeVerificationTab'
 import { AdminDiscoveryManager } from './admin/AdminDiscoveryManager'
 import { DiscoveryOverview } from './admin/DiscoveryOverview'
+import { MarketAdminDashboard } from './MarketAdminDashboard'
 
 interface DashboardStats {
   totalUsers: number
@@ -219,7 +220,7 @@ interface AdminDashboardProps {
 }
 
 type TabType = 'overview' | 'users' | 'articles' | 'rankings' | 'gamification' | 'swipeStats' | 'views' | 'nadaFeedback' | 'wallets' | 'security' | 'bot' | 'rss' | 'companies' | 'badges' | 'discovery'
-type ViewMode = 'classic' | 'feature'
+type ViewMode = 'classic' | 'feature' | 'market'
 type FeatureTab = 'content' | 'swipe' | 'users' | 'gamification' | 'security' | 'analytics' | 'discovery'
 
 export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, onNavigateToSwagAdmin }: AdminDashboardProps) {
@@ -481,23 +482,35 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           <p className="text-muted-foreground mt-1">Manage your magazine platform</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={() => setViewMode(viewMode === 'classic' ? 'feature' : 'classic')}
-            variant={viewMode === 'classic' ? 'outline' : 'default'}
-            className="flex items-center gap-2"
-          >
-            {viewMode === 'classic' ? (
-              <>
-                <Layers className="w-4 h-4" />
-                Feature View
-              </>
-            ) : (
-              <>
-                <LayoutGrid className="w-4 h-4" />
-                Classic View
-              </>
-            )}
-          </Button>
+          <div className="flex gap-1 bg-muted rounded-lg p-1">
+            <Button 
+              onClick={() => setViewMode('classic')}
+              variant={viewMode === 'classic' ? 'default' : 'ghost'}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Classic
+            </Button>
+            <Button 
+              onClick={() => setViewMode('feature')}
+              variant={viewMode === 'feature' ? 'default' : 'ghost'}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Layers className="w-4 h-4" />
+              Feature
+            </Button>
+            <Button 
+              onClick={() => setViewMode('market')}
+              variant={viewMode === 'market' ? 'default' : 'ghost'}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              Market
+            </Button>
+          </div>
           <Button onClick={onBack} variant="outline">
             Exit Admin
           </Button>
@@ -2049,7 +2062,18 @@ export function AdminDashboard({ accessToken, serverUrl, onBack, onEditArticle, 
           />
         </div>
       )}
+
       </>
+      )}
+
+      {/* MARKET VIEW MODE */}
+      {viewMode === 'market' && (
+        <MarketAdminDashboard
+          userId={null}
+          accessToken={accessToken}
+          serverUrl={serverUrl}
+          onBack={() => setViewMode('classic')}
+        />
       )}
 
       {/* FEATURE VIEW MODE */}

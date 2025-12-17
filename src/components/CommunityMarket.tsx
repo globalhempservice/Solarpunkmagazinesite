@@ -1,8 +1,8 @@
 import { BrandLogo } from './BrandLogo'
 import { WorldMapBrowser3D } from './WorldMapBrowser3D'
 import { HempForum } from './HempForum'
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Store, Zap, TrendingUp, X, ChevronRight, Leaf, Sparkles, Settings, User, BookOpen, Building2, MessageCircle, Shield } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ArrowLeft, Store, Zap, TrendingUp, X, ChevronRight, Leaf, Sparkles, Settings, User, BookOpen, Building2, MessageCircle, Shield, Mail } from 'lucide-react'
 import { Button } from './ui/button'
 import { VotingModal } from './VotingModal'
 import { SubmitIdeaModal } from './SubmitIdeaModal'
@@ -16,6 +16,7 @@ import { AddOrganization } from './AddOrganization'
 import { OrganizationProfilePage } from './OrganizationProfilePage'
 import { MarketAdminDashboard } from './MarketAdminDashboard'
 import { motion } from 'motion/react'
+import { createClient } from '../utils/supabase/client'
 
 // Circular Forum Icon (like community discussion circles)
 function CircularForumIcon({ className = "w-6 h-6" }: { className?: string }) {
@@ -79,10 +80,12 @@ interface CommunityMarketProps {
   onFeatureUnlock?: (featureId: any) => void
   userEmail?: string | null
   nadaPoints: number
+  userPoints?: number
   onNadaUpdate: (newBalance: number) => void
   onNavigateToSwagShop?: () => void
   onNavigateToSwagMarketplace?: () => void
   onNavigateToSettings?: () => void
+  onNavigateToAdmin?: () => void
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   marketUnlocked?: boolean
@@ -98,10 +101,12 @@ export default function CommunityMarket({
   onFeatureUnlock,
   userEmail,
   nadaPoints,
+  userPoints = 0,
   onNadaUpdate,
   onNavigateToSwagShop,
   onNavigateToSwagMarketplace,
   onNavigateToSettings,
+  onNavigateToAdmin,
   equippedBadgeId,
   profileBannerUrl,
   marketUnlocked = false
@@ -135,6 +140,9 @@ export default function CommunityMarket({
   // Admin
   const [isAdmin, setIsAdmin] = useState(false)
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)
+  
+  // NOTE: Bubble Controller, Wiki, Wallet, and Messenger now handled by AppNavigation
+  // These states and components have been removed from CommunityMarket
   
   // User's personal market stats
   const [userStats, setUserStats] = useState({
@@ -254,6 +262,8 @@ export default function CommunityMarket({
       setShowTutorial(false)
     }
   }, [userId])
+  
+  // NOTE: Unread messages count now handled by AppNavigation
   
   // Fetch user's market stats
   useEffect(() => {
@@ -519,90 +529,7 @@ export default function CommunityMarket({
       </div>
 
       {/* Custom Market Header */}
-      <div className="sticky top-0 z-50">
-        {/* Gradient blur mask */}
-        <div 
-          className="absolute inset-0 backdrop-blur-2xl"
-          style={{
-            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
-            maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
-          }}
-        />
-        
-        <div className="h-20 flex items-center justify-center relative px-4">
-          {/* LEFT: Admin Button (only for superadmin) */}
-          <div className="absolute left-4 flex items-center gap-2">
-            {isAdmin && !showAdminDashboard && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <Button
-                  onClick={() => setShowAdminDashboard(true)}
-                  size="sm"
-                  className="gap-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-lg hover:shadow-xl transition-all group rounded-full px-3 sm:px-4 h-10 sm:h-12"
-                >
-                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
-                  <span className="hidden sm:inline font-bold">ADMIN</span>
-                </Button>
-              </motion.div>
-            )}
-          </div>
-          
-          {/* CENTER: DEWII Logo Button */}
-          <button
-            onClick={() => {
-              // Cycle through market themes
-              const themes = ['default', 'solarpunk', 'midnight', 'golden']
-              const currentIndex = themes.indexOf(selectedMarketTheme)
-              const nextIndex = (currentIndex + 1) % themes.length
-              const nextTheme = themes[nextIndex]
-              setSelectedMarketTheme(nextTheme)
-              
-              // Save theme to server
-              if (userId && accessToken) {
-                fetch(`${serverUrl}/user-theme`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                  },
-                  body: JSON.stringify({ theme: nextTheme })
-                }).catch(err => console.error('Failed to save theme:', err))
-              }
-            }}
-            className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50 active:scale-95 z-10"
-            aria-label="Change theme"
-          >
-            {/* Animated glow background */}
-            <div className="absolute -inset-6 bg-gradient-to-r from-emerald-400 via-teal-400 to-green-400 rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-all duration-500" />
-            
-            {/* Outer ring - Nice gradient transparent aura */}
-            <div className="relative rounded-full p-1.5 transition-all group-hover:scale-110 bg-gradient-to-br from-emerald-500/20 via-teal-500/20 to-purple-500/20 group-hover:from-emerald-400/30 group-hover:via-teal-400/30 group-hover:to-purple-400/30 backdrop-blur-sm">
-              {/* Inner circle - Semi-transparent */}
-              <div className="rounded-full p-4 sm:p-5 bg-black/40 backdrop-blur-md">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
-                  <BrandLogo size="sm" showAnimation={false} theme="default" />
-                </div>
-              </div>
-            </div>
-          </button>
-          
-          {/* NADA Counter - Right Side */}
-          <div className="absolute right-4 flex items-center gap-2">
-            <button onClick={() => setShowNadaWallet(true)}>
-              <Badge
-                variant="secondary"
-                className="gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-400/30 text-violet-300 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
-              >
-                <NadaRippleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-violet-300" />
-                <span className="font-bold">{nadaPoints}</span>
-              </Badge>
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* NOTE: Header removed - now handled by unified AppNavigation in App.tsx */}
 
       {/* Main Content - Cards & Stats are the hero */}
       <div className="relative z-10 container mx-auto px-4 py-8 sm:py-12">
@@ -911,82 +838,6 @@ export default function CommunityMarket({
         </div>
       )}
 
-      {/* Bottom Navbar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-none">
-        <div className="h-24 flex items-end justify-center px-4">
-          <div className="relative h-24 flex items-end justify-center w-full">
-            {/* Gradient blur mask: 100% blur at bottom, 0% blur at top */}
-            <div 
-              className="absolute inset-0 backdrop-blur-2xl pointer-events-auto"
-              style={{
-                WebkitMaskImage: 'linear-gradient(to top, black 0%, transparent 100%)',
-                maskImage: 'linear-gradient(to top, black 0%, transparent 100%)'
-              }}
-            />
-
-            {/* ME Button Container */}
-            <div className="relative flex items-center justify-center w-full max-w-md mx-auto pointer-events-auto h-full pb-4">
-              <button
-                onClick={() => setShowProfilePanel(!showProfilePanel)}
-                className="relative group"
-              >
-                {/* Outer pulsing aura - largest */}
-                <div 
-                  className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-emerald-400 to-teal-500 blur-2xl opacity-40 group-hover:opacity-70 transition-opacity duration-300"
-                  style={{
-                    width: '100px',
-                    height: '100px',
-                    marginLeft: '-25px',
-                    marginTop: '-25px',
-                    animation: 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                  }}
-                />
-                
-                {/* Middle aura */}
-                <div 
-                  className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 blur-xl opacity-50 group-hover:opacity-80 transition-opacity duration-300"
-                  style={{
-                    width: '80px',
-                    height: '80px',
-                    marginLeft: '-15px',
-                    marginTop: '-15px',
-                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                  }}
-                />
-                
-                {/* Inner glow */}
-                <div 
-                  className="absolute inset-0 rounded-full bg-primary/30 blur-lg opacity-60 group-hover:opacity-90 transition-opacity duration-300"
-                  style={{
-                    width: '60px',
-                    height: '60px',
-                    marginLeft: '-5px',
-                    marginTop: '-5px'
-                  }}
-                />
-                
-                {/* Main button */}
-                <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary via-emerald-500 to-teal-600 flex items-center justify-center border-4 border-background shadow-2xl group-hover:scale-110 transition-transform duration-300">
-                  <User className="w-7 h-7 sm:w-8 sm:h-8 text-white" strokeWidth={2.5} />
-                  
-                  {/* Shine overlay */}
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/50 via-transparent to-transparent" />
-                  
-                  {/* Rotating shine effect */}
-                  <div 
-                    className="absolute inset-0 rounded-full"
-                    style={{
-                      background: 'conic-gradient(from 0deg, transparent 0%, rgba(255,255,255,0.3) 10%, transparent 20%)',
-                      animation: 'spin 4s linear infinite'
-                    }}
-                  />
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
       {/* BUD Info Modals */}
       <BudModal
         isOpen={showSwagMarketInfo}
@@ -1107,6 +958,8 @@ Your voice matters here. Join the conversation, contribute ideas, and help build
           onNadaUpdate={onNadaUpdate}
         />
       )}
+      
+      {/* NOTE: Message Panel removed - now handled by AppNavigation */}
     </div>
   )
 }

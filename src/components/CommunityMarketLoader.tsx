@@ -19,10 +19,12 @@ interface CommunityMarketLoaderProps {
   onFeatureUnlock: (featureId: 'swipe-mode' | 'article-sharing' | 'article-creation' | 'reading-analytics' | 'theme-customization') => void
   userEmail: string | null
   nadaPoints: number
+  userPoints?: number
   onNadaUpdate: (newBalance: number) => void
   onNavigateToSwagShop?: () => void
   onNavigateToSwagMarketplace?: () => void
   onNavigateToSettings?: () => void
+  onNavigateToAdmin?: () => void
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   marketUnlocked?: boolean

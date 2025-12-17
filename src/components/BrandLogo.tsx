@@ -93,10 +93,10 @@ export function BrandLogo({ size = 'md', showAnimation = true, className = '', o
         
         {/* Content container */}
         <div className={`relative w-full h-full rounded-full bg-gradient-to-br ${config.innerGradient} flex items-center justify-center overflow-hidden`}>
-          {/* Animated background shimmer */}
-          {showAnimation && (
+          {/* Animated background shimmer - DISABLED to prevent moving gradient */}
+          {/* {showAnimation && (
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-          )}
+          )} */}
           
           {/* Icon */}
           {IconComponent ? (

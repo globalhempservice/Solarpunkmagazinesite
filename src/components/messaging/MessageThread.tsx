@@ -384,7 +384,7 @@ export function MessageThread({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-white/60">
             {conversation.context_type === 'place' && conversation.context_name ? (
@@ -430,7 +430,7 @@ export function MessageThread({
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/10 mb-20 md:mb-0">
         <form onSubmit={handleSend} className="flex items-center gap-2">
           <Input
             ref={inputRef}

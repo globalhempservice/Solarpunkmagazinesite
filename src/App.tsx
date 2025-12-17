@@ -4,7 +4,7 @@ import { projectId, publicAnonKey } from './utils/supabase/info'
 import { ReadingSecurityTracker } from './utils/readingSecurityTracker'
 import { CommunityMarketLoader } from './components/CommunityMarketLoader'
 import { AuthForm } from './components/AuthForm'
-import { Header } from './components/Header'
+import { AppNavigation } from './components/AppNavigation'
 import { ArticleCard } from './components/ArticleCard'
 import { ArticleEditor } from './components/ArticleEditor'
 import { UserDashboard } from './components/UserDashboard'
@@ -20,7 +20,6 @@ import { PointsSystemPage } from './components/PointsSystemPage'
 import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
 import { FeatureUnlockModal } from './components/FeatureUnlockModal'
-import { BottomNavbar } from './components/BottomNavbar'
 import { LoadingScreen } from './components/LoadingScreen'
 import { SwagShopAdmin } from './components/SwagShopAdmin'
 import { ComicLockOverlay } from './components/ComicLockOverlay'
@@ -43,9 +42,7 @@ import { SwagMarketplace } from './components/SwagMarketplace'
 import { MEButtonDrawer } from './components/MEButtonDrawer'
 import { UserProfile } from './components/UserProfile'
 import { DiscoveryDashboard } from './components/discovery/DiscoveryDashboard'
-import { MessagePanel } from './components/messaging/MessagePanel'
 import { MyInventory } from './components/swap/MyInventory'
-import { SwapInbox } from './components/swap/SwapInbox'
 
 interface Article {
   id: string
@@ -113,14 +110,6 @@ export default function App() {
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(true)
   const [meDrawerOpen, setMEDrawerOpen] = useState(false)
   const [discoveryMatchOpen, setDiscoveryMatchOpen] = useState(false)
-  const [messagePanelOpen, setMessagePanelOpen] = useState(false)
-  const [messagePanelParams, setMessagePanelParams] = useState<{
-    initialInboxType?: string
-    initialRecipientId?: string
-    initialContextType?: string
-    initialContextId?: string
-    initialContextName?: string
-  }>({})
   const [displayName, setDisplayName] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [hasNewDiscoveryMatches, setHasNewDiscoveryMatches] = useState(false)
@@ -630,21 +619,18 @@ export default function App() {
     }
   }
 
+  // NOTE: Message functionality now handled by AppNavigation component
+  // Users can access messenger via the message icon in the top navbar
   const openMessagePanelWith = (params: {
     inboxType?: string
     recipientId?: string
     contextType?: string
     contextId?: string
-    contextName?: string  // Add context name (e.g., place name)
+    contextName?: string
   }) => {
-    setMessagePanelParams({
-      initialInboxType: params.inboxType,
-      initialRecipientId: params.recipientId,
-      initialContextType: params.contextType,
-      initialContextId: params.contextId,
-      initialContextName: params.contextName
-    })
-    setMessagePanelOpen(true)
+    // TODO: Integrate with AppNavigation messenger to support initial params
+    console.log('Message panel requested with params:', params)
+    console.log('Use message icon in top navbar to access messenger')
   }
 
   const checkForNewDiscoveryMatches = async () => {
@@ -1309,92 +1295,134 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hide Header when in Community Market, Globe, or full-screen views */}
-      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && currentView !== 'globe' && (
-        <Header
-          currentView={currentView}
-          onNavigate={setCurrentView}
-          isAuthenticated={isAuthenticated}
-          onLogout={handleLogout}
-          userPoints={userProgress?.points}
-          nadaPoints={userProgress?.nadaPoints || 0}
-          exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
-          onSwitchToGrid={() => setCurrentView('feed')}
-          currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
-          homeButtonTheme={userProgress?.homeButtonTheme}
-          userId={userId || undefined}
-          accessToken={accessToken || undefined}
-          serverUrl={serverUrl}
-          isWalletOpen={isWalletOpen}
-          onWalletOpenChange={setIsWalletOpen}
-          onToggleCategoryMenu={() => setCategoryMenuOpen(prev => !prev)}
-          onOpenMessages={() => setMessagePanelOpen(true)}
-          projectId={projectId}
-          publicAnonKey={publicAnonKey}
-          onExchangePoints={async (pointsToExchange) => {
-            if (!userId || !accessToken) return
+      {/* Unified App Navigation - Always Present */}
+      <AppNavigation
+        currentView={currentView}
+        onNavigate={setCurrentView}
+        isAuthenticated={isAuthenticated}
+        onLogout={handleLogout}
+        userId={userId || undefined}
+        accessToken={accessToken || undefined}
+        userPoints={userProgress?.points}
+        nadaPoints={userProgress?.nadaPoints || 0}
+        totalArticlesRead={userProgress?.totalArticlesRead || 0}
+        currentStreak={currentView === 'swipe' ? userProgress?.currentStreak : undefined}
+        currentTheme={
+          // Normalize theme to light/dark only
+          // If user has premium theme or hempin, return undefined to use default (light)
+          userProgress?.selectedTheme === 'light' || 
+          userProgress?.selectedTheme === 'dark'
+            ? userProgress.selectedTheme 
+            : undefined
+        }
+        serverUrl={serverUrl}
+        projectId={projectId}
+        publicAnonKey={publicAnonKey}
+        onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
+        onThemeChange={handleThemeChange}
+        onExchangePoints={async (pointsToExchange) => {
+          if (!userId || !accessToken) return
+          
+          try {
+            const response = await fetch(`${serverUrl}/users/${userId}/exchange-points`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ pointsToExchange })
+            })
             
-            try {
-              const response = await fetch(`${serverUrl}/users/${userId}/exchange-points`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({ pointsToExchange })
-              })
+            if (!response.ok) {
+              const errorData = await response.json()
+              console.error('Exchange failed:', errorData)
               
-              if (!response.ok) {
-                const errorData = await response.json()
-                
-                // Log the full error for debugging
-                console.error('Exchange failed:', errorData)
-                
-                // Handle rate limiting with specific messages
-                if (response.status === 429) {
-                  if (errorData.retryAfter) {
-                    const minutes = Math.ceil(errorData.retryAfter / 60)
-                    throw new Error(`⏳ ${errorData.error} Please wait ${minutes} minute${minutes > 1 ? 's' : ''}.`)
-                  } else {
-                    throw new Error(`⏳ ${errorData.error}`)
-                  }
+              if (response.status === 429) {
+                if (errorData.retryAfter) {
+                  const minutes = Math.ceil(errorData.retryAfter / 60)
+                  throw new Error(`⏳ ${errorData.error} Please wait ${minutes} minute${minutes > 1 ? 's' : ''}.`)
+                } else {
+                  throw new Error(`⏳ ${errorData.error}`)
                 }
-                
-                // Include detailed error message if available
-                const errorMsg = errorData.details ? 
-                  `${errorData.error}: ${errorData.details}` : 
-                  (errorData.error || 'Failed to exchange points')
-                throw new Error(errorMsg)
               }
               
-              const data = await response.json()
-              setUserProgress(data.progress)
-              // Success feedback is handled in WalletPanel
-            } catch (error: any) {
-              // Log error for debugging
-              console.error('Exchange error:', error)
-              
-              // Re-throw so WalletPanel can handle the UI
-              throw error
+              const errorMsg = errorData.details ? 
+                `${errorData.error}: ${errorData.details}` : 
+                (errorData.error || 'Failed to exchange points')
+              throw new Error(errorMsg)
             }
-          }}
-          onBack={() => {
-            if (currentView === 'article') {
-              setCurrentView(previousView === 'swipe' ? 'swipe' : previousView === 'browse' ? 'browse' : 'feed')
-              setSelectedArticle(null)
-            } else if (currentView === 'swipe') {
-              setCurrentView('feed')
-            } else if (currentView === 'admin') {
-              setCurrentView('dashboard')
-            } else {
-              setCurrentView('dashboard')
-            }
-          }}
-        />
-      )}
+            
+            const data = await response.json()
+            setUserProgress(data.progress)
+          } catch (error: any) {
+            console.error('Exchange error:', error)
+            throw error
+          }
+        }}
+        exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
+        onSwitchToGrid={() => setCurrentView('feed')}
+        homeButtonTheme={userProgress?.homeButtonTheme}
+        swipeControls={currentView === 'swipe' ? {
+          onSkip: () => swipeModeRef.current?.handleSkip(),
+          onMatch: () => swipeModeRef.current?.handleMatch(),
+          onReset: () => swipeModeRef.current?.handleReset(),
+          isAnimating: swipeModeRef.current?.isAnimating || false
+        } : undefined}
+        onMEButtonClick={() => setMEDrawerOpen(!meDrawerOpen)}
+        meDrawerOpen={meDrawerOpen}
+        hasNewDiscoveryMatches={hasNewDiscoveryMatches}
+        onContextualPlusClick={(action) => {
+          console.log('🎯 Contextual + button clicked:', action)
+          
+          switch (action) {
+            case 'create-article':
+              setCurrentView('editor')
+              break
+            case 'list-swap-item':
+              if ((window as any).__swapOpenAddModal) {
+                (window as any).__swapOpenAddModal()
+              }
+              break
+            case 'add-place':
+              setShowAddPlaceModal(true)
+              break
+            case 'browse-swag':
+              setCurrentView('swag-marketplace')
+              break
+            case 'submit-swag-product':
+              if ((window as any).__swagMarketplaceOpenAddModal) {
+                (window as any).__swagMarketplaceOpenAddModal()
+              }
+              break
+            case 'create-rfp':
+              console.log('💼 Create RFP triggered')
+              break
+            case 'quick-action':
+              console.log('⚡ Quick action triggered')
+              break
+          }
+        }}
+        onToggleCategoryMenu={() => setCategoryMenuOpen(prev => !prev)}
+        onNavigateToMarketAdmin={() => {
+          // TODO: This will be for users who own organizations/places/shops to manage their entities
+          toast.info('Market Admin feature coming soon! For now, use Site Admin > Market view to manage market content.')
+        }}
+        onBack={() => {
+          if (currentView === 'article') {
+            setCurrentView(previousView === 'swipe' ? 'swipe' : previousView === 'browse' ? 'browse' : 'feed')
+            setSelectedArticle(null)
+          } else if (currentView === 'swipe') {
+            setCurrentView('feed')
+          } else if (currentView === 'admin') {
+            setCurrentView('dashboard')
+          } else {
+            setCurrentView('dashboard')
+          }
+        }}
+      />
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? 'p-0 pt-0' : 'py-8 pb-32'}>
-        {/* Content with its own container for padding */}
+      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? 'p-0 pt-20' : 'py-8 pb-32 pt-20'}>
+        {/* Content with its own container for padding - pt-20 adds top padding to prevent content from going behind transparent navbar */}
         <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && (
@@ -1534,7 +1562,9 @@ export default function App() {
             <AdminDashboard
               accessToken={accessToken}
               serverUrl={serverUrl}
-              onBack={() => setCurrentView('dashboard')}
+              onBack={() => {
+                setCurrentView('dashboard')
+              }}
               onEditArticle={(articleId) => {
                 const article = articles.find(a => a.id === articleId)
                 if (article) {
@@ -1646,6 +1676,7 @@ export default function App() {
             <UserProfile
               userId={userId || undefined}
               onClose={() => setCurrentView('feed')}
+              onProfileUpdate={fetchUserProgress}
             />
           )}
 
@@ -1655,10 +1686,6 @@ export default function App() {
               accessToken={accessToken}
               onBack={() => setCurrentView('feed')}
             />
-          )}
-
-          {currentView === 'swap-inbox' && (
-            <SwapInbox />
           )}
 
           {currentView === 'reset-password' && (
@@ -1694,6 +1721,7 @@ export default function App() {
               onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
               userEmail={userEmail}
               nadaPoints={userProgress?.nadaPoints || 0}
+              userPoints={userProgress?.points || 0}
               equippedBadgeId={userProgress?.selectedBadge || null}
               profileBannerUrl={userProgress?.profileBannerUrl || null}
               marketUnlocked={userProgress?.marketUnlocked || false}
@@ -1706,6 +1734,7 @@ export default function App() {
               onNavigateToSwagShop={() => setCurrentView('swag-shop')}
               onNavigateToSwagMarketplace={() => setCurrentView('swag-marketplace')}
               onNavigateToSettings={() => setCurrentView('settings')}
+              onNavigateToAdmin={() => setCurrentView('admin')}
             />
           )}
 
@@ -1778,60 +1807,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Hide BottomNavbar when in Community Market or full-screen views */}
-      {currentView !== 'community-market' && currentView !== 'reading-analytics' && currentView !== 'swag-shop' && currentView !== 'swag-marketplace' && (
-        <BottomNavbar
-          currentView={currentView}
-          onNavigate={setCurrentView}
-          isAuthenticated={isAuthenticated}
-          totalArticlesRead={userProgress?.totalArticlesRead || 0}
-          onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-          exploreMode={currentView === 'swipe' ? 'swipe' : 'grid'}
-          swipeControls={currentView === 'swipe' ? {
-            onSkip: () => swipeModeRef.current?.handleSkip(),
-            onMatch: () => swipeModeRef.current?.handleMatch(),
-            onReset: () => swipeModeRef.current?.handleReset(),
-            isAnimating: swipeModeRef.current?.isAnimating || false
-          } : undefined}
-          closeWallet={() => setIsWalletOpen(false)}
-          onMEButtonClick={() => setMEDrawerOpen(true)}
-          meDrawerOpen={meDrawerOpen}
-          hasNewDiscoveryMatches={hasNewDiscoveryMatches}
-          onContextualPlusClick={(action) => {
-            console.log('🎯 Contextual + button clicked:', action)
-            
-            switch (action) {
-              case 'create-article':
-                setCurrentView('editor')
-                break
-              case 'list-swap-item':
-                // Trigger the modal via global function set by SwapInfiniteFeed
-                if ((window as any).__swapOpenAddModal) {
-                  (window as any).__swapOpenAddModal()
-                }
-                break
-              case 'add-place':
-                setShowAddPlaceModal(true)
-                break
-              case 'browse-swag':
-                setCurrentView('swag-marketplace')
-                break
-              case 'submit-swag-product':
-                // Trigger the swag product modal via window global
-                if ((window as any).__swagMarketplaceOpenAddModal) {
-                  (window as any).__swagMarketplaceOpenAddModal()
-                }
-                break
-              case 'create-rfp':
-                console.log('💼 Create RFP triggered')
-                break
-              case 'quick-action':
-                console.log('⚡ Quick action triggered')
-                break
-            }
-          }}
-        />
-      )}
+
 
       {/* ME Button Drawer */}
       {isAuthenticated && userId && (
@@ -1846,16 +1822,24 @@ export default function App() {
             setCurrentView('dashboard')
             setMEDrawerOpen(false)
           }}
+          onOrganizationsClick={() => {
+            setCurrentView('my-organizations')
+            setMEDrawerOpen(false)
+          }}
           onInventoryClick={() => {
             setCurrentView('my-inventory')
             setMEDrawerOpen(false)
           }}
-          onSwapInboxClick={() => {
-            setCurrentView('swap-inbox')
-            setMEDrawerOpen(false)
-          }}
           onSettingsClick={() => setCurrentView('settings')}
           onDiscoveryMatchClick={() => setDiscoveryMatchOpen(true)}
+          onPluginStoreClick={() => {
+            setCurrentView('settings')
+            setMEDrawerOpen(false)
+            // Show a toast to guide user to the Home Button Theme section
+            setTimeout(() => {
+              toast.info('Scroll down to "Home Button Theme" to customize your logo!')
+            }, 500)
+          }}
         />
       )}
 
@@ -1870,32 +1854,14 @@ export default function App() {
             loadUserProfile()
           }}
           onOpenMessages={() => {
-            // Open message panel when messaging from discovery
-            setMessagePanelOpen(true)
+            // TODO: Integrate with AppNavigation messenger
+            // For now, messenger can be accessed via top navbar icon
+            console.log('Message functionality available via top navbar')
           }}
         />
       )}
 
-      {/* Message Panel */}
-      {isAuthenticated && userId && accessToken && (
-        <MessagePanel
-          isOpen={messagePanelOpen}
-          onClose={() => {
-            setMessagePanelOpen(false)
-            setMessagePanelParams({})
-          }}
-          userId={userId}
-          accessToken={accessToken}
-          projectId={projectId}
-          publicAnonKey={publicAnonKey}
-          serverUrl={serverUrl}
-          initialInboxType={messagePanelParams.initialInboxType}
-          initialRecipientId={messagePanelParams.initialRecipientId}
-          initialContextType={messagePanelParams.initialContextType}
-          initialContextId={messagePanelParams.initialContextId}
-          initialContextName={messagePanelParams.initialContextName}
-        />
-      )}
+
 
       {/* Feature Unlock Modal */}
       {featureUnlockModal && (

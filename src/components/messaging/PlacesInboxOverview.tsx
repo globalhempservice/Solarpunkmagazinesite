@@ -144,7 +144,7 @@ export function PlacesInboxOverview({
       </div>
 
       {/* Places List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-24">
         <div className="p-4 space-y-3">
           {places.map((place) => (
             <button

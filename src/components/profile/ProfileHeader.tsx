@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Edit2, MapPin, CheckCircle } from 'lucide-react'
+import { Edit2, MapPin, CheckCircle, Plug } from 'lucide-react'
 import { Button } from '../ui/button'
 import { TrustScoreBadge } from './TrustScoreBadge'
 import { RolePill } from './RolePill'
@@ -23,12 +23,13 @@ interface ProfileHeaderProps {
   }
   isOwnProfile: boolean
   onEditClick?: () => void
+  onPluginStoreClick?: () => void
   userProgress?: {
     profileBannerUrl?: string | null
   } | null
 }
 
-export function ProfileHeader({ profile, isOwnProfile, onEditClick, userProgress }: ProfileHeaderProps) {
+export function ProfileHeader({ profile, isOwnProfile, onEditClick, onPluginStoreClick, userProgress }: ProfileHeaderProps) {
   // Generate default banner gradient if no banner_url
   const defaultBanner = 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)'
   
@@ -123,14 +124,23 @@ export function ProfileHeader({ profile, isOwnProfile, onEditClick, userProgress
 
               {/* Edit button (only for own profile) */}
               {isOwnProfile && (
-                <Button
-                  onClick={onEditClick}
-                  className="shrink-0"
-                  variant="outline"
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Edit Profile
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={onEditClick}
+                    className="shrink-0"
+                    variant="outline"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                  <Button
+                    onClick={onPluginStoreClick}
+                    className="shrink-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 hover:from-blue-600 hover:via-indigo-600 hover:to-violet-600 text-white border-0"
+                  >
+                    <Plug className="w-4 h-4 mr-2" />
+                    Plugin Store
+                  </Button>
+                </div>
               )}
             </div>
 

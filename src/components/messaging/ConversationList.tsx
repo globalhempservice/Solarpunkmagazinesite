@@ -298,7 +298,7 @@ export function ConversationList({
       </div>
 
       {/* Conversation List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-24">
         {filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-white/60 p-8">
             <p className="text-center text-sm">No conversations match your search</p>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { X, ChevronLeft } from 'lucide-react'
+import { X, ChevronLeft, Mail } from 'lucide-react'
 import { MessageDashboard } from './MessageDashboard'
 import { ConversationList } from './ConversationList'
 import { MessageThread } from './MessageThread'
 import { PlacesInboxOverview } from './PlacesInboxOverview'
+import { SwapConversationList } from './SwapConversationList'
+import { SwapProposalCard } from './SwapProposalCard'
 
 interface Conversation {
   id: string
@@ -22,7 +24,7 @@ interface Conversation {
   }
 }
 
-type ViewState = 'dashboard' | 'places-overview' | 'inbox' | 'thread'
+type ViewState = 'dashboard' | 'places-overview' | 'inbox' | 'thread' | 'swap-inbox' | 'swap-proposal'
 
 interface MessagePanelProps {
   isOpen: boolean
@@ -58,6 +60,7 @@ export function MessagePanel({
   const [selectedInboxType, setSelectedInboxType] = useState<string | null>(null)
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null) // Track selected place
+  const [selectedSwapProposal, setSelectedSwapProposal] = useState<any | null>(null) // Track selected SWAP proposal
   const [pendingConversation, setPendingConversation] = useState<{
     recipientId: string
     contextType?: string
@@ -100,6 +103,13 @@ export function MessagePanel({
       return
     }
     
+    // Special handling for SWAP - show SWAP conversation list
+    if (contextType === 'swap') {
+      setSelectedInboxType('swap')
+      setViewState('swap-inbox')
+      return
+    }
+    
     setSelectedInboxType(contextType)
     setViewState('inbox')
   }
@@ -109,6 +119,43 @@ export function MessagePanel({
     setSelectedPlaceId(placeId)
     setSelectedInboxType('place')
     setViewState('inbox')
+  }
+
+  // SWAP-specific handlers
+  const handleSelectSwapProposal = (proposal: any) => {
+    setSelectedSwapProposal(proposal)
+    setViewState('swap-proposal')
+  }
+
+  const handleSelectSwapConversation = (conversationId: string, proposal: any) => {
+    // Find or create the conversation object
+    // For now, we'll need to fetch the conversation details
+    setSelectedSwapProposal(proposal) // Store proposal for context
+    setViewState('thread')
+    // TODO: Fetch full conversation details using conversationId
+  }
+
+  const handleSwapProposalAccept = (conversationId: string) => {
+    // After accepting, navigate to the conversation
+    // We need to fetch the conversation details and open it
+    setViewState('swap-inbox') // Go back to SWAP inbox for now
+    // TODO: Fetch and open the newly created conversation
+  }
+
+  const handleSwapProposalDecline = () => {
+    // Go back to SWAP inbox
+    setViewState('swap-inbox')
+    setSelectedSwapProposal(null)
+  }
+
+  const handleBackFromSwapProposal = () => {
+    setSelectedSwapProposal(null)
+    setViewState('swap-inbox')
+  }
+
+  const handleBackFromSwapInbox = () => {
+    setSelectedInboxType(null)
+    setViewState('dashboard')
   }
 
   const handleConversationSelect = (conversation: Conversation) => {
@@ -159,26 +206,20 @@ export function MessagePanel({
             animate={{ opacity: 0.3 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black z-40"
+            className="fixed inset-0 bg-black z-[100]"
             onClick={onClose}
           />
 
-          {/* Panel */}
+          {/* Panel - Full screen on mobile, right panel on desktop, covers everything including navbar */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed top-0 left-0 right-0 bottom-0 md:top-[64px] md:right-0 md:left-auto md:bottom-[80px] md:w-[500px] bg-[#0A0F1E] md:border-l border-white/10 z-50 flex flex-col"
-            style={{
-              // On mobile: full screen but respect safe areas
-              top: 'env(safe-area-inset-top, 0)',
-              paddingTop: 'max(64px, env(safe-area-inset-top, 0))',
-              paddingBottom: 'max(80px, env(safe-area-inset-bottom, 0))'
-            }}
+            className="fixed inset-0 md:right-0 md:left-auto md:w-[500px] bg-[#0A0F1E] md:border-l border-white/10 z-[101] flex flex-col"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
+            {/* Compact Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
               <div className="flex items-center gap-2">
                 {/* Back Button */}
                 {viewState !== 'dashboard' && (
@@ -188,22 +229,31 @@ export function MessagePanel({
                         ? handleBackFromPlacesOverview 
                         : viewState === 'inbox' 
                         ? handleBackFromInbox 
+                        : viewState === 'swap-inbox'
+                        ? handleBackFromSwapInbox
+                        : viewState === 'swap-proposal'
+                        ? handleBackFromSwapProposal
                         : handleBackFromThread
                     }
-                    className="p-2 hover:bg-white/5 rounded-lg transition-colors -ml-2"
+                    className="p-1.5 hover:bg-white/5 rounded-lg transition-colors"
                   >
                     <ChevronLeft size={20} className="text-white/60" />
                   </button>
                 )}
                 
-                <h2 className="text-white">
-                  {viewState === 'dashboard' ? 'Messages' : getInboxTitle(selectedInboxType)}
-                </h2>
+                {/* Purple Mail Icon on Dashboard, Title on other views */}
+                {viewState === 'dashboard' ? (
+                  <div className="p-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-400/30">
+                    <Mail size={18} className="text-violet-300" strokeWidth={2.5} />
+                  </div>
+                ) : (
+                  <h2 className="text-white text-sm font-medium">{getInboxTitle(selectedInboxType)}</h2>
+                )}
               </div>
               
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <X size={20} className="text-white/60" />
               </button>
@@ -237,6 +287,26 @@ export function MessagePanel({
                   onSelectConversation={handleConversationSelect}
                   contextType={selectedInboxType || undefined}
                   pendingRecipient={pendingConversation || undefined}
+                />
+              ) : viewState === 'swap-inbox' ? (
+                <SwapConversationList
+                  userId={userId}
+                  accessToken={accessToken}
+                  projectId={projectId}
+                  publicAnonKey={publicAnonKey}
+                  onSelectConversation={handleSelectSwapConversation}
+                  onSelectProposal={handleSelectSwapProposal}
+                />
+              ) : viewState === 'swap-proposal' ? (
+                <SwapProposalCard
+                  proposal={selectedSwapProposal!}
+                  userId={userId}
+                  accessToken={accessToken}
+                  projectId={projectId}
+                  isIncoming={selectedSwapProposal?.swap_item?.user_profile?.user_id === userId}
+                  onClose={handleBackFromSwapProposal}
+                  onAccept={handleSwapProposalAccept}
+                  onDecline={handleSwapProposalDecline}
                 />
               ) : (
                 <MessageThread

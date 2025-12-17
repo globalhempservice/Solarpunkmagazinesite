@@ -221,7 +221,11 @@ swap.get('/make-server-053bcd80/swap/items/:id', async (c) => {
 swap.post('/make-server-053bcd80/swap/items', async (c) => {
   try {
     const user = await getUserFromAuth(c.req.header('Authorization'));
-    const supabase = getSupabaseClient(c.req.header('Authorization'));
+    // Use service client for INSERT to bypass RLS
+    const supabase = supabaseService;
+    if (!supabase) {
+      throw new Error('Supabase service client not initialized');
+    }
     
     const body = await c.req.json();
     const {
@@ -295,7 +299,11 @@ swap.post('/make-server-053bcd80/swap/items', async (c) => {
 swap.put('/make-server-053bcd80/swap/items/:id', async (c) => {
   try {
     const user = await getUserFromAuth(c.req.header('Authorization'));
-    const supabase = getSupabaseClient(c.req.header('Authorization'));
+    // Use service client for UPDATE to bypass RLS
+    const supabase = supabaseService;
+    if (!supabase) {
+      throw new Error('Supabase service client not initialized');
+    }
     const itemId = c.req.param('id');
     
     // Check ownership
@@ -532,46 +540,79 @@ swap.get('/make-server-053bcd80/swap/proposals', async (c) => {
       .from('swap_proposals')
       .select(`
         *,
-        swap_item:swap_items!swap_proposals_swap_item_id_fkey(
-          *,
-          user_profile:user_profiles!swap_items_user_id_fkey(
-            user_id,
-            display_name,
-            avatar_url,
-            country
-          )
-        ),
-        proposer_item:swap_items!swap_proposals_proposer_item_id_fkey(
-          *
-        ),
-        proposer_profile:user_profiles!swap_proposals_proposer_user_id_fkey(
-          user_id,
-          display_name,
-          avatar_url,
-          country
-        )
+        swap_item:swap_items!swap_proposals_swap_item_id_fkey(*),
+        proposer_item:swap_items!swap_proposals_proposer_item_id_fkey(*)
       `)
       .order('created_at', { ascending: false });
     
     // Filter by incoming or outgoing
     if (type === 'incoming') {
       // Proposals where user owns the item being requested
-      query = query.in('swap_item_id', 
-        supabase.from('swap_items').select('id').eq('user_id', user.id)
-      );
+      // First, get the user's item IDs
+      const { data: userItems } = await supabase
+        .from('swap_items')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('deleted_at', null);
+      
+      const userItemIds = userItems?.map(item => item.id) || [];
+      
+      if (userItemIds.length > 0) {
+        query = query.in('swap_item_id', userItemIds);
+      } else {
+        // No items, return empty
+        return c.json({ proposals: [] });
+      }
     } else if (type === 'outgoing') {
       // Proposals user created
       query = query.eq('proposer_user_id', user.id);
     } else {
-      // All proposals involving user
-      query = query.or(`proposer_user_id.eq.${user.id},swap_item.user_id.eq.${user.id}`);
+      // All proposals involving user (both incoming and outgoing)
+      // First, get the user's item IDs
+      const { data: userItems } = await supabase
+        .from('swap_items')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('deleted_at', null);
+      
+      const userItemIds = userItems?.map(item => item.id) || [];
+      
+      // Query for proposals where user is either proposer OR owns the item
+      if (userItemIds.length > 0) {
+        query = query.or(`proposer_user_id.eq.${user.id},swap_item_id.in.(${userItemIds.join(',')})`);
+      } else {
+        // No items, only show proposals user created
+        query = query.eq('proposer_user_id', user.id);
+      }
     }
     
     const { data: proposals, error } = await query;
     
     if (error) throw error;
     
-    return c.json({ proposals });
+    // Now fetch user profiles separately
+    const userIds = new Set<string>();
+    proposals.forEach((p: any) => {
+      if (p.swap_item?.user_id) userIds.add(p.swap_item.user_id);
+      if (p.proposer_user_id) userIds.add(p.proposer_user_id);
+    });
+    
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('user_id, display_name, avatar_url, country')
+      .in('user_id', Array.from(userIds));
+    
+    // Merge profiles into proposals
+    const enrichedProposals = proposals.map((p: any) => ({
+      ...p,
+      swap_item: {
+        ...p.swap_item,
+        user_profile: profiles?.find((prof: any) => prof.user_id === p.swap_item?.user_id) || null
+      },
+      proposer_profile: profiles?.find((prof: any) => prof.user_id === p.proposer_user_id) || null
+    }));
+    
+    return c.json({ proposals: enrichedProposals });
   } catch (error: any) {
     console.error('❌ Error fetching swap proposals:', error);
     return c.json({ error: error.message }, 500);
@@ -720,19 +761,223 @@ swap.post('/make-server-053bcd80/swap/proposals', async (c) => {
 });
 
 // ================================================
-// PUT /swap/proposals/:id - Update proposal status
+// POST /swap/proposals/:id/accept - Accept SWAP proposal
 // ================================================
-swap.put('/make-server-053bcd80/swap/proposals/:id', async (c) => {
+swap.post('/make-server-053bcd80/swap/proposals/:id/accept', async (c) => {
   try {
     const user = await getUserFromAuth(c.req.header('Authorization'));
-    const supabase = getSupabaseClient(c.req.header('Authorization'));
+    // Use service client for creating conversations to bypass RLS
+    const supabase = supabaseService;
+    if (!supabase) {
+      throw new Error('Supabase service client not initialized');
+    }
+    
     const proposalId = c.req.param('id');
     
-    const { status } = await c.req.json();
+    console.log('✅ Accepting SWAP proposal:', proposalId, 'by user:', user.id);
     
-    if (!status || !['accepted', 'declined', 'cancelled'].includes(status)) {
-      return c.json({ error: 'Invalid status' }, 400);
+    // Get proposal with full details
+    const { data: proposal, error: propError } = await supabase
+      .from('swap_proposals')
+      .select(`
+        *,
+        swap_item:swap_items!swap_proposals_swap_item_id_fkey(
+          id,
+          user_id,
+          title,
+          category,
+          description,
+          condition,
+          images
+        ),
+        proposer_profile:user_profiles!swap_proposals_proposer_user_id_fkey(
+          user_id,
+          display_name,
+          avatar_url,
+          country
+        )
+      `)
+      .eq('id', proposalId)
+      .single();
+    
+    if (propError || !proposal) {
+      console.error('❌ Proposal not found:', propError);
+      return c.json({ error: 'Proposal not found' }, 404);
     }
+    
+    // Check authorization - only item owner can accept
+    if (proposal.swap_item.user_id !== user.id) {
+      console.error('❌ Unauthorized: User', user.id, 'is not owner of item', proposal.swap_item.user_id);
+      return c.json({ error: 'Only item owner can accept proposals' }, 403);
+    }
+    
+    // Check if already accepted
+    if (proposal.status === 'accepted') {
+      console.log('⚠️ Proposal already accepted');
+      return c.json({ 
+        error: 'Proposal already accepted',
+        conversation_id: proposal.conversation_id 
+      }, 400);
+    }
+    
+    // Check if already declined/cancelled
+    if (proposal.status !== 'pending') {
+      console.error('❌ Proposal is not pending, status:', proposal.status);
+      return c.json({ error: 'Proposal is not pending' }, 400);
+    }
+    
+    console.log('✅ Creating conversation for SWAP proposal...');
+    
+    // Create conversation in conversations table
+    const conversationId = proposal.conversation_id || crypto.randomUUID();
+    
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .insert({
+        id: conversationId,
+        context_type: 'swap',
+        context_id: proposalId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_message_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (convError) {
+      console.error('❌ Error creating conversation:', convError);
+      throw convError;
+    }
+    
+    console.log('✅ Conversation created:', conversationId);
+    
+    // Add both participants to conversation
+    const participants = [
+      {
+        conversation_id: conversationId,
+        user_id: proposal.swap_item.user_id, // Item owner
+        joined_at: new Date().toISOString()
+      },
+      {
+        conversation_id: conversationId,
+        user_id: proposal.proposer_user_id, // Proposer
+        joined_at: new Date().toISOString()
+      }
+    ];
+    
+    const { error: participantsError } = await supabase
+      .from('conversation_participants')
+      .insert(participants);
+    
+    if (participantsError) {
+      console.error('❌ Error adding participants:', participantsError);
+      throw participantsError;
+    }
+    
+    console.log('✅ Participants added to conversation');
+    
+    // Create initial system message
+    const { error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: '🎉 SWAP proposal accepted! Identities are now revealed. You can discuss the trade details here.',
+        message_type: 'system',
+        created_at: new Date().toISOString()
+      });
+    
+    if (messageError) {
+      console.error('⚠️ Error creating system message:', messageError);
+      // Don't fail the whole operation if message fails
+    }
+    
+    // Update proposal status to accepted
+    const { data: updatedProposal, error: updateError } = await supabase
+      .from('swap_proposals')
+      .update({
+        status: 'accepted',
+        responded_at: new Date().toISOString(),
+        conversation_id: conversationId
+      })
+      .eq('id', proposalId)
+      .select()
+      .single();
+    
+    if (updateError) {
+      console.error('❌ Error updating proposal:', updateError);
+      throw updateError;
+    }
+    
+    console.log('✅ Proposal updated to accepted');
+    
+    // Create swap_deal if not exists
+    const { data: existingDeal } = await supabase
+      .from('swap_deals')
+      .select('id')
+      .eq('proposal_id', proposalId)
+      .single();
+    
+    if (!existingDeal) {
+      const { data: deal, error: dealError } = await supabase
+        .from('swap_deals')
+        .insert({
+          proposal_id: proposalId,
+          user1_id: proposal.swap_item.user_id,
+          user2_id: proposal.proposer_user_id,
+          item1_id: proposal.swap_item_id,
+          item2_id: proposal.proposer_item_id,
+          conversation_id: conversationId,
+          status: 'negotiating'
+        })
+        .select()
+        .single();
+      
+      if (dealError) {
+        console.error('⚠️ Error creating swap_deal:', dealError);
+        // Don't fail the whole operation
+      } else {
+        console.log('✅ Swap deal created:', deal.id);
+      }
+    }
+    
+    // Track analytics
+    await supabase
+      .from('swap_analytics')
+      .insert({
+        user_id: user.id,
+        item_id: proposal.swap_item_id,
+        event_type: 'accept',
+        metadata: { proposal_id: proposalId }
+      });
+    
+    console.log('✅ SWAP proposal accepted successfully');
+    
+    return c.json({ 
+      success: true,
+      conversation_id: conversationId,
+      proposal: updatedProposal
+    });
+  } catch (error: any) {
+    console.error('❌ Error accepting SWAP proposal:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// ================================================
+// POST /swap/proposals/:id/decline - Decline SWAP proposal
+// ================================================
+swap.post('/make-server-053bcd80/swap/proposals/:id/decline', async (c) => {
+  try {
+    const user = await getUserFromAuth(c.req.header('Authorization'));
+    const supabase = supabaseService;
+    if (!supabase) {
+      throw new Error('Supabase service client not initialized');
+    }
+    
+    const proposalId = c.req.param('id');
+    
+    console.log('❌ Declining SWAP proposal:', proposalId, 'by user:', user.id);
     
     // Get proposal
     const { data: proposal, error: propError } = await supabase
@@ -745,107 +990,64 @@ swap.put('/make-server-053bcd80/swap/proposals/:id', async (c) => {
       .single();
     
     if (propError || !proposal) {
+      console.error('❌ Proposal not found:', propError);
       return c.json({ error: 'Proposal not found' }, 404);
     }
     
-    // Check authorization
-    const isOwner = proposal.swap_item.user_id === user.id;
-    const isProposer = proposal.proposer_user_id === user.id;
-    
-    if (!isOwner && !isProposer) {
-      return c.json({ error: 'Unauthorized' }, 403);
+    // Check authorization - only item owner can decline
+    if (proposal.swap_item.user_id !== user.id) {
+      console.error('❌ Unauthorized: User', user.id, 'is not owner');
+      return c.json({ error: 'Only item owner can decline proposals' }, 403);
     }
     
-    // Only item owner can accept/decline, only proposer can cancel
-    if ((status === 'accepted' || status === 'declined') && !isOwner) {
-      return c.json({ error: 'Only item owner can accept/decline' }, 403);
-    }
-    if (status === 'cancelled' && !isProposer) {
-      return c.json({ error: 'Only proposer can cancel' }, 403);
+    // Check if already declined
+    if (proposal.status === 'rejected') {
+      console.log('⚠️ Proposal already declined');
+      return c.json({ error: 'Proposal already declined' }, 400);
     }
     
-    // Update proposal
-    const updateData: any = {
-      status,
-      responded_at: new Date().toISOString()
-    };
-    
-    if (status === 'accepted') {
-      updateData.completed_at = new Date().toISOString();
+    // Check if already accepted
+    if (proposal.status === 'accepted') {
+      console.error('❌ Cannot decline accepted proposal');
+      return c.json({ error: 'Cannot decline an accepted proposal' }, 400);
     }
     
-    const { data: updatedProposal, error } = await supabase
+    // Update proposal status to rejected
+    const { data: updatedProposal, error: updateError } = await supabase
       .from('swap_proposals')
-      .update(updateData)
+      .update({
+        status: 'rejected',
+        responded_at: new Date().toISOString()
+      })
       .eq('id', proposalId)
       .select()
       .single();
     
-    if (error) throw error;
+    if (updateError) {
+      console.error('❌ Error updating proposal:', updateError);
+      throw updateError;
+    }
     
-    // If accepted, create swap_deal
-    if (status === 'accepted') {
-      const { data: deal, error: dealError } = await supabase
-        .from('swap_deals')
-        .insert({
-          proposal_id: proposalId,
-          user1_id: proposal.swap_item.user_id, // Item owner
-          user2_id: proposal.proposer_user_id,  // Proposer
-          item1_id: proposal.swap_item_id,
-          item2_id: proposal.proposer_item_id,
-          conversation_id: proposal.conversation_id,
-          status: 'negotiating'
-        })
-        .select()
-        .single();
-      
-      if (dealError) throw dealError;
-      
-      // Create system message in deal
-      await supabase
-        .from('swap_deal_messages')
-        .insert({
-          deal_id: deal.id,
-          sender_id: user.id,
-          message: '🎉 Proposal accepted! Time to arrange logistics.',
-          message_type: 'system'
-        });
-      
-      // Track analytics
-      await supabase
-        .from('swap_analytics')
-        .insert({
-          user_id: user.id,
-          item_id: proposal.swap_item_id,
-          event_type: 'accept',
-          metadata: { proposal_id: proposalId, deal_id: deal.id }
-        });
-      
-      return c.json({ 
-        success: true,
-        proposal: updatedProposal,
-        deal
+    console.log('✅ Proposal declined successfully');
+    
+    // Track analytics
+    await supabase
+      .from('swap_analytics')
+      .insert({
+        user_id: user.id,
+        item_id: proposal.swap_item_id,
+        event_type: 'decline',
+        metadata: { proposal_id: proposalId }
       });
-    }
     
-    // Track analytics for decline
-    if (status === 'declined') {
-      await supabase
-        .from('swap_analytics')
-        .insert({
-          user_id: user.id,
-          item_id: proposal.swap_item_id,
-          event_type: 'decline',
-          metadata: { proposal_id: proposalId }
-        });
-    }
+    // Do NOT create conversation - proposal was declined
     
     return c.json({ 
       success: true,
       proposal: updatedProposal
     });
   } catch (error: any) {
-    console.error('❌ Error updating swap proposal:', error);
+    console.error('❌ Error declining SWAP proposal:', error);
     return c.json({ error: error.message }, 500);
   }
 });

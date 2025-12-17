@@ -286,36 +286,69 @@ export function setupSearchAnalyticsRoutes(app: Hono, requireAuth?: any, require
     })
 
     /**
-     * GET /make-server-053bcd80/search/admin/top-searches
      * Get top searched queries (filtered to 3+ characters only)
      */
     app.get('/make-server-053bcd80/search/admin/top-searches', requireAdmin, async (c) => {
       try {
-        const { data, error } = await supabase
+        // Try to use the view first
+        let { data, error } = await supabase
           .from('top_searches_053bcd80')
           .select('*')
           .limit(50)
 
-        if (error) {
+        // If view doesn't exist, fallback to querying the base table
+        if (error && error.code === 'PGRST204') {
+          console.log('View not found, falling back to base table query')
+          const { data: rawData, error: tableError } = await supabase
+            .from('search_analytics_053bcd80')
+            .select('search_query, clicked')
+            .gte('searched_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+          
+          if (tableError) {
+            console.error('Error fetching from base table:', tableError)
+            // If search analytics table doesn't exist either, return empty array
+            return c.json({ topSearches: [] })
+          }
+
+          // Manually aggregate the data
+          const aggregated = new Map<string, { count: number, clicks: number }>()
+          rawData?.forEach((row: any) => {
+            const query = row.search_query?.toLowerCase() || ''
+            if (query.length >= 3) {
+              const existing = aggregated.get(query) || { count: 0, clicks: 0 }
+              aggregated.set(query, {
+                count: existing.count + 1,
+                clicks: existing.clicks + (row.clicked ? 1 : 0)
+              })
+            }
+          })
+
+          // Convert to array and sort
+          data = Array.from(aggregated.entries())
+            .map(([query, stats]) => ({
+              search_query: query,
+              search_count: stats.count,
+              clicks: stats.clicks,
+              unique_users: null
+            }))
+            .sort((a, b) => b.search_count - a.search_count)
+            .slice(0, 50)
+        } else if (error) {
           console.error('Error fetching top searches:', error)
-          return c.json({ 
-            error: 'Failed to fetch top searches', 
-            details: error.message 
-          }, 500)
+          // Return empty array instead of error for better UX
+          return c.json({ topSearches: [] })
         }
 
         // Filter out searches with less than 3 characters
         const filtered = (data || []).filter((search: any) => 
-          search.query && search.query.trim().length >= 3
+          search.search_query && search.search_query.trim().length >= 3
         )
 
         return c.json({ topSearches: filtered })
       } catch (error: any) {
         console.error('Error in top searches:', error)
-        return c.json({ 
-          error: 'Internal server error', 
-          details: error.message 
-        }, 500)
+        // Return empty array for graceful degradation
+        return c.json({ topSearches: [] })
       }
     })
 

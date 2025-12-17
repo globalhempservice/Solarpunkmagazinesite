@@ -213,17 +213,18 @@ export function Header({ currentView, onNavigate, isAuthenticated, exploreMode, 
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full">
+    <header className="sticky top-0 z-50 w-full pointer-events-none">
       {/* Gradient blur mask: 100% blur at top, 0% blur at bottom where it connects to content */}
       <div 
-        className="absolute inset-0 backdrop-blur-2xl"
+        className="absolute inset-0 backdrop-blur-2xl pointer-events-auto"
         style={{
           WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
+          maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.3)'
         }}
       />
       
-      <div className="h-20 flex items-center justify-center relative px-4">
+      <div className="h-20 flex items-center justify-center relative px-4 pointer-events-auto">
         {/* LEFT SIDE: Back Button or Streak Badge */}
         <div className="absolute left-4 flex items-center gap-2">
           {/* ADMIN Button - Leftmost position, only shows for admin users */}

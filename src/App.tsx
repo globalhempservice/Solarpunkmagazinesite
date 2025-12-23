@@ -403,10 +403,11 @@ export default function App() {
       return
     }
     
-    // Check if we're on the BUD presentation page
+    // Check if we're on the BUD presentation page (public, no auth needed)
     if (window.location.pathname === '/bud-presentation') {
       setCurrentView('bud-presentation')
-      completeInitialization()
+      setInitializing(false)
+      setLoading(false)
       return
     }
     
@@ -1334,6 +1335,16 @@ export default function App() {
 
   if (initializing) {
     return <LoadingScreen message="Initializing DEWII" variant="app" />
+  }
+
+  // Public pages that don't require authentication
+  if (currentView === 'bud-presentation') {
+    return (
+      <>
+        <BudPresentationPage />
+        <Toaster />
+      </>
+    )
   }
 
   if (!isAuthenticated) {

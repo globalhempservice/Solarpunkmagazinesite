@@ -94,17 +94,17 @@ export function PlaceDetailModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Covers everything including navbars */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.5 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black z-50"
+            className="fixed inset-0 bg-black z-[10000]"
             onClick={onClose}
           />
 
-          {/* Modal */}
+          {/* Modal - Above backdrop and navbars */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -114,7 +114,7 @@ export function PlaceDetailModal({
               damping: 25,
               stiffness: 300
             }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[10001] flex items-center justify-center p-4"
             style={{
               // Respect safe areas on mobile
               paddingTop: 'max(16px, env(safe-area-inset-top))',

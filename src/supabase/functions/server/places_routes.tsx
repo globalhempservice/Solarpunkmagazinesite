@@ -2,13 +2,73 @@ import { Hono } from 'npm:hono'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { parseGoogleMapsUrl, isGoogleMapsUrl } from './google_maps_parser.tsx'
 
-// Initialize Supabase client with SERVICE_ROLE_KEY for server operations
+// Get environment variables
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-// DEPLOY TIMESTAMP: 2025-12-05T14:35:00Z - Fixed status constraint to use 'active'
-console.log('🚀 Places routes loaded - Status fix deployed!')
+// Helper function to create a fresh Supabase client for each request
+// This prevents connection reset issues
+function getSupabaseClient() {
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        'Connection': 'close', // Force close connection after each request
+      },
+    },
+  })
+}
+
+// Retry helper for transient network errors
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 5,
+  delayMs = 500
+): Promise<T> {
+  let lastError: any
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (error: any) {
+      lastError = error
+      
+      // Check if it's a connection/gateway error that we should retry
+      const errorMessage = error?.message?.toLowerCase() || ''
+      const shouldRetry = 
+        errorMessage.includes('connection reset') ||
+        errorMessage.includes('connection error') ||
+        errorMessage.includes('connection lost') ||
+        errorMessage.includes('gateway error') ||
+        errorMessage.includes('econnreset') ||
+        errorMessage.includes('sendrequest') ||
+        error?.code === 'ECONNRESET'
+      
+      if (shouldRetry && attempt < maxRetries - 1) {
+        const delay = delayMs * Math.pow(1.5, attempt) // Exponential backoff: 500ms, 750ms, 1125ms, 1687ms
+        console.log(`🔄 Retry ${attempt + 1}/${maxRetries - 1} after ${Math.round(delay)}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
+      
+      // If we exhausted retries or it's not a retryable error, throw
+      if (!shouldRetry) {
+        console.error('❌ Non-retryable error:', error)
+      } else {
+        console.error('❌ Max retries exhausted')
+      }
+      throw error
+    }
+  }
+  
+  throw lastError
+}
+
+// DEPLOY TIMESTAMP: 2025-12-19T08:45:00Z - Enhanced retry logic with connection pooling fix
+console.log('🚀 Places routes loaded - Enhanced retry with better client management!')
 
 // Helper middleware for routes (passed from main server)
 export function setupPlacesRoutes(app: Hono, requireAuth: any, requireAdmin: any) {
@@ -69,51 +129,63 @@ app.get('/make-server-053bcd80/places', async (c) => {
     
     console.log('📍 Fetching places...', { category, type, country, companyId })
     
-    let query = supabase
-      .from('places')
-      .select(`
-        *,
-        companies (
-          id,
-          name,
-          logo_url
-        )
-      `)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-    
-    // Apply filters
-    if (category) {
-      query = query.eq('category', category)
-    }
-    if (type) {
-      query = query.eq('type', type)
-    }
-    if (country) {
-      query = query.eq('country', country)
-    }
-    if (companyId) {
-      query = query.eq('company_id', companyId)
-    }
-    
-    const { data: places, error } = await query
-    
-    if (error) {
-      console.error('❌ Error fetching places:', error)
-      return c.json({ error: 'Failed to fetch places', details: error.message }, 500)
-    }
-    
-    // Remove PostGIS binary geography columns from response (keep lat/lng instead)
-    const transformedPlaces = places.map(place => {
-      const { location, area_boundary, ...rest } = place
-      return rest
+    // Use direct REST API call to avoid Supabase client connection pooling issues
+    const data = await withRetry(async () => {
+      // Build query parameters
+      const params = new URLSearchParams({
+        select: 'id,name,type,category,description,status,latitude,longitude,city,state_province,country,phone,email,website,company_id,owner_name,manager_name,year_established,specialties,photos,logo_url,created_by,created_at',
+        status: 'eq.active',
+        order: 'created_at.desc'
+      })
+      
+      // Apply filters
+      if (category && category !== 'all') {
+        params.set('category', `eq.${category}`)
+      }
+      if (type) {
+        params.set('type', `eq.${type}`)
+      }
+      if (country && country !== 'all') {
+        params.set('country', `eq.${country}`)
+      }
+      if (companyId) {
+        params.set('company_id', `eq.${companyId}`)
+      }
+      
+      // Direct fetch to REST API
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/places?${params.toString()}`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        }
+      )
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ REST API error:', response.status, errorText)
+        throw new Error(`REST API error: ${response.status} ${errorText}`)
+      }
+      
+      const result = await response.json()
+      return result || []
     })
     
-    console.log(`✅ Fetched ${places.length} places`)
-    return c.json({ places: transformedPlaces })
+    console.log(`✅ Fetched ${data?.length || 0} places`)
+    return c.json({ places: data || [] })
   } catch (error: any) {
     console.error('❌ Error in /places route:', error)
-    return c.json({ error: 'Failed to fetch places', details: error.message }, 500)
+    return c.json({ 
+      error: 'Failed to fetch places', 
+      details: error.message,
+      places: [] // Return empty array on error
+    }, 500)
   }
 })
 
@@ -124,7 +196,7 @@ app.get('/make-server-053bcd80/places/stats', async (c) => {
     console.log('📊 Fetching places statistics...')
     
     // Get total places count by category
-    const { data: categoryCounts, error: categoryError } = await supabase
+    const { data: categoryCounts, error: categoryError } = await getSupabaseClient()
       .from('places')
       .select('category')
       .eq('status', 'active')
@@ -135,7 +207,7 @@ app.get('/make-server-053bcd80/places/stats', async (c) => {
     }
     
     // Get total hectares for agriculture
-    const { data: agriculturePlaces, error: hectaresError } = await supabase
+    const { data: agriculturePlaces, error: hectaresError } = await getSupabaseClient()
       .from('places')
       .select('area_hectares')
       .eq('category', 'agriculture')
@@ -179,7 +251,7 @@ app.get('/make-server-053bcd80/places/:id', async (c) => {
     
     console.log('📍 Fetching place:', id)
     
-    const { data: place, error } = await supabase
+    const { data: place, error } = await getSupabaseClient()
       .from('places')
       .select(`
         *,
@@ -293,7 +365,7 @@ app.post('/make-server-053bcd80/places/create', requireAuth, async (c) => {
     
     console.log('📤 Insert data:', insertData)
     
-    const { data: place, error } = await supabase
+    const { data: place, error } = await getSupabaseClient()
       .from('places')
       .insert(insertData)
       .select()
@@ -321,7 +393,7 @@ app.get('/make-server-053bcd80/admin/places', requireAuth, requireAdmin, async (
     
     console.log('📍 [ADMIN] Fetching all places...', { status })
     
-    let query = supabase
+    let query = getSupabaseClient()
       .from('places')
       .select(`
         *,
@@ -480,7 +552,7 @@ app.post('/make-server-053bcd80/admin/places', requireAuth, requireAdmin, async 
       insertData.area_boundary = `SRID=4326;POLYGON((${wktCoords}))`
     }
     
-    const { data: place, error } = await supabase
+    const { data: place, error } = await getSupabaseClient()
       .from('places')
       .insert(insertData)
       .select()
@@ -567,7 +639,7 @@ app.put('/make-server-053bcd80/admin/places/:id', requireAuth, requireAdmin, asy
       updateData.area_boundary = `SRID=4326;POLYGON((${wktCoords}))`
     }
     
-    const { data: place, error } = await supabase
+    const { data: place, error } = await getSupabaseClient()
       .from('places')
       .update(updateData)
       .eq('id', id)
@@ -597,7 +669,7 @@ app.delete('/make-server-053bcd80/admin/places/:id', requireAuth, requireAdmin, 
     
     console.log('📍 [ADMIN] Deleting place:', id)
     
-    const { error } = await supabase
+    const { error } = await getSupabaseClient()
       .from('places')
       .delete()
       .eq('id', id)

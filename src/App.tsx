@@ -43,6 +43,22 @@ import { MEButtonDrawer } from './components/MEButtonDrawer'
 import { UserProfile } from './components/UserProfile'
 import { DiscoveryDashboard } from './components/discovery/DiscoveryDashboard'
 import { MyInventory } from './components/swap/MyInventory'
+import { HomeAppLauncher } from './components/home/HomeAppLauncher'
+import { TerpeneHunter } from './components/terpene/TerpeneHunter'
+import { CreateModal } from './components/CreateModal'
+import { HempForum } from './components/HempForum'
+import { AddPlaceModal } from './components/places/AddPlaceModal'
+
+// Mini-App Wrappers
+import { GlobeApp } from './components/mini-apps/GlobeApp'
+import { PlacesApp } from './components/mini-apps/PlacesApp'
+import { ForumApp } from './components/mini-apps/ForumApp'
+import { SwagApp } from './components/mini-apps/SwagApp'
+import { TerpeneHunterApp } from './components/mini-apps/TerpeneHunterApp'
+import { SwapApp } from './components/mini-apps/SwapApp'
+import { MagApp } from './components/mini-apps/MagApp'
+import { SwipeApp } from './components/mini-apps/SwipeApp'
+import { BudPresentationPage } from './components/BudPresentationPage'
 
 interface Article {
   id: string
@@ -81,6 +97,10 @@ interface UserProgress {
   marketUnlocked?: boolean
   selectedBadge?: string | null
   profileBannerUrl?: string | null
+  // NEW: Home Launcher XP system
+  currentXP?: number
+  totalXP?: number
+  homeLayoutConfig?: any
 }
 
 export default function App() {
@@ -88,7 +108,7 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace' | 'globe' | 'places-directory' | 'profile' | 'my-inventory' | 'swap-inbox'>('feed')
+  const [currentView, setCurrentView] = useState<'feed' | 'dashboard' | 'editor' | 'article' | 'admin' | 'reading-history' | 'linkedin-importer' | 'matched-articles' | 'achievements' | 'browse' | 'swipe' | 'settings' | 'points-system' | 'reset-password' | 'reading-analytics' | 'community-market' | 'swag-admin' | 'swag-shop' | 'swag-marketplace' | 'globe' | 'places-directory' | 'profile' | 'my-inventory' | 'swap-inbox' | 'compass' | 'bud-presentation'>('feed')
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const isInitializingRef = useRef<boolean>(true)
@@ -110,6 +130,8 @@ export default function App() {
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(true)
   const [meDrawerOpen, setMEDrawerOpen] = useState(false)
   const [discoveryMatchOpen, setDiscoveryMatchOpen] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [displayName, setDisplayName] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [hasNewDiscoveryMatches, setHasNewDiscoveryMatches] = useState(false)
@@ -120,6 +142,7 @@ export default function App() {
   })
   const swipeModeRef = useRef<{ handleSkip: () => void; handleMatch: () => void; handleReset: () => void; isAnimating: boolean } | null>(null)
   const [userBadges, setUserBadges] = useState<any[]>([])
+  const [autoOpenOrganizations, setAutoOpenOrganizations] = useState(false)
 
   const supabase = createClient()
   const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`
@@ -380,6 +403,13 @@ export default function App() {
       return
     }
     
+    // Check if we're on the BUD presentation page
+    if (window.location.pathname === '/bud-presentation') {
+      setCurrentView('bud-presentation')
+      completeInitialization()
+      return
+    }
+    
     checkSession()
     
     // Set up auth state change listener for automatic token refresh
@@ -559,6 +589,18 @@ export default function App() {
     if (!userId) return
 
     try {
+      // NEW: Query the unified user_progress_complete view for gamification data
+      const { data: progressData, error: progressError } = await supabase
+        .from('user_progress_complete')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+
+      if (progressError) {
+        console.error('❌ Error fetching unified progress:', progressError)
+      }
+
+      // Also fetch old user_progress fields for market/NADA/banner
       const response = await fetch(`${serverUrl}/users/${userId}/progress`, {
         headers: {
           'Authorization': `Bearer ${publicAnonKey}`
@@ -570,10 +612,32 @@ export default function App() {
       }
 
       const data = await response.json()
-      console.log('✅ User progress fetched:', data.progress)
-      console.log('🔐 Market Unlocked Status:', data.progress?.marketUnlocked)
-      console.log('🎨 Profile Banner URL:', data.progress?.profileBannerUrl)
-      setUserProgress(data.progress)
+      
+      // Merge unified gamification data with existing progress
+      const mergedProgress = {
+        ...data.progress,
+        // Override with unified gamification data if available
+        ...(progressData && {
+          level: progressData.user_level || 1,
+          currentXP: progressData.current_xp || 0,
+          totalXP: progressData.total_xp || 0,
+          points: progressData.total_points || 0,
+          totalArticlesRead: progressData.articles_read || 0,
+          currentStreak: progressData.current_streak || 0,
+          longestStreak: progressData.longest_streak || 0,
+        })
+      }
+      
+      console.log('✅ User progress fetched:', {
+        level: mergedProgress.level,
+        currentXP: mergedProgress.currentXP,
+        totalXP: mergedProgress.totalXP,
+        achievements: progressData ? `${progressData.achievements_unlocked}/${progressData.total_achievements}` : 'N/A',
+        marketUnlocked: mergedProgress.marketUnlocked,
+        terpenes: progressData?.terpenes_collected
+      })
+      
+      setUserProgress(mergedProgress)
     } catch (error: any) {
       console.error('Error fetching user progress:', error)
       
@@ -1083,6 +1147,33 @@ export default function App() {
     setCurrentView('editor')
   }
 
+  // Calculate XP needed for next level (matches SQL function)
+  const calculateNextLevelXP = (currentLevel: number): number => {
+    return Math.ceil((100 * Math.pow(currentLevel, 1.5)) / 50) * 50
+  }
+
+  // Handle app launcher navigation
+  const handleAppLauncherClick = (appKey: string) => {
+    console.log(`🚀 Launching app: ${appKey}`)
+    
+    // Map app keys to views
+    const appRoutes: Record<string, typeof currentView> = {
+      'mag': 'browse',
+      'swipe': 'swipe',
+      'places': 'places-directory',
+      'swap': 'swap-shop',
+      'forum': 'forum', // Opens HempForum component
+      'globe': 'globe', // Opens 3D globe viewer
+      'swag': 'swag-marketplace', // Opens SWAG marketplace
+      'compass': 'compass' // Terpene Hunter!
+    }
+    
+    const targetView = appRoutes[appKey]
+    if (targetView) {
+      setCurrentView(targetView)
+    }
+  }
+
   const handleDeleteArticle = async (articleId: string) => {
     if (!accessToken) return
     
@@ -1374,6 +1465,12 @@ export default function App() {
         onContextualPlusClick={(action) => {
           console.log('🎯 Contextual + button clicked:', action)
           
+          // Open CreateModal when on feed view (universal + button)
+          if (currentView === 'feed' || action === 'quick-action') {
+            setCreateModalOpen(true)
+            return
+          }
+          
           switch (action) {
             case 'create-article':
               setCurrentView('editor')
@@ -1425,78 +1522,26 @@ export default function App() {
         {/* Content with its own container for padding - pt-20 adds top padding to prevent content from going behind transparent navbar */}
         <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
-          {currentView === 'feed' && (
+          {currentView === 'feed' && userId && displayName && (
             <div className="space-y-6">
-              {/* Action Cards - Modern Dashboard Style */}
-              <HomeCards
-                articles={articles}
-                userProgress={userProgress}
-                matchedArticles={matchedArticles}
-                onNavigateToBrowse={() => setCurrentView('browse')}
-                onNavigateToAchievements={() => setCurrentView('achievements')}
-                onNavigateToSwipe={() => setCurrentView('swipe')}
-                onNavigateToEditor={() => setCurrentView('editor')}
-                onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-                setPreviousView={setPreviousView}
-                nadaPoints={userProgress?.nadaPoints || 0}
-                marketUnlocked={userProgress?.marketUnlocked || false}
-                onNavigateToMarket={() => setCurrentView('community-market')}
-                onNavigateToPlaces={() => setCurrentView('places-directory')}
-                onNavigateToSwap={() => setCurrentView('swap-shop')}
-                onMarketUnlock={async () => {
-                  try {
-                    // Call server to unlock market for 10 NADA
-                    const response = await fetch(`${serverUrl}/unlock-market`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                      }
-                    })
-                    
-                    if (!response.ok) {
-                      const error = await response.text()
-                      throw new Error(error || 'Failed to unlock market')
-                    }
-                    
-                    const data = await response.json()
-                    
-                    // Update user progress with new NADA balance and unlocked status
-                    setUserProgress(prev => prev ? {
-                      ...prev,
-                      nadaPoints: data.nadaPoints,
-                      marketUnlocked: true
-                    } : null)
-                    
-                    alert('🎉 Community Market unlocked! You can now vote and submit feature ideas.')
-                  } catch (error) {
-                    console.error('Market unlock error:', error)
-                    alert(error instanceof Error ? error.message : 'Failed to unlock market')
-                  }
-                }}
+              {/* NEW: iOS-style App Launcher */}
+              <HomeAppLauncher
+                userId={userId}
+                displayName={displayName}
+                userLevel={userProgress?.level || 1}
+                currentXP={userProgress?.currentXP || 0}
+                nextLevelXP={calculateNextLevelXP(userProgress?.level || 1)}
+                onAppClick={handleAppLauncherClick}
               />
             </div>
           )}
 
-          {/* Swipe Mode - Standalone View */}
-          {currentView === 'swipe' && (
-            <SwipeMode 
-              articles={filteredArticles}
-              accessToken={accessToken || undefined}
-              onMatch={(article) => {
-                // Add article to matched articles
-                setMatchedArticles(prev => {
-                  const newMatches = [...prev, article]
-                  if (userId) {
-                    localStorage.setItem(`matchedArticles_${userId}`, JSON.stringify(newMatches))
-                  }
-                  return newMatches
-                })
-                // Toast notification removed - comic feedback only
-              }}
-              onReadArticle={handleArticleClick}
-              onSwitchToGrid={() => setCurrentView('feed')}
-              onRefReady={() => setSwipeRefReady(true)}
+          {/* Swipe Mode - Mini-App Wrapper */}
+          {currentView === 'swipe' && userId && accessToken && (
+            <SwipeApp
+              userId={userId}
+              accessToken={accessToken}
+              onClose={() => setCurrentView('feed')}
             />
           )}
 
@@ -1638,14 +1683,11 @@ export default function App() {
             />
           )}
 
-          {currentView === 'browse' && (
-            <BrowsePage
-              articles={articles}
-              onArticleClick={handleArticleClick}
-              loading={loading}
-              categoryMenuOpen={categoryMenuOpen}
-              browseCategoryIndex={browseCategoryIndex}
-              setBrowseCategoryIndex={setBrowseCategoryIndex}
+          {currentView === 'browse' && userId && accessToken && (
+            <MagApp
+              userId={userId}
+              accessToken={accessToken}
+              onClose={() => setCurrentView('feed')}
             />
           )}
 
@@ -1701,6 +1743,10 @@ export default function App() {
             />
           )}
 
+          {currentView === 'bud-presentation' && (
+            <BudPresentationPage />
+          )}
+
           {currentView === 'reading-analytics' && userProgress && (
             <ReadingAnalytics
               progress={userProgress}
@@ -1735,38 +1781,55 @@ export default function App() {
               onNavigateToSwagMarketplace={() => setCurrentView('swag-marketplace')}
               onNavigateToSettings={() => setCurrentView('settings')}
               onNavigateToAdmin={() => setCurrentView('admin')}
+              autoOpenOrganizations={autoOpenOrganizations}
             />
           )}
 
           {/* Places Directory */}
           {currentView === 'places-directory' && (
-            <PlacesDirectory
+            <PlacesApp
               serverUrl={serverUrl}
-              onBack={() => setCurrentView('feed')}
+              onClose={() => setCurrentView('feed')}
               onViewOnGlobe={() => setCurrentView('globe')}
-              currentUserId={userId}
-              currentUserName={displayName}
-              currentUserAvatar={avatarUrl}
+              userId={userId}
               accessToken={accessToken}
-              onMessagePlace={(ownerId: string, placeId: string, placeName: string) => {
-                openMessagePanelWith({
-                  inboxType: 'place',  // FIXED: Place inbox, not 'personal'
-                  recipientId: ownerId,
-                  contextType: 'place',
-                  contextId: placeId,
-                  contextName: placeName  // Pass the place name
-                })
+              onMessagePlace={(ownerId, placeId, placeName) => {
+                // Handle messaging from places
+                console.log('Message place:', placeId, placeName)
               }}
+              currentUserName={userProgress?.name}
+              currentUserAvatar={userProgress?.avatar_url}
+              onManageOrganization={() => {
+                setCurrentView('community-market')
+                setAutoOpenOrganizations(true)
+                // Reset the flag after a delay to allow the panel to open
+                setTimeout(() => setAutoOpenOrganizations(false), 1000)
+              }}
+            />
+          )}
+
+          {/* Globe 3D Viewer */}
+          {currentView === 'globe' && (
+            <GlobeApp
+              serverUrl={serverUrl}
+              userId={userId}
+              accessToken={accessToken}
+              publicAnonKey={publicAnonKey}
+              onClose={() => setCurrentView('feed')}
+              onViewCompany={(companyId) => {
+                // Navigate to company view if needed
+                console.log('View company:', companyId)
+              }}
+              onManageOrganization={() => setCurrentView('dashboard')}
+              onAddOrganization={() => setCurrentView('dashboard')}
             />
           )}
 
           {/* SWAP Shop - Infinite Feed */}
           {currentView === 'swap-shop' && (
-            <SwapLoader
+            <SwapApp
               userId={userId}
-              accessToken={accessToken}
-              onBack={() => setCurrentView('feed')}
-              onPlusButtonTrigger={() => {}} // Enable global modal trigger
+              onClose={() => setCurrentView('feed')}
             />
           )}
           
@@ -1789,13 +1852,39 @@ export default function App() {
           
           {/* Swag Marketplace - Full Page View */}
           {currentView === 'swag-marketplace' && userProgress && accessToken && (
-            <SwagMarketplace
-              onBack={() => setCurrentView('community-market')}
+            <SwagApp
+              onClose={() => setCurrentView('feed')}
               userId={userId || undefined}
               accessToken={accessToken}
               serverUrl={serverUrl}
               userBadges={userBadges}
               nadaPoints={userProgress.nadaPoints || 0}
+              onNadaUpdate={(newBalance) => {
+                // Update user progress with new NADA balance
+                if (userProgress) {
+                  setUserProgress({ ...userProgress, nadaPoints: newBalance })
+                }
+              }}
+            />
+          )}
+
+          {/* Terpene Hunter - Full Screen Mini-App */}
+          {currentView === 'compass' && userId && accessToken && (
+            <TerpeneHunterApp
+              userId={userId}
+              accessToken={accessToken}
+              onClose={() => setCurrentView('feed')}
+            />
+          )}
+
+          {/* Hemp Forum - Full Screen */}
+          {currentView === 'forum' && userId && accessToken && (
+            <ForumApp
+              userId={userId}
+              accessToken={accessToken}
+              serverUrl={serverUrl}
+              nadaPoints={userProgress?.nadaPoints || 0}
+              onClose={() => setCurrentView('feed')}
               onNadaUpdate={(newBalance) => {
                 // Update user progress with new NADA balance
                 if (userProgress) {
@@ -1861,7 +1950,34 @@ export default function App() {
         />
       )}
 
+      {/* Create Modal - Universal + Button */}
+      <CreateModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreateArticle={() => setCurrentView('editor')}
+        onAddPlace={() => setShowAddPlaceModal(true)}
+        onListSwapItem={() => {
+          if ((window as any).__swapOpenAddModal) {
+            (window as any).__swapOpenAddModal()
+          }
+        }}
+        onCreateRFP={() => {
+          console.log('💼 Create RFP triggered')
+          // TODO: Navigate to RFP creation view when implemented
+        }}
+      />
 
+      {/* Add Place Modal */}
+      <AddPlaceModal
+        isOpen={showAddPlaceModal}
+        onClose={() => setShowAddPlaceModal(false)}
+        serverUrl={serverUrl}
+        accessToken={accessToken || undefined}
+        onPlaceAdded={() => {
+          // Refresh places if needed
+          console.log('Place added successfully')
+        }}
+      />
 
       {/* Feature Unlock Modal */}
       {featureUnlockModal && (

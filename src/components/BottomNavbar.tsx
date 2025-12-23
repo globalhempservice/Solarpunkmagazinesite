@@ -1,7 +1,6 @@
-import { Home, User, Plus, Heart, X, RefreshCw, Lock, Package, MapPin, Briefcase, Store, Sparkles } from 'lucide-react'
+import { Home, User, Plus, Package, MapPin, Briefcase, Store, Sparkles } from 'lucide-react'
 import { Button } from './ui/button'
 import { motion } from 'motion/react'
-import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 
 // ================================================
 // CONTEXTUAL PLUS BUTTON CONFIGURATION
@@ -18,7 +17,6 @@ interface PlusButtonConfig {
   }
   glow: string
   action: 'create-article' | 'list-swap-item' | 'add-place' | 'browse-swag' | 'create-rfp' | 'quick-action' | 'submit-swag-product'
-  requiresUnlock?: boolean // Only for article creation
 }
 
 const CONTEXTUAL_PLUS_CONFIGS: Record<string, PlusButtonConfig> = {
@@ -29,7 +27,6 @@ const CONTEXTUAL_PLUS_CONFIGS: Record<string, PlusButtonConfig> = {
     colors: { from: '#34d399', via: '#14b8a6', to: '#06b6d4' },
     glow: 'rgba(20,184,166,0.4)',
     action: 'create-article',
-    requiresUnlock: true,
   },
   'browse': {
     icon: Plus,
@@ -37,7 +34,6 @@ const CONTEXTUAL_PLUS_CONFIGS: Record<string, PlusButtonConfig> = {
     colors: { from: '#34d399', via: '#14b8a6', to: '#06b6d4' },
     glow: 'rgba(20,184,166,0.4)',
     action: 'create-article',
-    requiresUnlock: true,
   },
   'editor': {
     icon: Plus,
@@ -45,7 +41,6 @@ const CONTEXTUAL_PLUS_CONFIGS: Record<string, PlusButtonConfig> = {
     colors: { from: '#34d399', via: '#14b8a6', to: '#06b6d4' },
     glow: 'rgba(20,184,166,0.4)',
     action: 'create-article',
-    requiresUnlock: true,
   },
   
   // SWAP Shop Environment - Orange/Yellow
@@ -138,13 +133,14 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
     onNavigate(view)
   }
 
-  const isArticleCreationUnlocked = isFeatureUnlocked('article-creation', totalArticlesRead)
-  const articlesNeeded = FEATURE_UNLOCKS['article-creation'].requiredArticles - totalArticlesRead
-
+  // REMOVED: Old article count unlock system
+  // Now using new CreateModal for universal + button
+  
   // Get contextual config for the + button
   const plusConfig = CONTEXTUAL_PLUS_CONFIGS[currentView] || CONTEXTUAL_PLUS_CONFIGS['dashboard']
   const PlusIcon = plusConfig.icon
-  const shouldShowLock = plusConfig.requiresUnlock && !isArticleCreationUnlocked
+  
+  // REMOVED: shouldShowLock - now always unlocked, opens modal instead
 
   // Determine if this view should have active state
   const isActiveContext = ['editor', 'swap-shop', 'swag-shop', 'swag-marketplace', 'places-directory', 'globe', 'community-market'].includes(currentView)
@@ -261,11 +257,7 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  if (shouldShowLock) {
-                    if (onFeatureUnlock) {
-                      onFeatureUnlock('article-creation')
-                    }
-                  } else if (onContextualPlusClick) {
+                  if (onContextualPlusClick) {
                     onContextualPlusClick(plusConfig.action)
                   }
                 }}
@@ -273,183 +265,77 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
               >
                 <div className="relative">
                   {/* Unlocked State - Contextual Icon & Colors */}
-                  {!shouldShowLock && (
-                    <>
-                      {/* Animated glow background - Contextual colors */}
-                      <div 
-                        className={`absolute -inset-8 rounded-full blur-3xl transition-all duration-500 ${
-                          isActiveContext ? 'opacity-30 animate-pulse' : 'opacity-10 group-hover:opacity-20'
-                        }`}
-                        style={{
-                          background: `linear-gradient(to right, ${plusConfig.colors.from}, ${plusConfig.colors.via}, ${plusConfig.colors.to})`
-                        }}
-                      />
+                  <>
+                    {/* Animated glow background - Contextual colors */}
+                    <div 
+                      className={`absolute -inset-8 rounded-full blur-3xl transition-all duration-500 ${
+                        isActiveContext ? 'opacity-30 animate-pulse' : 'opacity-10 group-hover:opacity-20'
+                      }`}
+                      style={{
+                        background: `linear-gradient(to right, ${plusConfig.colors.from}, ${plusConfig.colors.via}, ${plusConfig.colors.to})`
+                      }}
+                    />
+                    
+                    {/* Circle background with contextual gradient */}
+                    <div 
+                      className="relative rounded-full p-4 transition-all group-hover:scale-110"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${plusConfig.colors.from}${isActiveContext ? '' : 'cc'}, ${plusConfig.colors.via}${isActiveContext ? '' : 'cc'}, ${plusConfig.colors.to}${isActiveContext ? '' : 'cc'})`,
+                        boxShadow: isActiveContext ? `0 0 20px ${plusConfig.glow}` : undefined
+                      }}
+                    >
+                      {/* Shine effect */}
+                      <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-white/40 rounded-full blur-md" />
                       
-                      {/* Circle background with contextual gradient */}
-                      <div 
-                        className="relative rounded-full p-4 transition-all group-hover:scale-110"
-                        style={{
-                          background: `linear-gradient(to bottom right, ${plusConfig.colors.from}${isActiveContext ? '' : 'cc'}, ${plusConfig.colors.via}${isActiveContext ? '' : 'cc'}, ${plusConfig.colors.to}${isActiveContext ? '' : 'cc'})`,
-                          boxShadow: isActiveContext ? `0 0 20px ${plusConfig.glow}` : undefined
-                        }}
-                      >
-                        {/* Shine effect */}
-                        <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-white/40 rounded-full blur-md" />
-                        
-                        {/* Icon morphing animation - Package ↔ Plus for SWAP */}
-                        {currentView === 'swap-shop' ? (
-                          <div className="relative w-8 h-8">
-                            {/* Package Icon */}
-                            <motion.div
-                              className="absolute inset-0 flex items-center justify-center"
-                              animate={{ 
-                                opacity: [1, 0, 1],
-                                scale: [1, 0.8, 1],
-                              }}
-                              transition={{ 
-                                duration: 4,
-                                repeat: Infinity,
-                                ease: 'easeInOut'
-                              }}
-                            >
-                              <Package 
-                                className="w-8 h-8 text-white drop-shadow-lg"
-                                strokeWidth={2.5}
-                              />
-                            </motion.div>
-
-                            {/* Plus Icon */}
-                            <motion.div
-                              className="absolute inset-0 flex items-center justify-center"
-                              animate={{ 
-                                opacity: [0, 1, 0],
-                                scale: [0.8, 1, 0.8],
-                              }}
-                              transition={{ 
-                                duration: 4,
-                                repeat: Infinity,
-                                ease: 'easeInOut'
-                              }}
-                            >
-                              <Plus 
-                                className="w-8 h-8 text-white drop-shadow-lg"
-                                strokeWidth={2.5}
-                              />
-                            </motion.div>
-                          </div>
-                        ) : (
-                          <PlusIcon 
-                            className="relative h-8 w-8 text-white drop-shadow-lg"
-                            strokeWidth={isActiveContext ? 2.5 : 2} 
-                          />
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Locked State - Comic Lock */}
-                  {shouldShowLock && (
-                    <>
-                      {/* Outer glow ring - pulsing */}
-                      <div className="absolute -inset-8 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-full opacity-30 blur-xl animate-pulse" />
-                      
-                      {/* Comic burst effect behind - rotating */}
-                      <motion.div 
-                        className="absolute inset-0 -z-10 scale-150"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                      >
-                        <svg viewBox="0 0 100 100" className="w-24 h-24 -translate-x-1/4 -translate-y-1/4">
-                          <defs>
-                            <radialGradient id="navBurstGradient">
-                              <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.6" />
-                              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-                            </radialGradient>
-                          </defs>
-                          {[...Array(12)].map((_, i) => (
-                            <polygon
-                              key={i}
-                              points="50,50 48,30 52,30"
-                              fill="url(#navBurstGradient)"
-                              transform={`rotate(${i * 30} 50 50)`}
-                            />
-                          ))}
-                        </svg>
-                      </motion.div>
-
-                      {/* Main lock badge with comic border */}
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: 'spring', duration: 0.8, bounce: 0.6 }}
-                        className="relative"
-                      >
-                        {/* White comic-style border */}
-                        <div className="absolute -inset-0.5 bg-white rounded-xl transform rotate-2" />
-                        <div className="absolute -inset-0.5 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl" />
-                        
-                        {/* Inner content */}
-                        <div className="relative bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 rounded-lg p-3 shadow-2xl border-2 border-white">
-                          {/* Lock icon with shake animation */}
+                      {/* Icon morphing animation - Package ↔ Plus for SWAP */}
+                      {currentView === 'swap-shop' ? (
+                        <div className="relative w-8 h-8">
+                          {/* Package Icon */}
                           <motion.div
+                            className="absolute inset-0 flex items-center justify-center"
                             animate={{ 
-                              rotate: [0, -8, 8, -8, 0],
-                              scale: [1, 1.05, 1]
+                              opacity: [1, 0, 1],
+                              scale: [1, 0.8, 1],
                             }}
                             transition={{ 
-                              duration: 0.5,
+                              duration: 4,
                               repeat: Infinity,
-                              repeatDelay: 2
+                              ease: 'easeInOut'
                             }}
-                            className="mb-1"
                           >
-                            <div className="relative">
-                              <div className="absolute inset-0 bg-white blur-sm opacity-50" />
-                              <Lock className="w-7 h-7 text-white relative z-10 drop-shadow-lg" strokeWidth={3} />
-                            </div>
+                            <Package 
+                              className="w-8 h-8 text-white drop-shadow-lg"
+                              strokeWidth={2.5}
+                            />
                           </motion.div>
-                          
-                          {/* Number badge */}
-                          <div className="bg-white rounded px-1.5 py-0.5 shadow-inner min-w-[28px]">
-                            <div className="text-center">
-                              <div className="text-xs font-black text-transparent bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text leading-none">
-                                {articlesNeeded}
-                              </div>
-                            </div>
-                          </div>
 
-                          {/* Comic "!" decoration */}
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center transform rotate-12">
-                            <span className="text-white text-[10px] font-black leading-none">!</span>
-                          </div>
-                        </div>
-                      </motion.div>
-
-                      {/* Floating particles */}
-                      <div className="absolute inset-0 pointer-events-none scale-150">
-                        {[...Array(4)].map((_, i) => (
+                          {/* Plus Icon */}
                           <motion.div
-                            key={i}
-                            className="absolute w-1.5 h-1.5 bg-amber-400 rounded-full"
-                            style={{
-                              left: `${Math.cos((i * Math.PI * 2) / 4) * 40 + 50}%`,
-                              top: `${Math.sin((i * Math.PI * 2) / 4) * 40 + 50}%`,
+                            className="absolute inset-0 flex items-center justify-center"
+                            animate={{ 
+                              opacity: [0, 1, 0],
+                              scale: [0.8, 1, 0.8],
                             }}
-                            animate={{
-                              y: [-8, 8, -8],
-                              opacity: [0.4, 1, 0.4],
-                              scale: [0.6, 1, 0.6]
-                            }}
-                            transition={{
-                              duration: 2,
+                            transition={{ 
+                              duration: 4,
                               repeat: Infinity,
-                              delay: i * 0.3
+                              ease: 'easeInOut'
                             }}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
+                          >
+                            <Plus 
+                              className="w-8 h-8 text-white drop-shadow-lg"
+                              strokeWidth={2.5}
+                            />
+                          </motion.div>
+                        </div>
+                      ) : (
+                        <PlusIcon 
+                          className="relative h-8 w-8 text-white drop-shadow-lg"
+                          strokeWidth={isActiveContext ? 2.5 : 2} 
+                        />
+                      )}
+                    </div>
+                  </>
                 </div>
               </Button>
             </div>

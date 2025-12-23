@@ -1,12 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
-import { ShoppingBag, Package, Star, Shield, Crown, ExternalLink, Filter, Search, X, ChevronDown, Tag, Building2, Sparkles, ArrowLeft } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { motion, AnimatePresence } from 'motion/react'
-import { ProductDetailModal } from './ProductDetailModal'
-import { BadgeRequirementModal } from './BadgeRequirementModal'
-import { PurchaseModal } from './PurchaseModal'
-import { AddSwagProductModal } from './swag/AddSwagProductModal'
+import { Input } from './ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { 
+  Package, ShoppingCart, Star, Heart, Filter, Search, 
+  ArrowLeft, X, CheckCircle, AlertCircle, Crown, Shield,
+  Leaf, Sparkles, Award, TrendingUp, Zap, Globe, Lock,
+  Mail, Check, Percent, DollarSign, MapPin, Truck,
+  ChevronRight, Tag, Info, Eye, ThumbsUp, MessageCircle, Building2, ChevronDown, ShoppingBag
+} from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
+import { toast } from 'sonner'
 
 interface SwagProduct {
   id: string
@@ -50,7 +56,7 @@ interface SwagMarketplaceProps {
   serverUrl: string
   userId?: string
   userBadges?: any[]
-  onBack: () => void
+  onClose: () => void
   nadaPoints: number
   onNadaUpdate: (newBalance: number) => void
 }
@@ -61,7 +67,7 @@ const BADGE_ICONS: Record<string, any> = {
   Star: Star
 }
 
-export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [], onBack, nadaPoints, onNadaUpdate }: SwagMarketplaceProps) {
+export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [], onClose, nadaPoints, onNadaUpdate }: SwagMarketplaceProps) {
   const [products, setProducts] = useState<SwagProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -246,7 +252,7 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Back Button */}
           <Button
-            onClick={onBack}
+            onClick={onClose}
             variant="ghost"
             className="mb-4 text-emerald-300 hover:text-white hover:bg-emerald-500/20 gap-2 font-black"
           >

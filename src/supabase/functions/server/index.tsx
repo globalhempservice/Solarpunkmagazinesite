@@ -416,17 +416,29 @@ app.post('/make-server-053bcd80/analytics/track', requireAuth, async (c) => {
       }
 
       // Award NADA points to user
-      const userKey = `user:${userId}`
-      const userData = await kv.get(userKey)
-      const currentNada = userData?.nada_points || 0
+      // ✅ FIX: Use profiles table instead of KV store
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('nada_points')
+        .eq('id', userId)
+        .single()
+      
+      const currentNada = userProfile?.nada_points || 0
+      const newNada = currentNada + nadaAwarded
 
-      await kv.set(userKey, {
-        ...userData,
-        nada_points: currentNada + nadaAwarded,
-        updated_at: new Date().toISOString()
-      })
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          nada_points: newNada,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
 
-      console.log('✅ NADA awarded:', nadaAwarded, 'New balance:', currentNada + nadaAwarded)
+      if (updateError) {
+        console.error('⚠️  Failed to update NADA points:', updateError)
+      } else {
+        console.log('✅ NADA awarded:', nadaAwarded, 'New balance:', newNada)
+      }
     }
 
     // Insert analytics record into database
@@ -805,58 +817,12 @@ app.get('/make-server-053bcd80/articles', async (c) => {
       }
     }
     
-    // Also fetch RSS/KV articles (published RSS articles stored in KV)
-    const kvArticles = await kv.getByPrefix('article_')
-    console.log('Fetched', kvArticles?.length || 0, 'articles from KV store')
+    // ✅ FIX: Removed KV store for articles - all articles are already in the articles table
+    // RSS articles that are published are inserted into the articles table via the /rss-articles/:id/publish endpoint
+    // No need for duplicate KV storage!
     
-    // Filter KV articles by category if needed and ensure they're published and have valid IDs
-    let filteredKvArticles = kvArticles.filter((article: any) => 
-      article && article.id && article.isPublished !== false && !article.hidden
-    )
-    
-    if (category && category !== 'all') {
-      filteredKvArticles = filteredKvArticles.filter((article: any) => 
-        article.category === category
-      )
-    }
-    
-    // Transform KV articles to match frontend format with comprehensive fallbacks
-    const transformedKvArticles = filteredKvArticles.map((article: any) => {
-      // Calculate reading time if missing (average 200 words per minute)
-      let readingTime = article.readingTime
-      if (!readingTime && article.content) {
-        const wordCount = article.content.split(/\s+/).length
-        readingTime = Math.max(1, Math.ceil(wordCount / 200))
-      }
-      readingTime = readingTime || 5 // Default to 5 minutes
-      
-      return {
-        id: article.id,
-        title: article.title || 'Untitled',
-        content: article.content || article.excerpt || '',
-        excerpt: article.excerpt || article.content?.substring(0, 200) || '',
-        category: article.category || 'Eco Innovation',
-        coverImage: article.coverImage || article.imageUrl || '',
-        readingTime: readingTime,
-        authorId: article.authorId || 'rss_system',
-        views: article.views || article.readCount || 0,
-        likes: article.likes || 0,
-        createdAt: article.createdAt || new Date().toISOString(),
-        updatedAt: article.updatedAt || article.createdAt || new Date().toISOString(),
-        media: article.media || [],
-        source: article.source || 'rss',
-        sourceUrl: article.sourceUrl || '',
-        author: article.author || article.authorName || 'RSS Feed',
-        authorImage: article.authorImage || article.authorAvatar || '',
-        authorTitle: article.authorTitle || '',
-        publishDate: article.publishDate || article.createdAt || new Date().toISOString(),
-        hidden: article.hidden || false,
-        isExternal: article.source === 'rss' // Flag for external RSS articles
-      }
-    })
-    
-    // Combine and sort by date
-    const allArticles = [...transformedSqlArticles, ...transformedKvArticles]
+    // Use only SQL articles
+    const allArticles = [...transformedSqlArticles]
     allArticles.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
@@ -864,7 +830,7 @@ app.get('/make-server-053bcd80/articles', async (c) => {
     // Apply limit after combining
     const limitedArticles = allArticles.slice(0, limit)
     
-    console.log('📦 Total articles returned:', limitedArticles.length, '(SQL:', transformedSqlArticles.length, '+ KV:', transformedKvArticles.length, ')')
+    console.log('📦 Total articles returned:', limitedArticles.length, '(SQL:', transformedSqlArticles.length, ')')
     console.log('📦 First 3 article titles:', limitedArticles.slice(0, 3).map(a => a.title))
     
     // CRITICAL: Check if we're returning empty array
@@ -872,14 +838,28 @@ app.get('/make-server-053bcd80/articles', async (c) => {
       console.error('🚨 ZERO ARTICLES RETURNED!')
       console.error('   SQL articles before filter:', beforeFilter)
       console.error('   SQL articles after transform:', transformedSqlArticles.length)
-      console.error('   KV articles:', transformedKvArticles.length)
       console.error('   Category filter:', category)
     }
     
     return c.json({ articles: limitedArticles })
   } catch (error: any) {
-    console.error('Error fetching articles:', error)
-    return c.json({ error: 'Failed to fetch articles', details: error.message }, 500)
+    console.error('❌ Error fetching articles:', error)
+    console.error('❌ Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.split('\n').slice(0, 3).join('\n')
+    })
+    
+    // Check if error message contains HTML (502/503 gateway errors)
+    const errorMessage = error.message?.includes('<html>') || error.message?.includes('Bad Gateway')
+      ? 'Database connection temporarily unavailable. Please try again.'
+      : error.message || 'Unknown error'
+    
+    return c.json({ 
+      error: 'Failed to fetch articles', 
+      details: errorMessage,
+      isGatewayError: error.message?.includes('Bad Gateway') || error.message?.includes('502')
+    }, 500)
   }
 })
 
@@ -1558,6 +1538,11 @@ app.get('/make-server-053bcd80/users/:userId/progress', async (c) => {
       prioritySupport: progress.priority_support || false,
       marketingOptIn: profile?.marketing_opt_in || false,
       marketUnlocked: progress.market_unlocked || false,
+      // NEW: XP/Leveling system columns (from home launcher migration)
+      level: progress.user_level || 1,
+      currentXP: progress.current_xp || 0,
+      totalXP: progress.total_xp || 0,
+      homeLayoutConfig: progress.home_layout_config || null,
       achievements: (userAchievements || []).map((ua: any) => ua.achievement_id),
       readArticles: (readArticles || []).map((ra: any) => ra.article_id)
     }
@@ -8793,25 +8778,49 @@ app.post('/make-server-053bcd80/external-article-read', requireAuth, async (c) =
 
     console.log(`📰 User ${userId} read external article: ${articleId}`)
 
-    // Get user progress
-    const userProgress = await kv.get<any>(`user_progress_${userId}`) || {
-      totalPoints: 0,
-      articlesRead: 0,
-      articlesMatched: 0
+    // ✅ FIX: Use user_progress table instead of KV store
+    // Get or create user progress
+    let { data: progress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+
+    if (!progress) {
+      // Create new progress record
+      const { data: newProgress } = await supabase
+        .from('user_progress')
+        .insert([{
+          user_id: userId,
+          total_points: 0,
+          articles_read: 0,
+          articles_matched: 0
+        }])
+        .select()
+        .single()
+      progress = newProgress
     }
 
     // Award +5 points for reading external RSS article
-    userProgress.totalPoints = (userProgress.totalPoints || 0) + 5
+    const newTotalPoints = (progress.total_points || 0) + 5
+    const newArticlesRead = (progress.articles_read || 0) + 1
 
-    // Save updated progress
-    await kv.set(`user_progress_${userId}`, userProgress)
+    // Update progress
+    await supabase
+      .from('user_progress')
+      .update({ 
+        total_points: newTotalPoints,
+        articles_read: newArticlesRead,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
 
-    console.log(`✅ Awarded +5 points for external article read. New total: ${userProgress.totalPoints}`)
+    console.log(`✅ Awarded +5 points for external article read. New total: ${newTotalPoints}`)
 
     return c.json({
       success: true,
       pointsEarned: 5,
-      totalPoints: userProgress.totalPoints
+      totalPoints: newTotalPoints
     })
   } catch (error: any) {
     console.error('Error tracking external article read:', error)
@@ -8889,11 +8898,15 @@ app.get('/make-server-053bcd80/user-selected-theme/:userId', async (c) => {
       return c.json({ error: 'User ID is required' }, 400)
     }
     
-    // Get user data from KV store
-    const userData = await kv.get(`user:${userId}`)
+    // ✅ FIX: Get user data from profiles table instead of KV store
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('selected_theme')
+      .eq('id', userId)
+      .single()
     
     // Return selected theme (default to solarpunk-dreams if not set)
-    const selectedTheme = userData?.selected_theme || 'solarpunk-dreams'
+    const selectedTheme = userProfile?.selected_theme || 'solarpunk-dreams'
     
     console.log(`✅ Retrieved theme for user ${userId}: ${selectedTheme}`)
     return c.json({ selectedTheme })
@@ -8933,15 +8946,19 @@ app.post('/make-server-053bcd80/update-user-theme', async (c) => {
       return c.json({ error: 'Invalid theme' }, 400)
     }
     
-    // Get current user data
-    const userKey = `user:${user.id}`
-    const userData = await kv.get(userKey)
+    // ✅ FIX: Update theme in profiles table instead of KV store
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ 
+        selected_theme: theme,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id)
     
-    // Update theme
-    await kv.set(userKey, {
-      ...userData,
-      selected_theme: theme
-    })
+    if (updateError) {
+      console.error('❌ Failed to update theme:', updateError)
+      return c.json({ error: 'Failed to update theme', details: updateError.message }, 500)
+    }
     
     console.log(`✅ Updated theme for user ${user.id}: ${theme}`)
     return c.json({ success: true, theme })

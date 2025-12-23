@@ -4,7 +4,7 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { 
   Shield, ArrowLeft, Flame, Zap, Sparkles, Settings, 
-  Home, User, Plus, Heart, X, RefreshCw, Lock, Package, 
+  Home, User, Plus, Heart, X, RefreshCw, Package, 
   MapPin, Briefcase, Store, Building2, MessageCircle, Wallet
 } from 'lucide-react'
 import { BrandLogo } from './BrandLogo'
@@ -51,7 +51,6 @@ interface PlusButtonConfig {
   }
   glow: string
   action: 'create-article' | 'list-swap-item' | 'add-place' | 'browse-swag' | 'create-rfp' | 'quick-action' | 'submit-swag-product'
-  requiresUnlock?: boolean
 }
 
 interface AppNavigationProps {
@@ -124,7 +123,6 @@ const CONTEXTUAL_PLUS_CONFIGS: Record<string, PlusButtonConfig> = {
     colors: { from: '#34d399', via: '#14b8a6', to: '#06b6d4' },
     glow: 'rgba(20,184,166,0.4)',
     action: 'create-article',
-    requiresUnlock: true,
   },
   'browse': {
     icon: Plus,
@@ -132,7 +130,6 @@ const CONTEXTUAL_PLUS_CONFIGS: Record<string, PlusButtonConfig> = {
     colors: { from: '#34d399', via: '#14b8a6', to: '#06b6d4' },
     glow: 'rgba(20,184,166,0.4)',
     action: 'create-article',
-    requiresUnlock: true,
   },
   'editor': {
     icon: Plus,
@@ -140,7 +137,6 @@ const CONTEXTUAL_PLUS_CONFIGS: Record<string, PlusButtonConfig> = {
     colors: { from: '#34d399', via: '#14b8a6', to: '#06b6d4' },
     glow: 'rgba(20,184,166,0.4)',
     action: 'create-article',
-    requiresUnlock: true,
   },
   
   // SWAP Shop Environment
@@ -518,12 +514,8 @@ export function AppNavigation({
       onNavigate(view)
     }
 
-    const isArticleCreationUnlocked = isFeatureUnlocked('article-creation', totalArticlesRead)
-    const articlesNeeded = FEATURE_UNLOCKS['article-creation'].requiredArticles - totalArticlesRead
-
     // Get contextual config for the + button
     const plusConfig = CONTEXTUAL_PLUS_CONFIGS[currentView] || CONTEXTUAL_PLUS_CONFIGS['dashboard']
-    const shouldShowLock = plusConfig.requiresUnlock && !isArticleCreationUnlocked
 
     // Determine if this view should have active state
     const isActiveContext = ['editor', 'swap-shop', 'swag-shop', 'swag-marketplace', 'places-directory', 'globe', 'community-market'].includes(currentView)
@@ -582,22 +574,18 @@ export function AppNavigation({
                 />
               </div>
 
-              {/* Right Button - Contextual Plus */}
+              {/* Right Button - Contextual Plus - Always Unlocked */}
               <div className="flex-1 flex justify-center items-center">
                 <ContextualPlusButton
                   onClick={() => {
-                    if (shouldShowLock) {
-                      if (onFeatureUnlock) {
-                        onFeatureUnlock('article-creation')
-                      }
-                    } else if (onContextualPlusClick) {
+                    if (onContextualPlusClick) {
                       onContextualPlusClick(plusConfig.action)
                     }
                   }}
                   context={plusContext}
                   isActive={isActiveContext}
-                  isLocked={shouldShowLock}
-                  articlesNeeded={shouldShowLock ? articlesNeeded : 0}
+                  isLocked={false}
+                  articlesNeeded={0}
                 />
               </div>
             </div>

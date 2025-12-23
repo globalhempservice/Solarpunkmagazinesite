@@ -2,7 +2,7 @@ import { motion, AnimatePresence, useMotionValue, Reorder } from 'motion/react'
 import { 
   User, Settings, Building2, Package, LogOut, FileText, Compass, Plug, 
   Edit3, Check, X, Plus, Gamepad2, BarChart, MessageCircle, Bell, 
-  Star, BookOpen, Palette, Trophy
+  Star, BookOpen, Palette, Trophy, TrendingUp
 } from 'lucide-react'
 import { createClient } from '../utils/supabase/client'
 import { useEffect, useState, useRef } from 'react'
@@ -203,6 +203,22 @@ export function MEButtonDrawer({
       icon: Star,
       label: 'Favorites',
       gradient: 'from-yellow-500 via-amber-500 to-orange-500',
+      category: 'Future',
+      isAvailable: true
+    },
+    {
+      key: 'progress',
+      icon: TrendingUp,
+      label: 'Progress',
+      gradient: 'from-lime-500 via-green-500 to-emerald-500',
+      category: 'Gamification',
+      isAvailable: true
+    },
+    {
+      key: 'trending',
+      icon: TrendingUp,
+      label: 'Trending',
+      gradient: 'from-green-500 via-lime-500 to-yellow-500',
       category: 'Future',
       isAvailable: true
     },

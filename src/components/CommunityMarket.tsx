@@ -89,6 +89,7 @@ interface CommunityMarketProps {
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   marketUnlocked?: boolean
+  autoOpenOrganizations?: boolean
 }
 
 export default function CommunityMarket({
@@ -109,7 +110,8 @@ export default function CommunityMarket({
   onNavigateToAdmin,
   equippedBadgeId,
   profileBannerUrl,
-  marketUnlocked = false
+  marketUnlocked = false,
+  autoOpenOrganizations
 }: CommunityMarketProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showTutorial, setShowTutorial] = useState(true)
@@ -945,6 +947,7 @@ Your voice matters here. Join the conversation, contribute ideas, and help build
           onNavigateToSwagMarketplace && onNavigateToSwagMarketplace()
         }}
         onNadaUpdate={onNadaUpdate}
+        autoOpenOrganizations={autoOpenOrganizations}
       />
 
       {/* Hemp Forum - Full Screen */}

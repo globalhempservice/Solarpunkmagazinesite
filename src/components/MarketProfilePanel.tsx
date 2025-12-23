@@ -24,6 +24,7 @@ interface MarketProfilePanelProps {
   onSettings?: () => void
   onNavigateToSwagMarketplace?: () => void
   onNadaUpdate?: (newBalance: number) => void
+  autoOpenOrganizations?: boolean
 }
 
 // NADA Ripple Icon
@@ -64,15 +65,23 @@ export function MarketProfilePanel({
   onSubmitIdea,
   onSettings,
   onNavigateToSwagMarketplace,
-  onNadaUpdate
+  onNadaUpdate,
+  autoOpenOrganizations
 }: MarketProfilePanelProps) {
-  const [showCompanyManager, setShowCompanyManager] = useState(false)
+  const [showCompanyManager, setShowCompanyManager] = useState(autoOpenOrganizations || false)
   const [showPluginsShop, setShowPluginsShop] = useState(false)
   const [currentNadaPoints, setCurrentNadaPoints] = useState(nadaPoints)
 
   useEffect(() => {
     setCurrentNadaPoints(nadaPoints)
   }, [nadaPoints])
+
+  // Auto-open organizations when prop changes
+  useEffect(() => {
+    if (autoOpenOrganizations) {
+      setShowCompanyManager(true)
+    }
+  }, [autoOpenOrganizations])
 
   return (
     <AnimatePresence>

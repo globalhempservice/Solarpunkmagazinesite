@@ -7,6 +7,8 @@ interface BudCharacterProps {
   mood?: 'default' | 'success' | 'info' | 'warning'
   animate?: boolean
   className?: string
+  onHover?: () => void
+  onClick?: () => void
 }
 
 const sizeMap = {
@@ -44,7 +46,9 @@ export function BudCharacter({
   expression = 'happy', 
   mood = 'default',
   animate = true,
-  className = '' 
+  className = '',
+  onHover,
+  onClick
 }: BudCharacterProps) {
   const sizes = sizeMap[size]
   const colors = moodColors[mood]
@@ -237,90 +241,110 @@ export function BudCharacter({
   }
 
   return (
-    <motion.div
-      animate={animate ? { y: [0, -8, 0] } : {}}
-      transition={{ 
-        duration: 2.5,
-        repeat: Infinity,
-        ease: 'easeInOut'
-      }}
-      className={`${sizes.container} relative ${className}`}
-    >
-      {/* Glow behind BUD */}
-      <div className={`absolute inset-0 bg-gradient-to-r ${colors.glow} rounded-full blur-xl opacity-40`} />
-      
-      {/* BUD character - Plant bud with leaves */}
-      <div className={`relative ${sizes.container} flex items-center justify-center`}>
+    <div className={`relative ${className}`}>
+      <motion.div
+        className={`relative ${sizes.container} flex items-center justify-center`}
+        animate={animate ? { 
+          y: [0, -8, 0],
+          rotate: [0, 2, 0, -2, 0]
+        } : {}}
+        transition={{
+          y: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' },
+          rotate: { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+        }}
+        whileHover={{ 
+          scale: 1.15,
+          rotate: [0, -5, 5, -5, 0],
+          transition: { 
+            scale: { duration: 0.3 },
+            rotate: { duration: 0.5, repeat: 2 }
+          }
+        }}
+        whileTap={{ 
+          scale: 0.95,
+          rotate: 0,
+          transition: { duration: 0.1 }
+        }}
+        onHoverStart={onHover}
+        onTap={onClick}
+        style={{ cursor: onHover || onClick ? 'pointer' : 'default' }}
+      >
+        {/* Glow behind BUD */}
+        <div className={`absolute inset-0 bg-gradient-to-r ${colors.glow} rounded-full blur-xl opacity-40`} />
         
-        {/* Leaves */}
-        <motion.div
-          animate={animate ? { rotate: [-2, 2, -2] } : {}}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -left-1 top-3"
-        >
-          <div className={`${sizes.leaf} bg-gradient-to-br from-green-400 to-emerald-500 rounded-full -rotate-45 shadow-lg border-2 border-green-300/50`} />
-        </motion.div>
-        
-        <motion.div
-          animate={animate ? { rotate: [2, -2, 2] } : {}}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-          className="absolute -right-1 top-3"
-        >
-          <div className={`${sizes.leaf} bg-gradient-to-bl from-green-400 to-emerald-500 rounded-full rotate-45 shadow-lg border-2 border-green-300/50`} />
-        </motion.div>
-        
-        {/* Main bud body */}
-        <div className="relative z-10">
-          {/* Outer petals/bud leaves */}
-          <div className="absolute inset-0">
-            {[0, 72, 144, 216, 288].map((rotation, i) => (
-              <motion.div
-                key={i}
-                animate={animate ? { scale: [1, 1.05, 1] } : {}}
-                transition={{ 
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.2,
-                  ease: 'easeInOut'
-                }}
-                style={{ 
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: `translate(-50%, -50%) rotate(${rotation}deg) translateY(-${size === 'sm' ? '14' : size === 'md' ? '16' : size === 'lg' ? '18' : '22'}px)`,
-                  transformOrigin: 'center'
-                }}
-              >
-                <div className={`${sizes.petal} bg-gradient-to-b ${colors.petals} rounded-full shadow-md border border-pink-300/40`} />
-              </motion.div>
-            ))}
-          </div>
+        {/* BUD character - Plant bud with leaves */}
+        <div className={`relative ${sizes.container} flex items-center justify-center`}>
           
-          {/* Main face sphere */}
-          <div className={`relative ${sizes.face} bg-gradient-to-br ${colors.face} rounded-full shadow-xl flex items-center justify-center border-3 border-white/60`}>
-            {/* Cute face */}
-            <div className="relative">
-              {/* Eyes */}
-              {renderEyes()}
-              
-              {/* Smile with rosy cheeks */}
-              <div className="flex items-center gap-2 justify-center">
-                {/* Left cheek */}
-                <div className={`${size === 'sm' ? 'w-1.5 h-1' : 'w-2 h-1.5'} bg-pink-400/60 dark:bg-pink-500/60 rounded-full`} />
+          {/* Leaves */}
+          <motion.div
+            animate={animate ? { rotate: [-2, 2, -2] } : {}}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -left-1 top-3"
+          >
+            <div className={`${sizes.leaf} bg-gradient-to-br from-green-400 to-emerald-500 rounded-full -rotate-45 shadow-lg border-2 border-green-300/50`} />
+          </motion.div>
+          
+          <motion.div
+            animate={animate ? { rotate: [2, -2, 2] } : {}}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+            className="absolute -right-1 top-3"
+          >
+            <div className={`${sizes.leaf} bg-gradient-to-bl from-green-400 to-emerald-500 rounded-full rotate-45 shadow-lg border-2 border-green-300/50`} />
+          </motion.div>
+          
+          {/* Main bud body */}
+          <div className="relative z-10">
+            {/* Outer petals/bud leaves */}
+            <div className="absolute inset-0">
+              {[0, 72, 144, 216, 288].map((rotation, i) => (
+                <motion.div
+                  key={i}
+                  animate={animate ? { scale: [1, 1.05, 1] } : {}}
+                  transition={{ 
+                    duration: 2,
+                    repeat: Infinity,
+                    delay: i * 0.2,
+                    ease: 'easeInOut'
+                  }}
+                  style={{ 
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: `translate(-50%, -50%) rotate(${rotation}deg) translateY(-${size === 'sm' ? '14' : size === 'md' ? '16' : size === 'lg' ? '18' : '22'}px)`,
+                    transformOrigin: 'center'
+                  }}
+                >
+                  <div className={`${sizes.petal} bg-gradient-to-b ${colors.petals} rounded-full shadow-md border border-pink-300/40`} />
+                </motion.div>
+              ))}
+            </div>
+            
+            {/* Main face sphere */}
+            <div className={`relative ${sizes.face} bg-gradient-to-br ${colors.face} rounded-full shadow-xl flex items-center justify-center border-3 border-white/60`}>
+              {/* Cute face */}
+              <div className="relative">
+                {/* Eyes */}
+                {renderEyes()}
                 
-                {/* Mouth */}
-                {renderMouth()}
-                
-                {/* Right cheek */}
-                <div className={`${size === 'sm' ? 'w-1.5 h-1' : 'w-2 h-1.5'} bg-pink-400/60 dark:bg-pink-500/60 rounded-full`} />
+                {/* Smile with rosy cheeks */}
+                <div className="flex items-center gap-2 justify-center">
+                  {/* Left cheek */}
+                  <div className={`${size === 'sm' ? 'w-1.5 h-1' : 'w-2 h-1.5'} bg-pink-400/60 dark:bg-pink-500/60 rounded-full`} />
+                  
+                  {/* Mouth */}
+                  {renderMouth()}
+                  
+                  {/* Right cheek */}
+                  <div className={`${size === 'sm' ? 'w-1.5 h-1' : 'w-2 h-1.5'} bg-pink-400/60 dark:bg-pink-500/60 rounded-full`} />
+                </div>
               </div>
             </div>
           </div>
+          
+          {/* Sparkles and accessories */}
+          {renderAccessory()}
         </div>
-        
-        {/* Sparkles and accessories */}
-        {renderAccessory()}
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }

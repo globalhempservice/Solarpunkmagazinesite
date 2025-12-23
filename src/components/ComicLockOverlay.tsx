@@ -6,6 +6,9 @@ interface ComicLockOverlayProps {
 }
 
 export function ComicLockOverlay({ articlesNeeded }: ComicLockOverlayProps) {
+  // Ensure articlesNeeded is a valid number
+  const validArticlesNeeded = Number.isFinite(articlesNeeded) ? Math.max(0, articlesNeeded) : 0
+  
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
       {/* Dark overlay with gradient */}
@@ -90,10 +93,10 @@ export function ComicLockOverlay({ articlesNeeded }: ComicLockOverlayProps) {
             <div className="bg-white rounded-lg px-3 py-1.5 shadow-inner">
               <div className="text-center">
                 <div className="text-xl font-black text-transparent bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text">
-                  {articlesNeeded}
+                  {validArticlesNeeded}
                 </div>
                 <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider leading-tight">
-                  {articlesNeeded === 1 ? 'Article' : 'Articles'}
+                  {validArticlesNeeded === 1 ? 'Article' : 'Articles'}
                 </div>
               </div>
             </div>

@@ -10,7 +10,7 @@ interface HempForumProps {
   accessToken: string | null
   serverUrl: string
   nadaPoints?: number
-  onBack: () => void
+  onClose: () => void
   onNadaUpdate?: (newBalance: number) => void
 }
 
@@ -38,7 +38,7 @@ function NadaRippleIcon({ className = "w-6 h-6" }: { className?: string }) {
   )
 }
 
-export function HempForum({ userId, accessToken, serverUrl, nadaPoints, onBack, onNadaUpdate }: HempForumProps) {
+export function HempForum({ userId, accessToken, serverUrl, nadaPoints, onClose, onNadaUpdate }: HempForumProps) {
   const [showVotingModal, setShowVotingModal] = useState(false)
   const [showSubmitIdeaModal, setShowSubmitIdeaModal] = useState(false)
 
@@ -49,14 +49,6 @@ export function HempForum({ userId, accessToken, serverUrl, nadaPoints, onBack, 
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23059669' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         backgroundSize: '80px 80px'
       }} />
-
-      {/* Back Button */}
-      <button
-        onClick={onBack}
-        className="fixed top-6 left-6 z-[10000] p-3 rounded-2xl bg-gradient-to-br from-purple-500/90 to-indigo-500/90 backdrop-blur-sm hover:from-purple-400 hover:to-indigo-400 transition-all group border-2 border-purple-300/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] hover:scale-110 active:scale-95"
-      >
-        <ArrowLeft className="w-5 h-5 text-white" strokeWidth={3} />
-      </button>
 
       {/* Content Container */}
       <div className="relative max-w-6xl mx-auto px-6 py-24 pb-32">

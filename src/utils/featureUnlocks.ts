@@ -1,6 +1,7 @@
 /**
  * Feature Unlock System
- * Features are unlocked by achieving reading milestones
+ * UPDATED: Features now unlock based on USER LEVEL (gamification system)
+ * instead of raw article counts for better progression
  */
 
 export type FeatureId = 
@@ -15,7 +16,7 @@ export interface FeatureUnlock {
   name: string
   description: string
   icon: string
-  requiredArticles: number
+  requiredLevel: number  // Changed from requiredArticles to requiredLevel
   achievementId: string
 }
 
@@ -25,7 +26,7 @@ export const FEATURE_UNLOCKS: Record<FeatureId, FeatureUnlock> = {
     name: 'Swipe Mode',
     description: 'Discover articles Tinder-style',
     icon: '🎯',
-    requiredArticles: 5,
+    requiredLevel: 1,  // Unlocked at Level 1 (everyone has access)
     achievementId: 'reader-5'
   },
   'article-sharing': {
@@ -33,7 +34,7 @@ export const FEATURE_UNLOCKS: Record<FeatureId, FeatureUnlock> = {
     name: 'Article Sharing',
     description: 'Share articles with friends',
     icon: '🔗',
-    requiredArticles: 10,
+    requiredLevel: 1,  // Unlocked at Level 1 (everyone has access)
     achievementId: 'reader-10'
   },
   'article-creation': {
@@ -41,7 +42,7 @@ export const FEATURE_UNLOCKS: Record<FeatureId, FeatureUnlock> = {
     name: 'Article Creation',
     description: 'Write & import your own articles',
     icon: '✍️',
-    requiredArticles: 25,
+    requiredLevel: 1,  // REMOVED: Now unlocked for everyone at Level 1
     achievementId: 'reader-25'
   },
   'reading-analytics': {
@@ -49,7 +50,7 @@ export const FEATURE_UNLOCKS: Record<FeatureId, FeatureUnlock> = {
     name: 'Reading Analytics',
     description: 'View detailed stats & history',
     icon: '📊',
-    requiredArticles: 50,
+    requiredLevel: 1,  // Unlocked at Level 1 (everyone has access)
     achievementId: 'reader-50'
   },
   'theme-customization': {
@@ -57,61 +58,62 @@ export const FEATURE_UNLOCKS: Record<FeatureId, FeatureUnlock> = {
     name: 'Theme Customization',
     description: 'Unlock all custom themes',
     icon: '🎨',
-    requiredArticles: 100,
+    requiredLevel: 1,  // Unlocked at Level 1 (premium themes available in shop)
     achievementId: 'reader-100'
   }
 }
 
 /**
- * Check if a feature is unlocked based on user progress
+ * Check if a feature is unlocked based on user level
+ * NEW: Uses level instead of article count
  */
 export function isFeatureUnlocked(
   featureId: FeatureId,
-  totalArticlesRead: number
+  userLevel: number
 ): boolean {
   const feature = FEATURE_UNLOCKS[featureId]
-  return totalArticlesRead >= feature.requiredArticles
+  return userLevel >= feature.requiredLevel
 }
 
 /**
  * Get all unlocked features
  */
-export function getUnlockedFeatures(totalArticlesRead: number): FeatureId[] {
+export function getUnlockedFeatures(userLevel: number): FeatureId[] {
   return Object.keys(FEATURE_UNLOCKS).filter(id =>
-    isFeatureUnlocked(id as FeatureId, totalArticlesRead)
+    isFeatureUnlocked(id as FeatureId, userLevel)
   ) as FeatureId[]
 }
 
 /**
  * Get all locked features with progress
  */
-export function getLockedFeatures(totalArticlesRead: number): Array<{
+export function getLockedFeatures(userLevel: number): Array<{
   feature: FeatureUnlock
   progress: number
-  articlesNeeded: number
+  levelsNeeded: number
 }> {
   return Object.values(FEATURE_UNLOCKS)
-    .filter(feature => !isFeatureUnlocked(feature.id, totalArticlesRead))
+    .filter(feature => !isFeatureUnlocked(feature.id, userLevel))
     .map(feature => ({
       feature,
-      progress: Math.min((totalArticlesRead / feature.requiredArticles) * 100, 100),
-      articlesNeeded: feature.requiredArticles - totalArticlesRead
+      progress: Math.min((userLevel / feature.requiredLevel) * 100, 100),
+      levelsNeeded: feature.requiredLevel - userLevel
     }))
 }
 
 /**
  * Get the next feature to unlock
  */
-export function getNextFeatureToUnlock(totalArticlesRead: number): {
+export function getNextFeatureToUnlock(userLevel: number): {
   feature: FeatureUnlock
   progress: number
-  articlesNeeded: number
+  levelsNeeded: number
 } | null {
-  const locked = getLockedFeatures(totalArticlesRead)
+  const locked = getLockedFeatures(userLevel)
   if (locked.length === 0) return null
   
   // Return the closest locked feature
   return locked.reduce((closest, current) =>
-    current.articlesNeeded < closest.articlesNeeded ? current : closest
+    current.levelsNeeded < closest.levelsNeeded ? current : closest
   )
 }

@@ -28,6 +28,7 @@ interface CommunityMarketLoaderProps {
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   marketUnlocked?: boolean
+  autoOpenOrganizations?: boolean
 }
 
 export function CommunityMarketLoader(props: CommunityMarketLoaderProps) {

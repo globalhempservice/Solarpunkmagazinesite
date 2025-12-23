@@ -227,8 +227,8 @@ export function AddPlaceModal({
       console.log('✅ Place created:', place)
 
       toast.success('🎉 Place added successfully!')
+      onPlaceAdded?.(place)
       handleClose()
-      onPlaceAdded?.()
 
     } catch (error: any) {
       console.error('❌ Error creating place:', error)
@@ -242,17 +242,17 @@ export function AddPlaceModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Covers everything including navbars */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.5 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black z-50"
-            onClick={handleClose}
+            className="fixed inset-0 bg-black z-[10000]"
+            onClick={onClose}
           />
 
-          {/* Modal */}
+          {/* Modal - Above backdrop and navbars */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -262,19 +262,23 @@ export function AddPlaceModal({
               damping: 25,
               stiffness: 300
             }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[10001] flex items-center justify-center p-4 overflow-y-auto"
+            style={{
+              paddingTop: 'max(16px, env(safe-area-inset-top))',
+              paddingBottom: 'max(16px, env(safe-area-inset-bottom))'
+            }}
           >
-            <div className="w-full max-w-2xl max-h-[90vh] bg-gradient-to-br from-slate-900/95 to-slate-950/95 backdrop-blur-xl border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-purple-500/20 flex flex-col">
+            <div className="w-full max-w-2xl max-h-[90vh] bg-gradient-to-br from-slate-900/95 to-slate-950/95 backdrop-blur-xl border border-emerald-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-emerald-500/20 flex flex-col">
               {/* Header */}
-              <div className="relative flex items-center justify-between p-6 border-b border-purple-500/20 bg-gradient-to-r from-purple-900/20 to-violet-900/20">
+              <div className="relative flex items-center justify-between p-6 border-b border-emerald-500/20 bg-gradient-to-r from-emerald-900/20 to-teal-900/20">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
                     <MapPin className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">Add Your Place</h2>
-                    <p className="text-sm text-purple-300">
-                      {step === 'intro' && 'Get started'}
+                    <h2 className="text-xl font-bold text-white">Add Place</h2>
+                    <p className="text-sm text-emerald-300">
+                      {step === 'intro' && 'Share your favorite hemp farm, shop, facility, or dispensary with the global community'}
                       {step === 'basic' && 'Step 1: Basic Info'}
                       {step === 'category' && 'Step 2: Category'}
                       {step === 'details' && 'Step 3: Details'}
@@ -296,55 +300,43 @@ export function AddPlaceModal({
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="space-y-6"
+                    className="space-y-4"
                   >
-                    {/* Welcome Message */}
-                    <div className="text-center space-y-3">
-                      <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center border border-purple-500/30">
-                        <Sparkles className="w-10 h-10 text-purple-400" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-white">
-                        Let's add your place to the map
-                      </h3>
-                      <p className="text-slate-400 max-w-md mx-auto">
-                        Share your hemp farm, shop, facility, or dispensary with the global community
-                      </p>
-                    </div>
-
                     {/* Quick Info Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                      <div className="p-4 bg-gradient-to-br from-cyan-500/10 to-cyan-600/10 border border-cyan-500/30 rounded-xl">
-                        <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-2">
-                          <span className="text-cyan-400 font-bold">1</span>
-                        </div>
-                        <h4 className="font-semibold text-white text-sm mb-1">Basic Info</h4>
-                        <p className="text-xs text-slate-400">Name & location</p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-500/30 rounded-xl">
-                        <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
-                          <span className="text-purple-400 font-bold">2</span>
-                        </div>
-                        <h4 className="font-semibold text-white text-sm mb-1">Details</h4>
-                        <p className="text-xs text-slate-400">Category & type</p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-br from-pink-500/10 to-pink-600/10 border border-pink-500/30 rounded-xl">
-                        <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center mb-2">
-                          <span className="text-pink-400 font-bold">3</span>
-                        </div>
-                        <h4 className="font-semibold text-white text-sm mb-1">Review</h4>
-                        <p className="text-xs text-slate-400">Confirm & submit</p>
-                      </div>
-                    </div>
-
-                    {/* Get Started Button */}
-                    <div className="flex justify-center pt-4">
-                      <Button
+                    <div className="grid grid-cols-1 gap-4">
+                      <div 
                         onClick={() => setStep('basic')}
-                        className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white px-8 py-6 text-lg gap-2 shadow-lg shadow-purple-500/30"
+                        className="p-6 bg-gradient-to-br from-cyan-500/10 to-cyan-600/10 border border-cyan-500/30 rounded-xl cursor-pointer hover:border-cyan-500/50 transition-all group"
                       >
-                        Get Started
-                        <ChevronRight className="w-5 h-5" />
-                      </Button>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                            <span className="text-cyan-400 font-bold text-lg">1</span>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                        <h4 className="font-semibold text-white mb-1">Basic Info</h4>
+                        <p className="text-sm text-slate-400">Name & location</p>
+                      </div>
+                      
+                      <div className="p-6 bg-gradient-to-br from-emerald-500/10 to-teal-600/10 border border-emerald-500/30 rounded-xl opacity-60">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                            <span className="text-emerald-400 font-bold text-lg">2</span>
+                          </div>
+                        </div>
+                        <h4 className="font-semibold text-white mb-1">Details</h4>
+                        <p className="text-sm text-slate-400">Category & type</p>
+                      </div>
+                      
+                      <div className="p-6 bg-gradient-to-br from-pink-500/10 to-pink-600/10 border border-pink-500/30 rounded-xl opacity-60">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                            <span className="text-pink-400 font-bold text-lg">3</span>
+                          </div>
+                        </div>
+                        <h4 className="font-semibold text-white mb-1">Review</h4>
+                        <p className="text-sm text-slate-400">Confirm & submit</p>
+                      </div>
                     </div>
                   </motion.div>
                 ) : step === 'basic' ? (
@@ -376,7 +368,7 @@ export function AddPlaceModal({
                           }}
                           placeholder="https://maps.google.com/..."
                           disabled={parsingUrl}
-                          className="flex-1 px-4 py-3 bg-slate-800/80 border border-purple-500/30 rounded-xl text-white placeholder:text-slate-500 focus:border-purple-500/60 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50"
+                          className="flex-1 px-4 py-3 bg-slate-800/80 border border-emerald-500/30 rounded-xl text-white placeholder:text-slate-500 focus:border-emerald-500/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50"
                         />
                         <Button
                           onClick={handleParseGoogleMapsUrl}
@@ -413,7 +405,7 @@ export function AddPlaceModal({
                           value={formData.name}
                           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="e.g., Green Valley Hemp Farm"
-                          className="w-full px-4 py-3 bg-slate-800/80 border border-purple-500/30 rounded-xl text-white placeholder:text-slate-500 focus:border-purple-500/60 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                          className="w-full px-4 py-3 bg-slate-800/80 border border-emerald-500/30 rounded-xl text-white placeholder:text-slate-500 focus:border-emerald-500/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                         />
                       </div>
 
@@ -427,7 +419,7 @@ export function AddPlaceModal({
                           value={formData.address}
                           onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                           placeholder="e.g., 123 Hemp Street"
-                          className="w-full px-4 py-3 bg-slate-800/80 border border-purple-500/30 rounded-xl text-white placeholder:text-slate-500 focus:border-purple-500/60 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                          className="w-full px-4 py-3 bg-slate-800/80 border border-emerald-500/30 rounded-xl text-white placeholder:text-slate-500 focus:border-emerald-500/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                         />
                       </div>
 
@@ -484,18 +476,40 @@ export function AddPlaceModal({
                         </p>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-3">
                         {CATEGORIES.map(category => (
                           <div
                             key={category.value}
-                            className={`p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-purple-500/30 rounded-xl cursor-pointer ${formData.category === category.value ? 'ring-2 ring-purple-500/60' : ''}`}
+                            className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
+                              formData.category === category.value 
+                                ? 'bg-gradient-to-br from-emerald-600/40 to-teal-600/40 border-emerald-400 ring-2 ring-emerald-400/50 shadow-lg shadow-emerald-500/30' 
+                                : 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-emerald-500/30 hover:border-emerald-500/50'
+                            }`}
                             onClick={() => setFormData(prev => ({ ...prev, category: category.value }))}
                           >
-                            <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
-                              <category.icon className="w-5 h-5 text-purple-400" />
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              formData.category === category.value
+                                ? 'bg-emerald-400/30'
+                                : 'bg-emerald-500/20'
+                            }`}>
+                              <category.icon className={`w-6 h-6 ${
+                                formData.category === category.value
+                                  ? 'text-emerald-300'
+                                  : 'text-emerald-400'
+                              }`} />
                             </div>
-                            <h4 className="font-semibold text-white text-sm mb-1">{category.label}</h4>
-                            <p className="text-xs text-slate-400">{category.description}</p>
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`font-semibold text-sm ${
+                                formData.category === category.value
+                                  ? 'text-emerald-100'
+                                  : 'text-white'
+                              }`}>{category.label}</h4>
+                              <p className={`text-xs ${
+                                formData.category === category.value
+                                  ? 'text-emerald-200'
+                                  : 'text-slate-400'
+                              }`}>{category.description}</p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -522,14 +536,31 @@ export function AddPlaceModal({
                         {TYPES_BY_CATEGORY[formData.category].map(type => (
                           <div
                             key={type}
-                            className={`p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-purple-500/30 rounded-xl cursor-pointer ${formData.type === type ? 'ring-2 ring-purple-500/60' : ''}`}
+                            className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
+                              formData.type === type 
+                                ? 'bg-gradient-to-br from-purple-600/40 to-violet-600/40 border-purple-400 ring-2 ring-purple-400/50 shadow-lg shadow-purple-500/30' 
+                                : 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-purple-500/30 hover:border-purple-500/50'
+                            }`}
                             onClick={() => setFormData(prev => ({ ...prev, type: type }))}
                           >
-                            <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
-                              <FileText className="w-5 h-5 text-purple-400" />
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              formData.type === type
+                                ? 'bg-purple-400/30'
+                                : 'bg-purple-500/20'
+                            }`}>
+                              <FileText className={`w-6 h-6 ${
+                                formData.type === type
+                                  ? 'text-purple-300'
+                                  : 'text-purple-400'
+                              }`} />
                             </div>
-                            <h4 className="font-semibold text-white text-sm mb-1">{type.replace('_', ' ')}</h4>
-                            <p className="text-xs text-slate-400">Type description</p>
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`font-semibold text-sm capitalize ${
+                                formData.type === type
+                                  ? 'text-purple-100'
+                                  : 'text-white'
+                              }`}>{type.replace(/_/g, ' ')}</h4>
+                            </div>
                           </div>
                         ))}
                       </div>

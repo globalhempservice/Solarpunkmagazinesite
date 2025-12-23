@@ -289,26 +289,13 @@ export function HomeCards({
         whileHover={{ scale: 1.03, rotate: 1 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => {
-          const totalRead = userProgress?.totalArticlesRead || 0
-          const createUnlocked = isFeatureUnlocked('article-creation', totalRead)
-          
-          if (!createUnlocked) {
-            onFeatureUnlock?.('article-creation')
-            return
-          }
-          
+          // NEW: Everyone has access to article creation (Level 1+)
+          // No lock overlay needed in gamified system
           onNavigateToEditor?.()
         }}
         className="group relative bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 rounded-3xl p-6 border-4 border-emerald-300/50 shadow-[0_10px_0_rgba(0,0,0,0.2),0_0_40px_rgba(16,185,129,0.5)] cursor-pointer transition-all hover:shadow-[0_12px_0_rgba(0,0,0,0.2),0_0_60px_rgba(16,185,129,0.7)] active:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-1"
-        style={{ overflow: isFeatureUnlocked('article-creation', userProgress?.totalArticlesRead || 0) ? 'hidden' : 'visible' }}
+        style={{ overflow: 'hidden' }}
       >
-        {/* Lock overlay */}
-        {!isFeatureUnlocked('article-creation', userProgress?.totalArticlesRead || 0) && (
-          <ComicLockOverlay 
-            articlesNeeded={FEATURE_UNLOCKS['article-creation'].requiredArticles - (userProgress?.totalArticlesRead || 0)} 
-          />
-        )}
-
         {/* Comic dots pattern */}
         <div className="absolute inset-0 opacity-20 rounded-3xl overflow-hidden" style={{
           backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px)',

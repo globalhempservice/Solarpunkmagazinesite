@@ -100,15 +100,27 @@ export async function parseGoogleMapsUrl(url: string): Promise<GoogleMapsPlaceDa
           if (geocodeData.address) {
             const addr = geocodeData.address
             
-            // Build full address from components
+            // Build full address from components (street address, not administrative hierarchy)
             const addressParts = []
             if (addr.house_number) addressParts.push(addr.house_number)
             if (addr.road) addressParts.push(addr.road)
-            if (addr.neighbourhood) addressParts.push(addr.neighbourhood)
-            if (addr.suburb) addressParts.push(addr.suburb)
             
-            // Full address - use display_name but clean it up
-            result.address = geocodeData.display_name
+            // Build street address if we have components
+            if (addressParts.length > 0) {
+              // Add neighborhood/suburb for context
+              const streetAddress = addressParts.join(' ')
+              const contextParts = [streetAddress]
+              
+              // Add suburb/neighbourhood for more context (but not full administrative hierarchy)
+              if (addr.suburb) contextParts.push(addr.suburb)
+              else if (addr.neighbourhood) contextParts.push(addr.neighbourhood)
+              
+              result.address = contextParts.join(', ')
+            } else {
+              // Fallback: Use display_name but try to extract just the relevant parts
+              // Remove country, postal code, and state from display_name to get a cleaner address
+              result.address = geocodeData.display_name
+            }
             
             // City - try multiple fields in order of preference
             result.city = addr.city || addr.town || addr.village || addr.municipality || addr.county || addr.locality || addr.state_district
@@ -159,7 +171,7 @@ export async function parseGoogleMapsUrl(url: string): Promise<GoogleMapsPlaceDa
     
     // Step 6: Try to fetch place details from the actual page (scraping)
     // This is a fallback for when we can't get data from coordinates
-    if (!result.name || !result.city) {
+    if (!result.name || !result.city || !result.address || result.address.length < 20) {
       console.log('🕷️ Attempting to scrape page for more details...')
       try {
         const pageResponse = await fetch(fullUrl, {
@@ -188,12 +200,46 @@ export async function parseGoogleMapsUrl(url: string): Promise<GoogleMapsPlaceDa
             }
           }
           
+          // Try to extract the full address that Google Maps displays
+          // Google Maps shows the full address in various places in the HTML
+          // Look for address patterns in the page
+          const addressMatch = html.match(/\\"address\\":\\"([^"]+)\\"/) || 
+                             html.match(/data-item-id=\\"address\\"[^>]*>([^<]+)</) ||
+                             html.match(/"formattedAddress":"([^"]+)"/)
+          
+          if (addressMatch && addressMatch[1]) {
+            const scrapedAddress = addressMatch[1].replace(/\\u[\dA-F]{4}/gi, (match) => 
+              String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16))
+            )
+            
+            // Only use scraped address if it's more detailed than what we have
+            if (!result.address || scrapedAddress.length > result.address.length) {
+              result.address = scrapedAddress
+              console.log('🏠 Address from page scraping:', result.address)
+            }
+          }
+          
           // Try to extract address from structured data
           const jsonLdMatch = html.match(/<script type="application\/ld\+json">(\{[^<]+\})<\/script>/)
           if (jsonLdMatch) {
             try {
               const jsonData = JSON.parse(jsonLdMatch[1])
+              
+              // Check for streetAddress in structured data
               if (jsonData.address) {
+                // Try to build a complete address from structured data
+                if (jsonData.address.streetAddress) {
+                  const addressParts = [jsonData.address.streetAddress]
+                  if (jsonData.address.addressLocality) addressParts.push(jsonData.address.addressLocality)
+                  const structuredAddress = addressParts.join(', ')
+                  
+                  // Use if more detailed than current address
+                  if (!result.address || structuredAddress.length > result.address.length) {
+                    result.address = structuredAddress
+                    console.log('🏠 Address from JSON-LD streetAddress:', result.address)
+                  }
+                }
+                
                 if (jsonData.address.addressLocality) result.city = jsonData.address.addressLocality
                 if (jsonData.address.addressRegion) result.state_province = jsonData.address.addressRegion
                 if (jsonData.address.addressCountry) result.country = jsonData.address.addressCountry

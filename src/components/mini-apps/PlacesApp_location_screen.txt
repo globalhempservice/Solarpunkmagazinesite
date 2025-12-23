@@ -1,0 +1,221 @@
+    // Location Request Screen
+    if (currentScreen === 'location-request') {
+      const countryList = ['United States', 'France', 'Thailand', 'Canada', 'Portugal', 'Spain', 'Germany', 'Italy', 'Netherlands', 'Belgium']
+
+      return (
+        <motion.div
+          key="location-request"
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -100 }}
+          className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8"
+        >
+          {/* Navigation Header - Back & Close Buttons */}
+          <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-50">
+            {/* Back Button - Top Left */}
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.1, x: -5 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => {
+                setCurrentScreen('welcome')
+                setSearchPath(null)
+                setBudMessage('Hey there! Looking for hemp places?')
+              }}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600/80 to-teal-600/80 hover:from-emerald-500 hover:to-teal-500 border-2 border-emerald-400/40 backdrop-blur-sm shadow-lg hover:shadow-xl hover:shadow-emerald-500/40 transition-all flex items-center justify-center"
+              title="Back"
+            >
+              <svg 
+                className="w-5 h-5 text-white" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2.5} 
+                  d="M15 19l-7-7 7-7" 
+                />
+              </svg>
+            </motion.button>
+
+            {/* Close Button - Top Right */}
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600/80 to-teal-600/80 hover:from-emerald-500 hover:to-teal-500 border-2 border-emerald-400/40 backdrop-blur-sm shadow-lg hover:shadow-xl hover:shadow-emerald-500/40 transition-all flex items-center justify-center"
+              title="Close Places"
+            >
+              <svg 
+                className="w-5 h-5 text-white" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2.5} 
+                  d="M6 18L18 6M6 6l12 12" 
+                />
+              </svg>
+            </motion.button>
+          </div>
+
+          {/* Main Content */}
+          <div className="w-full max-w-md flex flex-col items-center">
+            {/* BUD Message - Only if helpful */}
+            {isDetectingLocation && (
+              <div className="mb-8">
+                <div className="flex items-center gap-4 bg-gradient-to-br from-pink-100/10 via-rose-100/10 to-pink-100/10 dark:from-pink-900/20 dark:via-rose-900/20 dark:to-pink-100/10 backdrop-blur-xl border-2 border-pink-400/40 rounded-2xl p-4 shadow-xl">
+                  <BudCharacter size="md" expression="thinking" mood="default" animate={true} className="flex-shrink-0" />
+                  <p className="text-white font-medium">Detecting your location...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Location Icon */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="mb-8"
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-2xl" />
+                <div className="relative bg-gradient-to-br from-cyan-500/20 to-teal-500/20 p-8 rounded-full border-2 border-cyan-400/30">
+                  <MapPin className="w-16 h-16 text-cyan-400" />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Title */}
+            <motion.h2
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-3xl font-bold text-white mb-3 text-center"
+            >
+              Find Places Nearby
+            </motion.h2>
+
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-slate-300 text-center mb-8"
+            >
+              {isDetectingLocation 
+                ? 'Detecting your location...' 
+                : detectedLocation 
+                ? 'Location detected! Click Go to see nearby places.' 
+                : 'Select your country to find places near you.'
+              }
+            </motion.p>
+
+            {/* Location Display or Country Input */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="w-full mb-6"
+            >
+              {isDetectingLocation ? (
+                /* Loading State */
+                <div className="w-full p-6 bg-slate-900/50 border-2 border-cyan-500/30 rounded-xl flex items-center justify-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-500/20 border-t-cyan-500" />
+                </div>
+              ) : detectedLocation ? (
+                /* Location Detected - Read-only Field */
+                <div className="w-full p-6 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-2 border-emerald-400/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-6 h-6 text-emerald-400" />
+                    <div className="flex-1">
+                      <p className="text-emerald-300 text-sm">Location detected</p>
+                      <p className="text-white font-medium">{detectedLocation}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* No Location - Country Dropdown */
+                <div className="w-full">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Select your country
+                  </label>
+                  <select
+                    value={manualCountry}
+                    onChange={(e) => setManualCountry(e.target.value)}
+                    className="w-full p-4 bg-slate-900/50 border-2 border-cyan-500/30 rounded-xl text-white text-lg focus:border-cyan-500/50 focus:outline-none appearance-none cursor-pointer"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2306b6d4'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                      backgroundPosition: 'right 1rem center',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundSize: '1.5rem'
+                    }}
+                  >
+                    <option value="" className="bg-slate-900">Choose a country...</option>
+                    {countryList.map(country => (
+                      <option key={country} value={country} className="bg-slate-900">
+                        {country}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Go Button */}
+            <motion.button
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              disabled={!detectedLocation && !manualCountry}
+              onClick={() => {
+                if (detectedLocation) {
+                  // Location detected - proceed with geolocation
+                  setCurrentScreen('nearby')
+                  setBudMessage('Found some great places nearby!')
+                } else if (manualCountry) {
+                  // Manual country selected - filter by country
+                  setSelectedCountry(manualCountry)
+                  setCurrentScreen('results')
+                  setBudMessage(`Here's what I found in ${manualCountry}!`)
+                }
+              }}
+              className="w-full py-6 px-8 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white text-xl font-bold rounded-2xl shadow-2xl hover:shadow-cyan-500/50 transition-all border-2 border-cyan-400/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {isDetectingLocation ? (
+                <div className="flex items-center justify-center gap-3">
+                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-4 border-white/20 border-t-white" />
+                  <span>Detecting...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-3">
+                  <span>Go</span>
+                  <ChevronDown className="w-6 h-6 rotate-[-90deg]" />
+                </div>
+              )}
+            </motion.button>
+
+            {/* Alternative Option */}
+            {!isDetectingLocation && !detectedLocation && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="text-slate-400 text-sm text-center mt-6"
+              >
+                Allow location access in your browser for automatic detection
+              </motion.p>
+            )}
+          </div>
+        </motion.div>
+      )
+    }

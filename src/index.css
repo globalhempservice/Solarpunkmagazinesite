@@ -1714,6 +1714,10 @@
     height: 32rem;
   }
 
+  .h-\[95vh\] {
+    height: 95vh;
+  }
+
   .h-\[100vh\] {
     height: 100vh;
   }
@@ -9553,6 +9557,18 @@
     --tw-gradient-stops: var(--tw-gradient-via-stops);
   }
 
+  .via-gray-900\/95 {
+    --tw-gradient-via: color-mix(in srgb, oklch(.21 .034 264.665) 95%, transparent);
+    --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-via-stops);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .via-gray-900\/95 {
+      --tw-gradient-via: color-mix(in oklab, var(--color-gray-900) 95%, transparent);
+    }
+  }
+
   .via-green-100 {
     --tw-gradient-via: var(--color-green-100);
     --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
@@ -9947,6 +9963,18 @@
     --tw-gradient-via: var(--color-purple-900);
     --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-via-stops);
+  }
+
+  .via-purple-900\/30 {
+    --tw-gradient-via: color-mix(in srgb, oklch(.381 .176 304.987) 30%, transparent);
+    --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-via-stops);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .via-purple-900\/30 {
+      --tw-gradient-via: color-mix(in oklab, var(--color-purple-900) 30%, transparent);
+    }
   }
 
   .via-purple-900\/40 {
@@ -11419,6 +11447,17 @@
   .to-gray-800 {
     --tw-gradient-to: var(--color-gray-800);
     --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+  }
+
+  .to-gray-900\/80 {
+    --tw-gradient-to: color-mix(in srgb, oklch(.21 .034 264.665) 80%, transparent);
+    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .to-gray-900\/80 {
+      --tw-gradient-to: color-mix(in oklab, var(--color-gray-900) 80%, transparent);
+    }
   }
 
   .to-green-50 {
@@ -14199,6 +14238,10 @@
 
   .text-gray-900 {
     color: var(--color-gray-900);
+  }
+
+  .text-green-200 {
+    color: var(--color-green-200);
   }
 
   .text-green-300 {
@@ -17585,6 +17628,18 @@
   }
 
   @media (hover: hover) {
+    .hover\:border-purple-500\/40:hover {
+      border-color: color-mix(in srgb, oklch(.627 .265 303.9) 40%, transparent);
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:border-purple-500\/40:hover {
+        border-color: color-mix(in oklab, var(--color-purple-500) 40%, transparent);
+      }
+    }
+  }
+
+  @media (hover: hover) {
     .hover\:border-purple-500\/50:hover {
       border-color: color-mix(in srgb, oklch(.627 .265 303.9) 50%, transparent);
     }
@@ -19138,6 +19193,14 @@
   }
 
   @media (hover: hover) {
+    .hover\:via-pink-700:hover {
+      --tw-gradient-via: var(--color-pink-700);
+      --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
+      --tw-gradient-stops: var(--tw-gradient-via-stops);
+    }
+  }
+
+  @media (hover: hover) {
     .hover\:via-pink-800\/80:hover {
       --tw-gradient-via: color-mix(in srgb, oklch(.459 .187 3.815) 80%, transparent);
       --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
@@ -19356,6 +19419,13 @@
   @media (hover: hover) {
     .hover\:to-purple-500:hover {
       --tw-gradient-to: var(--color-purple-500);
+      --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+    }
+  }
+
+  @media (hover: hover) {
+    .hover\:to-purple-700:hover {
+      --tw-gradient-to: var(--color-purple-700);
       --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
     }
   }

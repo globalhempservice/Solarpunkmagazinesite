@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import { ProductDetailModal } from './ProductDetailModal'
 import { BadgeRequirementModal } from './BadgeRequirementModal'
 import { PurchaseModal } from './PurchaseModal'
-import { AddSwagProductModal } from './swag/swag/AddSwagProductModal'
+import { AddSwagProductModal } from './swag/AddSwagProductModal'
 
 interface SwagProduct {
   id: string

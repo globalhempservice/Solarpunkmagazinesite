@@ -20,7 +20,7 @@ import { PointsSystemPage } from './components/PointsSystemPage'
 import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
 import { FeatureUnlockModal } from './components/FeatureUnlockModal'
-import { LoadingScreen } from './components/LoadingScreen'
+// import { LoadingScreen } from './components/LoadingScreen' // Removed for faster loading
 import { SwagShopAdmin } from './components/SwagShopAdmin'
 import { ComicLockOverlay } from './components/ComicLockOverlay'
 import { ReadingAnalytics } from './components/ReadingAnalytics'
@@ -1269,10 +1269,9 @@ export default function App() {
     return matchesCategory && matchesSearch
   })
 
-  if (initializing) {
-    return <LoadingScreen message="Initializing DEWII" variant="app" />
-  }
-
+  // Skip the loading screen - show UI immediately for faster perceived performance
+  // Auth check happens in background, welcome page shows instantly
+  
   // Public pages that don't require authentication
   if (currentView === 'bud-presentation') {
     return (

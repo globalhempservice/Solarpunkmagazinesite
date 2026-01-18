@@ -38,9 +38,16 @@ export function MessageIcon({
       if (response.ok) {
         const data = await response.json()
         setUnreadCount(data.unread_count || 0)
+      } else {
+        // Silently fail on 401 - user might not be authenticated or token expired
+        if (response.status !== 401) {
+          console.warn('⚠️ Failed to fetch unread count:', response.status)
+        }
+        setUnreadCount(0)
       }
     } catch (err) {
-      console.error('Error fetching unread count:', err)
+      // Silently fail - don't spam console with errors
+      setUnreadCount(0)
     }
   }
 

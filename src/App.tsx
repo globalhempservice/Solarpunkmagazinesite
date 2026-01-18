@@ -3,7 +3,7 @@ import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
 import { ReadingSecurityTracker } from './utils/readingSecurityTracker'
 import { CommunityMarketLoader } from './components/CommunityMarketLoader'
-import { AuthForm } from './components/AuthForm'
+import { NewPremiumWelcomePage } from './components/welcome/NewPremiumWelcomePage'
 import { AppNavigation } from './components/AppNavigation'
 import { ArticleCard } from './components/ArticleCard'
 import { ArticleEditor } from './components/ArticleEditor'
@@ -196,190 +196,93 @@ export default function App() {
 
   // Check for existing session on mount
   useEffect(() => {
+    const clearAuthState = async () => {
+      setIsAuthenticated(false)
+      setAccessToken(null)
+      setUserId(null)
+      setUserEmail(null)
+      setUserProgress(null)
+      localStorage.removeItem('supabase_access_token')
+      
+      // Clear all supabase keys from localStorage
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes('supabase')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+      
+      await supabase.auth.signOut()
+    }
+    
     const checkSession = async () => {
       try {
-        console.log('🔍 Checking for existing session...')
-        
         const { data: { session }, error } = await supabase.auth.getSession()
         
-        if (error) {
-          console.error('❌ Session check error:', error.message)
-          // If it's a refresh token error, clear the session
-          if (error.message.includes('Refresh Token')) {
-            console.log('🧹 Clearing invalid session data')
-            
-            // Clear auth state IMMEDIATELY
-            setIsAuthenticated(false)
-            setAccessToken(null)
-            setUserId(null)
-            setUserEmail(null)
-            setUserProgress(null)
-            
-            // Clear token from localStorage
-            localStorage.removeItem('supabase_access_token')
-            
-            await supabase.auth.signOut()
+        if (error || !session?.access_token) {
+          // No valid session - clear any stale data and show login
+          if (error?.message.includes('Refresh Token')) {
+            await clearAuthState()
           }
           completeInitialization()
           return
         }
         
-        if (session?.access_token) {
-          console.log('✅ Session found, checking if refresh needed...')
-          console.log('🔑 Access token:', session.access_token.substring(0, 20) + '...')
-          console.log('👤 User ID:', session.user.id)
-          console.log('📧 Email:', session.user.email)
-          console.log('⏰ Expires at:', new Date(session.expires_at! * 1000).toLocaleString())
+        // Check if token is expired or about to expire
+        const expiresAt = session.expires_at || 0
+        const now = Math.floor(Date.now() / 1000)
+        const fiveMinutes = 5 * 60
+        
+        let validToken = session.access_token
+        
+        // If token is expiring soon, try to refresh it
+        if (expiresAt - now < fiveMinutes) {
+          const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
           
-          // Check if token is expired or about to expire
-          const expiresAt = session.expires_at || 0
-          const now = Math.floor(Date.now() / 1000)
-          const fiveMinutes = 5 * 60
-          
-          let validToken = session.access_token
-          
-          if (expiresAt - now < fiveMinutes) {
-            console.log('🔄 Token expired or expiring soon, attempting refresh...')
-            const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
-            
-            if (refreshError || !newSession) {
-              // Silently handle invalid refresh tokens - this is normal when tokens expire
-              if (refreshError?.message?.includes('Invalid Refresh Token') || 
-                  refreshError?.message?.includes('Refresh Token Not Found')) {
-                console.log('ℹ️ Session expired, clearing auth state')
-              } else {
-                console.warn('⚠️ Session refresh failed:', refreshError?.message)
-              }
-              
-              // Clear auth state IMMEDIATELY
-              setIsAuthenticated(false)
-              setAccessToken(null)
-              setUserId(null)
-              setUserEmail(null)
-              setUserProgress(null)
-              
-              // Clear token from localStorage
-              localStorage.removeItem('supabase_access_token')
-              
-              // Clear everything from Supabase
-              await supabase.auth.signOut()
-              
-              // Clear localStorage
-              const keysToRemove = []
-              for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i)
-                if (key && key.includes('supabase')) {
-                  keysToRemove.push(key)
-                }
-              }
-              keysToRemove.forEach(key => localStorage.removeItem(key))
-              
-              console.log('✅ Expired session cleared - user will see login screen')
-              completeInitialization()
-              return
-            }
-            
-            console.log('✅ Token refreshed successfully')
-            console.log('🔑 New access token:', newSession.access_token.substring(0, 20) + '...')
-            console.log('⏰ New expires at:', new Date(newSession.expires_at! * 1000).toLocaleString())
-            validToken = newSession.access_token
-          }
-          
-          // ============================================
-          // CRITICAL: Validate token with server before trusting it
-          // ============================================
-          try {
-            console.log('🔍 Validating token with server...')
-            const validationResponse = await fetch(`${serverUrl}/my-articles`, {
-              headers: {
-                'Authorization': `Bearer ${validToken}`
-              }
-            })
-            
-            if (!validationResponse.ok) {
-              console.error('❌ Token validation failed - session is invalid')
-              console.log('🧹 Clearing invalid session...')
-              
-              // Clear auth state IMMEDIATELY
-              setIsAuthenticated(false)
-              setAccessToken(null)
-              setUserId(null)
-              setUserEmail(null)
-              setUserProgress(null)
-              
-              // Clear token from localStorage
-              localStorage.removeItem('supabase_access_token')
-              
-              // Clear everything from Supabase
-              await supabase.auth.signOut()
-              
-              // Clear localStorage
-              const keysToRemove = []
-              for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i)
-                if (key && key.includes('supabase')) {
-                  keysToRemove.push(key)
-                }
-              }
-              keysToRemove.forEach(key => localStorage.removeItem(key))
-              
-              console.log('✅ Invalid session cleared - user will see login screen')
-              completeInitialization()
-              return
-            }
-            
-            console.log('✅ Token validated successfully with server')
-          } catch (validationError) {
-            console.error('❌ Token validation request failed:', validationError)
-            
-            // Clear auth state IMMEDIATELY
-            setIsAuthenticated(false)
-            setAccessToken(null)
-            setUserId(null)
-            setUserEmail(null)
-            setUserProgress(null)
-            
-            // Clear token from localStorage
-            localStorage.removeItem('supabase_access_token')
-            
-            // Network error - clear session to be safe
-            await supabase.auth.signOut()
+          if (refreshError || !newSession) {
+            // Refresh failed - session is truly expired
+            await clearAuthState()
             completeInitialization()
             return
           }
           
-          // Token is valid - set auth state
-          setAccessToken(validToken)
-          setUserId(session.user.id)
-          setUserEmail(session.user.email)
-          setIsAuthenticated(true)
-          
-          // Store token in localStorage for components that need it
-          localStorage.setItem('supabase_access_token', validToken)
-        } else {
-          console.log('ℹ️ No active session found')
+          validToken = newSession.access_token
         }
+        
+        // Quick server validation to ensure token is actually valid
+        try {
+          const validationResponse = await fetch(`${serverUrl}/my-articles`, {
+            headers: { 'Authorization': `Bearer ${validToken}` }
+          })
+          
+          if (!validationResponse.ok) {
+            // Server rejected token - clear and show login
+            await clearAuthState()
+            completeInitialization()
+            return
+          }
+        } catch (err) {
+          // Network error - proceed with local session
+          // (Server might be temporarily down, don't block user)
+        }
+        
+        // Success! Set auth state
+        setAccessToken(validToken)
+        setUserId(session.user.id)
+        setUserEmail(session.user.email)
+        setIsAuthenticated(true)
+        localStorage.setItem('supabase_access_token', validToken)
+        
+        completeInitialization()
       } catch (error: any) {
-        console.error('❌ Error checking session:', error.message)
-        
-        // Clear auth state IMMEDIATELY
-        setIsAuthenticated(false)
-        setAccessToken(null)
-        setUserId(null)
-        setUserEmail(null)
-        setUserProgress(null)
-        
-        // Clear token from localStorage
-        localStorage.removeItem('supabase_access_token')
-        
-        // Clear any corrupted session data
-        await supabase.auth.signOut()
-      } finally {
+        console.error('❌ Session check error:', error)
         completeInitialization()
       }
     }
     
-    // FIRST: Check if URL contains recovery token - do this BEFORE everything else
+    // Check for recovery token in URL (password reset flow)
     const hash = window.location.hash
     if (hash) {
       const params = new URLSearchParams(hash.substring(1))
@@ -414,33 +317,24 @@ export default function App() {
     checkSession()
     
     // Set up auth state change listener for automatic token refresh
-    console.log('👂 Setting up auth state listener...')
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔔 Auth state changed:', event)
-      
       // CRITICAL: Don't update auth state during initialization
       // The checkSession function handles auth state during init
       if (isInitializingRef.current) {
-        console.log('⏳ Still initializing - skipping auth state update from listener')
         return
       }
       
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.access_token) {
-          console.log('✅ Auth state: Token updated')
-          console.log('🔑 New access token:', session.access_token.substring(0, 20) + '...')
-          console.log('⏰ New expires at:', new Date(session.expires_at! * 1000).toLocaleString())
-          
+          // Silently update auth state (logging removed for cleaner console)
           setAccessToken(session.access_token)
           setUserId(session.user.id)
           setUserEmail(session.user.email)
           setIsAuthenticated(true)
-          
-          // Store token in localStorage for components that need it
           localStorage.setItem('supabase_access_token', session.access_token)
         }
       } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
-        console.log('👋 Auth state:', event === 'SIGNED_OUT' ? 'User signed out' : 'Token refresh failed')
+        // Silently clear auth state
         setAccessToken(null)
         setUserId(null)
         setUserEmail(null)
@@ -450,13 +344,11 @@ export default function App() {
         // Clear token from localStorage
         localStorage.removeItem('supabase_access_token')
       } else if (event === 'USER_UPDATED') {
-        console.log('🔄 Auth state: User updated')
+        // Silently update user data
         if (session?.access_token) {
           setAccessToken(session.access_token)
           setUserId(session.user.id)
           setUserEmail(session.user.email)
-          
-          // Store token in localStorage for components that need it
           localStorage.setItem('supabase_access_token', session.access_token)
         }
       }
@@ -476,12 +368,10 @@ export default function App() {
     }
   }, [])
 
-  // Fetch PUBLIC articles on mount (no auth required)
-  useEffect(() => {
-    console.log('🎬 Initial mount: Fetching public articles')
-    fetchArticles()
-  }, []) // Run once on mount
-
+  // Fetch PUBLIC articles - LAZY LOADED (only when needed by ArticleReader, ReadingHistory, etc.)
+  // REMOVED automatic fetching on mount to prevent unnecessary database queries
+  // Articles will be loaded on-demand when user navigates to views that need them
+  
   // Fetch user-specific data when authenticated (but not during initialization)
   useEffect(() => {
     if (isAuthenticated && userId && accessToken && !initializing) {
@@ -490,8 +380,7 @@ export default function App() {
       fetchUserArticles()
       fetchUserBadges()
       checkForNewDiscoveryMatches()
-      // Re-fetch articles to get user-specific data (like if they've read them)
-      fetchArticles()
+      // REMOVED: Articles now loaded on-demand only when needed
     }
   }, [isAuthenticated, userId, accessToken, initializing])
 
@@ -505,6 +394,18 @@ export default function App() {
 
     return () => clearInterval(interval)
   }, [isAuthenticated, userId, accessToken])
+
+  // Lazy load articles only when needed by specific views
+  useEffect(() => {
+    const viewsNeedingArticles = ['article', 'reading-history', 'reading-analytics']
+    
+    // Only fetch if we're in a view that needs articles AND we don't have any yet
+    if (viewsNeedingArticles.includes(currentView) && articles.length === 0) {
+      console.log(`📰 Lazy loading articles for view: ${currentView}`)
+      fetchArticles()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView]) // fetchArticles causes unnecessary re-renders, so we intentionally omit it
 
   // Apply theme globally when user progress loads or theme changes
   useEffect(() => {
@@ -595,41 +496,76 @@ export default function App() {
         .from('user_progress_complete')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
       if (progressError) {
         console.error('❌ Error fetching unified progress:', progressError)
       }
 
+      // If no unified progress exists, this is a new user - we'll initialize it
+      if (!progressData) {
+        console.log('📝 No unified progress found for user, will use defaults and initialize')
+      }
+
       // Also fetch old user_progress fields for market/NADA/banner
-      const response = await fetch(`${serverUrl}/users/${userId}/progress`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
+      // This endpoint is public, so only send auth if we have a valid user token
+      const headers: Record<string, string> = {}
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`
+      }
+      
+      const response = await fetch(`${serverUrl}/users/${userId}/progress`, { headers })
+
+      let mergedProgress: any = {
+        userId,
+        totalArticlesRead: 0,
+        points: 0,
+        xp: 0,
+        level: 1,
+        currentStreak: 0,
+        longestStreak: 0,
+        achievements: [],
+        readArticles: [],
+        lastReadDate: null
+      }
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Merge unified gamification data with existing progress
+        mergedProgress = {
+          ...data.progress,
+          // Override with unified gamification data if available
+          ...(progressData && {
+            level: progressData.user_level || 1,
+            currentXP: progressData.current_xp || 0,
+            totalXP: progressData.total_xp || 0,
+            points: progressData.total_points || 0,
+            totalArticlesRead: progressData.articles_read || 0,
+            currentStreak: progressData.current_streak || 0,
+            longestStreak: progressData.longest_streak || 0,
+          })
         }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user progress')
-      }
-
-      const data = await response.json()
-      
-      // Merge unified gamification data with existing progress
-      const mergedProgress = {
-        ...data.progress,
-        // Override with unified gamification data if available
-        ...(progressData && {
-          level: progressData.user_level || 1,
-          currentXP: progressData.current_xp || 0,
-          totalXP: progressData.total_xp || 0,
-          points: progressData.total_points || 0,
-          totalArticlesRead: progressData.articles_read || 0,
-          currentStreak: progressData.current_streak || 0,
-          longestStreak: progressData.longest_streak || 0,
-        })
+      } else {
+        // If request failed, use only progressData if available
+        if (progressData) {
+          mergedProgress = {
+            userId,
+            level: progressData.user_level || 1,
+            currentXP: progressData.current_xp || 0,
+            totalXP: progressData.total_xp || 0,
+            points: progressData.total_points || 0,
+            totalArticlesRead: progressData.articles_read || 0,
+            currentStreak: progressData.current_streak || 0,
+            longestStreak: progressData.longest_streak || 0,
+            achievements: [],
+            readArticles: [],
+            lastReadDate: null
+          }
+        }
       }
       
-      console.log('✅ User progress fetched:', {
+      console.log('✅ User progress loaded:', {
         level: mergedProgress.level,
         currentXP: mergedProgress.currentXP,
         totalXP: mergedProgress.totalXP,
@@ -1350,7 +1286,10 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <>
-        <AuthForm onLogin={handleLogin} onSignup={handleSignup} />
+        <NewPremiumWelcomePage 
+          onLogin={handleLogin} 
+          onSignup={handleSignup}
+        />
         
         {/* Reset Password Modal - Shows even when not authenticated if recovery token is present */}
         {showResetPasswordModal && resetToken && (
@@ -1698,7 +1637,9 @@ export default function App() {
             <MagApp
               userId={userId}
               accessToken={accessToken}
+              userProgress={userProgress}
               onClose={() => setCurrentView('feed')}
+              onProgressUpdate={(progress) => setUserProgress(progress)}
             />
           )}
 

@@ -1,7 +1,7 @@
 
-  # Solarpunk Magazine Site
+  # HEMP'IN - your gate to good future
 
-  This is a code bundle for Solarpunk Magazine Site. The original project is available at https://www.figma.com/design/qnNpeFhr2zFkMpUslRohHf/Solarpunk-Magazine-Site.
+  This is a code bundle for HEMP'IN - your gate to good future. The original project is available at https://www.figma.com/design/qnNpeFhr2zFkMpUslRohHf/HEMP-IN---your-gate-to-good-future.
 
   ## Running the code
 

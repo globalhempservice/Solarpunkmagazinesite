@@ -251,14 +251,53 @@ export function AppNavigation({
   // Messenger
   const [isMessengerOpen, setIsMessengerOpen] = useState(false)
   
-  // TODO: Replace with actual unread message tracking from backend
-  // For now, using a simple mock state for demonstration
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(true)
+  // Fetch unread message count from backend
+  const [unreadCount, setUnreadCount] = useState(0)
+  
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken || !projectId) return
+    
+    fetchUnreadCount()
+    
+    // Poll for updates every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [isAuthenticated, projectId]) // Removed accessToken - we only need to re-run when user logs in/out
+
+  const fetchUnreadCount = async () => {
+    if (!accessToken || !projectId) return
+    
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/unread-count`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        setUnreadCount(data.unread_count || 0)
+        console.log('📬 Unread messages count:', data.unread_count || 0)
+      } else {
+        // Silently fail on 401 - user might not be authenticated or token expired
+        if (response.status !== 401) {
+          console.warn('⚠️ Failed to fetch unread count:', response.status, response.statusText)
+        }
+        setUnreadCount(0)
+      }
+    } catch (err) {
+      // Silently fail - don't spam console with errors for missing messaging
+      setUnreadCount(0)
+    }
+  }
   
   // Clear unread messages when messenger is opened
   useEffect(() => {
     if (isMessengerOpen) {
-      setHasUnreadMessages(false)
+      fetchUnreadCount()
     }
   }, [isMessengerOpen])
   
@@ -469,7 +508,7 @@ export function AppNavigation({
               {projectId && publicAnonKey && userId && accessToken && (
                 <MessagesButton
                   onClick={() => setIsMessengerOpen(true)}
-                  hasUnread={hasUnreadMessages}
+                  hasUnread={unreadCount > 0}
                 />
               )}
             </div>
@@ -558,7 +597,7 @@ export function AppNavigation({
               <div className="flex-1 flex justify-center items-center">
                 <HomeButton
                   onClick={() => handleNavigate('feed')}
-                  isActive={currentView === 'feed'}
+                  isActive={currentView === 'feed' && !meDrawerOpen}
                 />
               </div>
 
@@ -569,7 +608,7 @@ export function AppNavigation({
                     closeWallet()
                     onMEButtonClick?.()
                   }}
-                  isActive={currentView === 'dashboard'}
+                  isActive={meDrawerOpen || currentView === 'dashboard'}
                   hasNotification={hasNewDiscoveryMatches}
                 />
               </div>

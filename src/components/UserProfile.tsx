@@ -47,7 +47,7 @@ export function UserProfile({ userId: propUserId, onClose, onProfileUpdate }: Us
         return
       }
 
-      console.log('✅ Authenticated user:', user.id)
+      // Security: Don't log user IDs in browser console
       setCurrentUserId(user.id)
       
       // Get access token

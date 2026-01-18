@@ -1,11 +1,11 @@
 import { MiniAppContainer } from './MiniAppContainer'
 import { getMiniAppMetadata } from '../../config/mini-apps-metadata'
-import { HempForum } from '../HempForum'
+import { HempAgora } from '../forum/HempAgora'
 import { MiniAppProps } from '../../types/mini-app'
 
 /**
- * Forum App - Feature Voting & Community Ideas
- * Vote on features and submit ideas for Hemp'in platform
+ * Forum App - The Hemp Agora
+ * A living forum for hemp knowledge, debate, and building the future
  */
 export function ForumApp({ 
   onClose, 
@@ -22,8 +22,8 @@ export function ForumApp({
 
   // Data loader
   const loadData = async () => {
-    // HempForum loads its own data
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // HempAgora loads its own data
+    await new Promise(resolve => setTimeout(resolve, 500))
   }
 
   return (
@@ -33,9 +33,9 @@ export function ForumApp({
       loadData={loadData}
       showWelcomeFirst={false}
     >
-      <HempForum
-        userId={userId}
-        accessToken={accessToken}
+      <HempAgora
+        userId={userId!}
+        accessToken={accessToken!}
         serverUrl={serverUrl}
         nadaPoints={nadaPoints}
         onClose={onClose}

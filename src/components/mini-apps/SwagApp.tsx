@@ -35,15 +35,27 @@ export function SwagApp({
       loadData={loadData}
       showWelcomeFirst={false}
     >
-      <SwagMarketplace
-        accessToken={accessToken || ''}
-        serverUrl={serverUrl}
-        userId={userId || undefined}
-        userBadges={userBadges}
-        onClose={onClose}
-        nadaPoints={nadaPoints}
-        onNadaUpdate={onNadaUpdate || (() => {})}
-      />
+      {/* Background Layer - Extends full screen behind navbars */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950" />
+
+      {/* Content Layer - Padded to stay between navbars */}
+      <div 
+        className="relative h-full flex flex-col"
+        style={{
+          paddingTop: '80px',
+          paddingBottom: '96px',
+        }}
+      >
+        <SwagMarketplace
+          accessToken={accessToken || ''}
+          serverUrl={serverUrl}
+          userId={userId || undefined}
+          userBadges={userBadges}
+          onClose={onClose}
+          nadaPoints={nadaPoints}
+          onNadaUpdate={onNadaUpdate || (() => {})}
+        />
+      </div>
     </MiniAppContainer>
   )
 }

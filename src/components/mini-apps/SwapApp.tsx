@@ -26,10 +26,18 @@ export function SwapApp({
       loadData={loadData}
       showWelcomeFirst={false}
     >
-      <div className="fixed inset-0 bg-gradient-to-br from-cyan-950 via-teal-950 to-cyan-950 overflow-auto">
-        <div className="pt-24 pb-8">
-          <SwapShopFeed userId={userId || ''} />
-        </div>
+      {/* Background Layer - Extends full screen behind navbars */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-cyan-950 via-teal-950 to-emerald-950" />
+
+      {/* Content Layer - Padded to stay between navbars */}
+      <div 
+        className="relative h-full flex flex-col"
+        style={{
+          paddingTop: '80px',
+          paddingBottom: '96px',
+        }}
+      >
+        <SwapShopFeed userId={userId || ''} />
       </div>
     </MiniAppContainer>
   )

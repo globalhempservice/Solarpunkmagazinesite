@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { LandingPage } from './LandingPage'
+import { PremiumWelcomePage } from './welcome/PremiumWelcomePage'
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -7,6 +7,12 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ onLogin, onSignup }: AuthFormProps) {
-  // Just render the landing page which handles everything
-  return <LandingPage onLogin={onLogin} onSignup={onSignup} />
+  // Render the premium welcome page
+  return (
+    <PremiumWelcomePage 
+      onLogin={onLogin} 
+      onSignup={onSignup}
+      onGuestMode={() => {}}
+    />
+  )
 }

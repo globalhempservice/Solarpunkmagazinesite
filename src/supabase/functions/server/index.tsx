@@ -182,9 +182,9 @@ async function requireAuth(c: any, next: any) {
           continue
         }
         
-        // Don't log on last retry - will be handled by final error
-        if (!isConnectionError) {
-          console.error('Auth error:', error)
+        // Only log auth errors for non-session-missing errors (to reduce noise)
+        if (!isConnectionError && !error.message?.includes('Auth session missing') && !error.message?.includes('session is invalid')) {
+          console.error('❌ Auth error:', error.message || error)
         }
         
         // Check if token is expired
@@ -238,9 +238,9 @@ async function requireAuth(c: any, next: any) {
         continue
       }
       
-      // Only log on final retry
-      if (!isConnectionError || attempt === maxRetries - 1) {
-        console.error('requireAuth exception:', err)
+      // Only log on final retry and if not a session error
+      if ((!isConnectionError || attempt === maxRetries - 1) && !err.message?.includes('Auth session missing') && !err.message?.includes('session is invalid')) {
+        console.error('❌ requireAuth exception:', err.message || err)
       }
       
       // Handle network/connection errors gracefully after retries exhausted
@@ -3803,6 +3803,32 @@ app.post('/make-server-053bcd80/track-creation', async (c) => {
 })
 
 // ===== AUTH ROUTES =====
+
+// Check if email exists
+app.post('/make-server-053bcd80/auth/check-email', async (c) => {
+  try {
+    const { email } = await c.req.json()
+    
+    if (!email) {
+      return c.json({ error: 'Email is required' }, 400)
+    }
+    
+    // Query the auth.users table to check if email exists
+    const { data, error } = await supabase.auth.admin.listUsers()
+    
+    if (error) {
+      console.error('Error checking email:', error)
+      return c.json({ error: 'Failed to check email' }, 500)
+    }
+    
+    const userExists = data.users.some(user => user.email?.toLowerCase() === email.toLowerCase())
+    
+    return c.json({ exists: userExists })
+  } catch (error) {
+    console.error('Error in check-email endpoint:', error)
+    return c.json({ error: 'Failed to check email', details: error.message }, 500)
+  }
+})
 
 // Sign up
 app.post('/make-server-053bcd80/signup', async (c) => {
@@ -8983,4 +9009,54 @@ app.all('*', (c) => {
   }, 404)
 })
 
-Deno.serve(app.fetch)
+// ===== GLOBAL ERROR HANDLER =====
+// Prevents HTML error pages from being returned - always returns JSON
+app.onError((error, c) => {
+  console.error('❌ GLOBAL ERROR HANDLER CAUGHT:', error)
+  console.error('   Message:', error.message)
+  console.error('   Stack:', error.stack)
+  console.error('   Timestamp:', new Date().toISOString())
+  
+  // Always return JSON, never HTML error pages
+  return c.json({
+    error: 'Internal Server Error',
+    message: error.message || 'An unexpected error occurred',
+    timestamp: new Date().toISOString(),
+    code: 'server_error',
+    // Include stack trace only in non-production
+    ...(Deno.env.get('ENVIRONMENT') !== 'production' && { 
+      stack: error.stack?.split('\n').slice(0, 5).join('\n') // First 5 lines only
+    })
+  }, 500)
+})
+
+// ===== HANDLE FETCH ERRORS GRACEFULLY =====
+// Wrap Deno.serve to catch crashes during request handling
+async function handleRequest(request: Request) {
+  try {
+    return await app.fetch(request)
+  } catch (error: any) {
+    console.error('🚨 CRITICAL: Unhandled error in fetch handler:', error)
+    console.error('   URL:', request.url)
+    console.error('   Method:', request.method)
+    console.error('   Error:', error.message)
+    console.error('   Stack:', error.stack)
+    
+    // Return JSON error instead of letting it crash
+    return new Response(JSON.stringify({
+      error: 'Critical Server Error',
+      message: 'The server encountered a critical error while processing your request',
+      details: error.message,
+      timestamp: new Date().toISOString(),
+      code: 'critical_error'
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+  }
+}
+
+Deno.serve(handleRequest)

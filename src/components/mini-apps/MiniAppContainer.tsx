@@ -99,7 +99,7 @@ export function MiniAppContainer({
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.9, opacity: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className="fixed inset-0 z-[9990]"
+      className="fixed inset-0 z-40"
     >
       <AnimatePresence mode="wait">
         {/* Loading Screen */}
@@ -163,7 +163,7 @@ export function MiniAppContainer({
             transition={{ duration: 0.3 }}
             className="relative h-full"
           >
-            {/* App Content - No universal close button, each app manages its own */}
+            {/* App Content - Fills entire screen */}
             {children}
           </motion.div>
         )}

@@ -163,7 +163,7 @@ export function MessagesButton({ onClick, hasUnread, unreadCount }: MessagesButt
       enableShimmer={false}
       enableBreathing={hasUnread ? true : false}
       showNotification={hasUnread && !unreadCount}
-      badge={unreadCount ? { count: unreadCount, color: '#ef4444', glow: true } : undefined}
+      badge={unreadCount ? { count: unreadCount, color: '#10B981', glow: true } : undefined}
       aria-label={hasUnread ? `Messages (${unreadCount || 'new'})` : 'Messages'}
       title={hasUnread ? 'You have new messages' : 'Messages'}
     />
@@ -194,20 +194,6 @@ export function HomeButton({ onClick, isActive }: HomeButtonProps) {
         aria-label="Home"
         title="Explore feed"
       />
-      
-      {/* Active indicator */}
-      {isActive && (
-        <motion.div
-          className="absolute -bottom-1 w-1.5 h-1.5 rounded-full"
-          style={{
-            background: 'linear-gradient(to right, #34d399, #14b8a6)',
-            boxShadow: '0 0 10px rgba(16, 185, 129, 0.6)',
-          }}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 300 }}
-        />
-      )}
     </div>
   )
 }
@@ -248,20 +234,6 @@ export function MeButton({ onClick, isActive, hasNotification }: MeButtonProps) 
         title="My dashboard"
         className="shadow-2xl"
       />
-      
-      {/* Active indicator */}
-      {isActive && (
-        <motion.div
-          className="absolute -bottom-3 w-1.5 h-1.5 rounded-full"
-          style={{
-            background: 'linear-gradient(to right, #0ea5e9, #ec4899)',
-            boxShadow: '0 0 10px rgba(168, 85, 247, 0.8)',
-          }}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 300 }}
-        />
-      )}
     </div>
   )
 }

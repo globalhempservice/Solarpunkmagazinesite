@@ -375,7 +375,22 @@ html {
   animation: shimmer 4s ease-in-out infinite;
 }
 
-/* Hide scrollbar utility */
+/* Optimized pulse animation - opacity only (better performance) */
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-opacity {
+  animation: pulse-opacity 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Radial gradient utility for background orbs (replaces expensive blur-3xl) */
+.bg-gradient-radial {
+  background-image: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+/* Hide scrollbar while maintaining scroll functionality */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */

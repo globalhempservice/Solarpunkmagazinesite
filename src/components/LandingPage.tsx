@@ -8,7 +8,7 @@ import {
   Leaf, LogIn, ChevronDown, BookOpen, Users, Unlock, 
   Flame, Trophy, Target, Star, TrendingUp, Sparkles, 
   Heart, Zap, ShoppingBag, Palette, Gift, ChevronLeft, 
-  ChevronRight, Coins 
+  ChevronRight, Coins, MapPin, Package, MessageCircle, Globe, Shield
 } from 'lucide-react'
 
 interface LandingPageProps {
@@ -328,6 +328,122 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
     }
   ]
 
+  // Feature Cards for Horizontal Carousel
+  const featureCards = [
+    {
+      title: "MAG - Editorial Feed",
+      description: "Discover premium hemp articles in an infinite scrolling nebula feed with aurora gradients",
+      icon: BookOpen,
+      gradient: "from-purple-600 via-indigo-600 to-purple-700",
+      stats: "+12 NADA per article",
+      miniApp: "MAG"
+    },
+    {
+      title: "SWIPE - Quick Discovery",
+      description: "Tinder-style article swiping. Right for save, left to skip. Fast-paced content curation",
+      icon: Zap,
+      gradient: "from-amber-500 via-orange-500 to-red-500",
+      stats: "Unlock at 500 NADA",
+      miniApp: "SWIPE"
+    },
+    {
+      title: "PLACES - Hemp Map",
+      description: "Global directory of hemp businesses, farms, and shops. Find local hemp near you",
+      icon: MapPin,
+      gradient: "from-blue-500 via-cyan-500 to-teal-500",
+      stats: "1000+ locations",
+      miniApp: "PLACES"
+    },
+    {
+      title: "SWAP - Barter Items",
+      description: "C2C marketplace for trading used hemp products peer-to-peer. Sustainable commerce",
+      icon: Package,
+      gradient: "from-cyan-600 via-teal-600 to-cyan-700",
+      stats: "Zero transaction fees",
+      miniApp: "SWAP"
+    },
+    {
+      title: "FORUM - Hemp Agora",
+      description: "Civic-inspired discussion threads. Debate hemp policy, share grows, connect with experts",
+      icon: MessageCircle,
+      gradient: "from-slate-600 via-gray-700 to-slate-800",
+      stats: "Real-time discussions",
+      miniApp: "FORUM"
+    },
+    {
+      title: "GLOBE - World News",
+      description: "Breaking hemp news from every country. Real-time updates from the global hemp economy",
+      icon: Globe,
+      gradient: "from-emerald-600 via-teal-600 to-green-700",
+      stats: "24/7 news stream",
+      miniApp: "GLOBE"
+    },
+    {
+      title: "SWAG - Merch Store",
+      description: "Official hemp organization merchandise. Buy exclusive products with NADA points",
+      icon: ShoppingBag,
+      gradient: "from-emerald-500 via-teal-500 to-green-600",
+      stats: "100+ products",
+      miniApp: "SWAG"
+    },
+    {
+      title: "HUNT - Terpene Quest",
+      description: "Gamified terpene education. Learn cannabis chemistry through interactive challenges",
+      icon: Target,
+      gradient: "from-violet-600 via-purple-600 to-fuchsia-700",
+      stats: "50+ terpenes to discover",
+      miniApp: "HUNT"
+    },
+    {
+      title: "Daily Streaks",
+      description: "Read every day to build your streak. Unlock multipliers and bonus achievements",
+      icon: Flame,
+      gradient: "from-orange-500 via-red-500 to-rose-600",
+      stats: "3x points at 30 days",
+      miniApp: "STREAKS"
+    },
+    {
+      title: "Achievements System",
+      description: "35+ unlockable badges from Week Warrior to Speed Reader. Show off your dedication",
+      icon: Trophy,
+      gradient: "from-yellow-500 via-amber-500 to-orange-600",
+      stats: "35+ badges",
+      miniApp: "BADGES"
+    },
+    {
+      title: "Community Voting",
+      description: "Vote on feature requests and product decisions. Your voice shapes the platform",
+      icon: TrendingUp,
+      gradient: "from-cyan-500 via-blue-500 to-indigo-600",
+      stats: "Democratic governance",
+      miniApp: "VOTE"
+    },
+    {
+      title: "Reader Matching",
+      description: "AI matches you with readers who share your interests. Start conversations, collaborate",
+      icon: Users,
+      gradient: "from-teal-500 via-emerald-500 to-green-600",
+      stats: "Smart AI matching",
+      miniApp: "MATCH"
+    },
+    {
+      title: "Hemp Provenance",
+      description: "Track product origins, certifications, and carbon footprint. Verified supply chains",
+      icon: Shield,
+      gradient: "from-green-600 via-emerald-600 to-teal-700",
+      stats: "Blockchain verified",
+      miniApp: "PROVENANCE"
+    },
+    {
+      title: "Wallet & Points",
+      description: "Earn NADA points for every action. Spend on features, merch, and premium content",
+      icon: Coins,
+      gradient: "from-emerald-500 via-teal-500 to-cyan-600",
+      stats: "∞ earning potential",
+      miniApp: "WALLET"
+    }
+  ]
+
   const totalSlides = slides.length
   const currentSlideData = slides[currentSlide]
 
@@ -636,7 +752,7 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
                   />
                   <div className={`relative w-full h-full bg-gradient-to-br ${feature.color} rounded-3xl border-4 border-emerald-950 shadow-2xl overflow-hidden flex items-center justify-center`}>
                     <div className="absolute inset-0 rounded-3xl opacity-30 pointer-events-none" style={{
-                      backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,250,0.4) 1px, transparent 0)`,
+                      backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,200,0.4) 1px, transparent 0)`,
                       backgroundSize: '12px 12px'
                     }} />
                     <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/40 to-transparent blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -684,6 +800,126 @@ export function LandingPage({ onLogin, onSignup }: LandingPageProps) {
                 </div>
               </motion.div>
             )}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* SECTION 3: FEATURE SHOWCASE - Horizontal Carousel */}
+      <section className="py-24 px-4">
+        <div className="container mx-auto max-w-7xl">
+          {/* Section Header */}
+          <motion.div 
+            className="text-center space-y-4 mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className={`text-4xl sm:text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r ${getThemeTitleGradient()}`}>
+              Everything You Need
+            </h2>
+            <p className={`text-lg sm:text-xl ${getThemeTextColor()} max-w-2xl mx-auto`}>
+              From editorial feeds to global maps, from community forums to hemp commerce
+            </p>
+          </motion.div>
+
+          {/* Horizontal Scrolling Carousel */}
+          <div className="relative">
+            <div className="overflow-x-auto scrollbar-hide pb-8">
+              <div className="flex gap-6 min-w-max px-4">
+                {featureCards.map((card, index) => (
+                  <motion.div
+                    key={card.miniApp}
+                    initial={{ opacity: 0, x: 50 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.5, delay: index * 0.05 }}
+                    className="group relative w-80 sm:w-96 flex-shrink-0"
+                  >
+                    {/* Comic Drop Shadow */}
+                    <div 
+                      className="absolute inset-0 bg-emerald-950/80 rounded-3xl"
+                      style={{
+                        transform: 'translate(8px, 8px)',
+                        zIndex: -1
+                      }}
+                    />
+
+                    {/* Card Content */}
+                    <div className={`relative h-full bg-gradient-to-br ${card.gradient} rounded-3xl border-4 border-emerald-950 shadow-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-3xl`}>
+                      {/* Pattern Overlay */}
+                      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
+                        backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.6) 1px, transparent 0)`,
+                        backgroundSize: '16px 16px'
+                      }} />
+
+                      {/* Gradient Glow on Hover */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl" />
+
+                      {/* Content */}
+                      <div className="relative p-8 flex flex-col h-full min-h-[320px]">
+                        {/* Icon */}
+                        <div className="mb-6">
+                          <div className="inline-flex p-4 rounded-2xl bg-white/10 backdrop-blur-sm border-2 border-white/20">
+                            <card.icon className="w-10 h-10 text-white drop-shadow-lg" strokeWidth={2.5} />
+                          </div>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="text-2xl font-black text-white mb-3 drop-shadow-lg">
+                          {card.title}
+                        </h3>
+
+                        {/* Description */}
+                        <p className="text-white/90 text-base mb-6 flex-grow leading-relaxed">
+                          {card.description}
+                        </p>
+
+                        {/* Stats Badge */}
+                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 w-fit">
+                          <Sparkles className="w-4 h-4 text-white" strokeWidth={2.5} />
+                          <span className="text-sm font-bold text-white">
+                            {card.stats}
+                          </span>
+                        </div>
+
+                        {/* Shine Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Fade Edges Indicators */}
+            <div className="absolute left-0 top-0 bottom-8 w-24 bg-gradient-to-r from-emerald-950 via-emerald-950/50 to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-8 w-24 bg-gradient-to-l from-emerald-950 via-emerald-950/50 to-transparent pointer-events-none" />
+          </div>
+
+          {/* CTA Below Carousel */}
+          <motion.div 
+            className="text-center mt-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <Button
+              onClick={() => {
+                setAuthModalMode('signup')
+                setAuthModalOpen(true)
+              }}
+              className={`h-16 px-12 rounded-full ${getThemeButtonColor()} ${getThemeButtonTextColor()} font-black text-xl shadow-2xl hover:scale-105 transition-all`}
+            >
+              <div className="flex items-center gap-3">
+                <LogIn className="w-6 h-6" strokeWidth={3} />
+                <span>Start Your Journey</span>
+              </div>
+            </Button>
+            <p className={`mt-4 text-sm ${getThemeTextColor()} opacity-70`}>
+              Join thousands of hemp enthusiasts worldwide
+            </p>
           </motion.div>
         </div>
       </section>

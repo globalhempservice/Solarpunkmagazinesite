@@ -183,8 +183,10 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
                       ? 'bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]'
                       : 'bg-gradient-to-br from-emerald-500/80 via-teal-500/80 to-emerald-500/80 group-hover:from-emerald-400 group-hover:via-teal-500 group-hover:to-emerald-500 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]'
                   }`}>
-                    {/* Shine effect */}
-                    <div className="absolute top-2 right-2 w-8 h-8 bg-white/40 rounded-full blur-md" />
+                    {/* Shine effect - only when active */}
+                    {currentView === 'feed' && (
+                      <div className="absolute top-2 right-2 w-8 h-8 bg-white/40 rounded-full blur-md" />
+                    )}
                     
                     <Home 
                       className="relative h-10 w-10 text-white drop-shadow-lg"
@@ -220,8 +222,10 @@ export function BottomNavbar({ currentView, onNavigate, isAuthenticated, totalAr
                       ? 'bg-gradient-to-br from-sky-500 via-purple-500 to-pink-500 dark:from-sky-400 dark:via-purple-400 dark:to-pink-400 hempin:from-amber-500 hempin:via-yellow-500 hempin:to-amber-500 shadow-[0_0_24px_rgba(168,85,247,0.5)]'
                       : 'bg-gradient-to-br from-sky-500/80 via-purple-500/80 to-pink-500/80 dark:from-sky-400/80 dark:via-purple-400/80 dark:to-pink-400/80 hempin:from-amber-500/80 hempin:via-yellow-500/80 hempin:to-amber-500/80 group-hover:from-sky-500 group-hover:via-purple-500 group-hover:to-pink-500 group-hover:shadow-[0_0_24px_rgba(168,85,247,0.4)]'
                   }`}>
-                    {/* Shine effect */}
-                    <div className="absolute top-3 right-3 w-10 h-10 bg-white/40 rounded-full blur-md" />
+                    {/* Shine effect - only when active */}
+                    {currentView === 'dashboard' && (
+                      <div className="absolute top-3 right-3 w-10 h-10 bg-white/40 rounded-full blur-md" />
+                    )}
                     
                     <User 
                       className="relative h-12 w-12 text-white drop-shadow-lg"

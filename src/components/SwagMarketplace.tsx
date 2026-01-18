@@ -13,6 +13,10 @@ import {
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
 import { toast } from 'sonner'
+import { ProductDetailModal } from './ProductDetailModal'
+import { BadgeRequirementModal } from './BadgeRequirementModal'
+import { PurchaseModal } from './PurchaseModal'
+import { AddSwagProductModal } from './AddSwagProductModal'
 
 interface SwagProduct {
   id: string
@@ -246,133 +250,126 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
   const featuredProducts = filteredProducts.filter(p => p.is_featured)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950 flex flex-col">
-      {/* FIXED HERO HEADER - DOESN'T SCROLL */}
-      <div className="sticky top-0 z-40 bg-gradient-to-br from-emerald-950 via-teal-950 to-green-950 border-b-2 border-emerald-500/20 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Back Button */}
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            className="mb-4 text-emerald-300 hover:text-white hover:bg-emerald-500/20 gap-2 font-black"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Market
-          </Button>
-
-          <div className="flex items-center gap-3">
-            <div className="relative p-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-2xl border-2 border-emerald-400/30">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-teal-400/20 blur-xl" />
-              <ShoppingBag className="w-7 h-7 text-white relative z-10" strokeWidth={2.5} />
+    <>
+      {/* Sticky Header */}
+      <div className="shrink-0 sticky top-0 z-30 bg-gradient-to-b from-emerald-950/98 via-teal-950/95 to-emerald-950/90 backdrop-blur-xl border-b border-emerald-400/20 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Top Row: Logo + Title */}
+          <div className="flex items-center gap-3 h-16 sm:h-20">
+            <div className="relative p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-xl">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-400/20 to-teal-400/20 blur-lg" />
+              <ShoppingBag className="w-6 h-6 text-white relative z-10" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="font-black text-3xl text-white">Hemp'in Swag Marketplace</h1>
-              <p className="text-emerald-200/70">Discover exclusive products from hemp organizations worldwide</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-white">Hemp'in Swag</h1>
+              <p className="text-xs text-emerald-300 hidden sm:block">Official Organization Merchandise</p>
             </div>
           </div>
+
+          {/* Search Bar */}
+          <div className="pb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-300" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products, organizations..."
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-emerald-400/30 text-white placeholder:text-white/40 focus:border-emerald-400 focus:ring-emerald-400/20 focus:outline-none transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400/50 hover:text-emerald-300 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Filters Row */}
+          <div className="pb-3 flex items-center gap-2">
+            {/* Sort */}
+            <div className="relative flex-1">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="appearance-none w-full pl-4 pr-10 py-2 rounded-xl bg-white/5 border border-emerald-400/30 text-white text-sm font-medium focus:border-emerald-400 focus:ring-emerald-400/20 focus:outline-none transition-colors cursor-pointer"
+              >
+                <option value="featured" className="bg-gray-900">Featured First</option>
+                <option value="newest" className="bg-gray-900">Newest First</option>
+                <option value="price-low" className="bg-gray-900">Price: Low to High</option>
+                <option value="price-high" className="bg-gray-900">Price: High to Low</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400/50 pointer-events-none" />
+            </div>
+
+            {/* Filter Toggle */}
+            <motion.button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                showFilters
+                  ? 'bg-emerald-500 text-white border border-emerald-400'
+                  : 'bg-white/5 text-emerald-300 border border-emerald-400/30 hover:bg-white/10'
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Filter className="w-4 h-4" />
+              <span className="hidden sm:inline">Filters</span>
+            </motion.button>
+          </div>
+
+          {/* Category Pills */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="pb-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+                  <div className="flex items-center gap-2 min-w-max">
+                    {categories.map(category => (
+                      <motion.button
+                        key={category}
+                        onClick={() => setSelectedCategory(category)}
+                        className={`shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-all whitespace-nowrap ${
+                          selectedCategory === category
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border border-emerald-400 shadow-lg'
+                            : 'bg-white/5 text-emerald-300 border border-white/10 hover:bg-white/10'
+                        }`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* SCROLLABLE CONTENT AREA - AUTO-SCROLLS */}
-      <div className="flex-1 overflow-y-auto" id="swag-scroll-container" ref={scrollContainerRef}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Search and Filters */}
-          <div className="bg-emerald-950/50 border-2 border-emerald-500/20 rounded-2xl p-4 mb-6 backdrop-blur-sm">
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400/50" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search products, organizations..."
-                  className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-emerald-900/30 border-2 border-emerald-500/20 text-white placeholder:text-emerald-300/40 focus:border-emerald-400/50 focus:outline-none transition-colors"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400/50 hover:text-emerald-300 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Sort */}
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none pl-4 pr-10 py-2.5 rounded-xl bg-emerald-900/30 border-2 border-emerald-500/20 text-white font-bold focus:border-emerald-400/50 focus:outline-none transition-colors cursor-pointer"
-                >
-                  <option value="featured">Featured First</option>
-                  <option value="newest">Newest First</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400/50 pointer-events-none" />
-              </div>
-
-              {/* Filter Toggle */}
-              <Button
-                onClick={() => setShowFilters(!showFilters)}
-                variant={showFilters ? "default" : "outline"}
-                className={`gap-2 font-black ${
-                  showFilters
-                    ? 'bg-emerald-500 hover:bg-emerald-600 border-emerald-400/50 text-white'
-                    : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                Filters
-              </Button>
-            </div>
-
-            {/* Category Filters */}
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-4 mt-4 border-t border-emerald-500/20">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Tag className="w-4 h-4 text-emerald-400" />
-                      <h3 className="font-black text-sm uppercase tracking-wide text-emerald-300">Categories</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {categories.map(category => (
-                        <button
-                          key={category}
-                          onClick={() => setSelectedCategory(category)}
-                          className={`px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            selectedCategory === category
-                              ? 'bg-emerald-500 text-white border-2 border-emerald-400/50 shadow-lg'
-                              : 'bg-emerald-900/30 text-emerald-300 border-2 border-emerald-500/10 hover:border-emerald-500/30'
-                          }`}
-                        >
-                          {category.charAt(0).toUpperCase() + category.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
+      {/* Scrollable Feed */}
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           {/* Featured Products Section */}
           {featuredProducts.length > 0 && selectedCategory === 'all' && !searchQuery && (
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="w-5 h-5 text-amber-400" />
-                <h2 className="font-black text-xl text-white">Featured Products</h2>
+                <h2 className="font-bold text-xl text-white">Featured Products</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {featuredProducts.slice(0, 3).map((product) => (
                   <ProductCard
                     key={product.id}
@@ -389,10 +386,10 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
           {/* All Products Grid */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-black text-xl text-white">
+              <h2 className="font-bold text-xl text-white">
                 {searchQuery ? 'Search Results' : selectedCategory === 'all' ? 'All Products' : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Products`}
               </h2>
-              <p className="text-emerald-200/60 font-bold">
+              <p className="text-emerald-200/60 font-medium text-sm">
                 {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
               </p>
             </div>
@@ -481,7 +478,7 @@ export function SwagMarketplace({ accessToken, serverUrl, userId, userBadges = [
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 

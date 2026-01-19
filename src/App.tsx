@@ -119,6 +119,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [initializing, setInitializing] = useState(true)
+  const [authDataLoaded, setAuthDataLoaded] = useState(false) // FIX #3: Track when auth data is ready
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
   const [matchedArticles, setMatchedArticles] = useState<Article[]>([])
   const [swipeRefReady, setSwipeRefReady] = useState(false)
@@ -219,9 +220,11 @@ export default function App() {
     
     const checkSession = async () => {
       try {
+        console.log('🔍 Checking for existing session...')
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error || !session?.access_token) {
+          console.log('ℹ️ No existing session found')
           // No valid session - clear any stale data and show login
           if (error?.message.includes('Refresh Token')) {
             await clearAuthState()
@@ -230,6 +233,7 @@ export default function App() {
           return
         }
         
+        console.log('✅ Existing session found')
         // Check if token is expired or about to expire
         const expiresAt = session.expires_at || 0
         const now = Math.floor(Date.now() / 1000)
@@ -314,19 +318,20 @@ export default function App() {
       return
     }
     
+    // FIX #1: Complete initialization immediately before checkSession
+    // This allows the welcome page to show instantly AND unblocks the auth listener
+    completeInitialization()
+    
     checkSession()
     
     // Set up auth state change listener for automatic token refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // CRITICAL: Don't update auth state during initialization
-      // The checkSession function handles auth state during init
-      if (isInitializingRef.current) {
-        return
-      }
+      // FIX #2: Removed initialization blocking so listener works immediately after login
+      // The completeInitialization() call above ensures this is safe
       
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.access_token) {
-          // Silently update auth state (logging removed for cleaner console)
+          console.log('🔐 Auth state changed:', event)
           setAccessToken(session.access_token)
           setUserId(session.user.id)
           setUserEmail(session.user.email)
@@ -334,7 +339,7 @@ export default function App() {
           localStorage.setItem('supabase_access_token', session.access_token)
         }
       } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
-        // Silently clear auth state
+        console.log('🚪 Auth state changed:', event)
         setAccessToken(null)
         setUserId(null)
         setUserEmail(null)
@@ -344,7 +349,7 @@ export default function App() {
         // Clear token from localStorage
         localStorage.removeItem('supabase_access_token')
       } else if (event === 'USER_UPDATED') {
-        // Silently update user data
+        console.log('👤 User updated')
         if (session?.access_token) {
           setAccessToken(session.access_token)
           setUserId(session.user.id)
@@ -376,11 +381,30 @@ export default function App() {
   useEffect(() => {
     if (isAuthenticated && userId && accessToken && !initializing) {
       console.log('🔐 User authenticated: Fetching user-specific data')
-      fetchUserProgress()
-      fetchUserArticles()
-      fetchUserBadges()
-      checkForNewDiscoveryMatches()
+      
+      // FIX #3: Mark as not loaded initially to prevent flash
+      setAuthDataLoaded(false)
+      
+      // Fetch all user data
+      Promise.all([
+        fetchUserProgress(),
+        fetchUserArticles(),
+        fetchUserBadges(),
+        checkForNewDiscoveryMatches()
+      ]).then(() => {
+        // Small delay to ensure smooth transition
+        setTimeout(() => {
+          setAuthDataLoaded(true)
+        }, 100)
+      }).catch(err => {
+        console.error('Error fetching user data:', err)
+        // Still show UI even if data fetch fails
+        setAuthDataLoaded(true)
+      })
       // REMOVED: Articles now loaded on-demand only when needed
+    } else if (!isAuthenticated) {
+      // Reset when logged out
+      setAuthDataLoaded(false)
     }
   }, [isAuthenticated, userId, accessToken, initializing])
 
@@ -882,16 +906,19 @@ export default function App() {
   }
 
   const handleLogin = async (email: string, password: string) => {
+    console.log('🔐 Starting login...')
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     })
 
     if (error) {
+      console.error('❌ Login error:', error.message)
       throw new Error(error.message)
     }
 
     if (data.session) {
+      console.log('✅ Login successful, setting auth state')
       setAccessToken(data.session.access_token)
       setUserId(data.user.id)
       setUserEmail(data.user.email)
@@ -1330,6 +1357,19 @@ export default function App() {
         {/* Toaster for notifications */}
         <Toaster />
       </>
+    )
+  }
+
+  // FIX #4: Show minimal loading while fetching user data to prevent flash
+  if (isAuthenticated && !authDataLoaded) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading your workspace...</p>
+        </div>
+        <Toaster />
+      </div>
     )
   }
 

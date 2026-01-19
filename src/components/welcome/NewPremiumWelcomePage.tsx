@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { X, ArrowRight } from 'lucide-react'
+import { X, ArrowRight, Sparkles, Zap, ExternalLink } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog'
 import { SocialButton } from './SocialButton'
 import { createClient } from '../../utils/supabase/client'
 
@@ -23,6 +24,8 @@ export function NewPremiumWelcomePage({ onLogin, onSignup }: NewPremiumWelcomePa
   const [error, setError] = useState<string | null>(null)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [marketingOptIn, setMarketingOptIn] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [showMarketingModal, setShowMarketingModal] = useState(false)
   
   // Refs for scroll animations
   const pillarsRef = useRef<HTMLDivElement>(null)
@@ -381,9 +384,86 @@ export function NewPremiumWelcomePage({ onLogin, onSignup }: NewPremiumWelcomePa
             error={error}
             onSubmit={handleAuth}
             onGoogleLogin={handleGoogleLogin}
+            showTermsModal={showTermsModal}
+            setShowTermsModal={setShowTermsModal}
+            showMarketingModal={showMarketingModal}
+            setShowMarketingModal={setShowMarketingModal}
           />
         )}
       </AnimatePresence>
+
+      {/* Terms Modal */}
+      <Dialog open={showTermsModal} onOpenChange={setShowTermsModal}>
+        <DialogContent className="sm:max-w-md bg-gradient-to-br from-[#041F1A]/95 to-[#0a2f28]/95 border-emerald-500/30 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Sparkles className="w-5 h-5 text-emerald-400" />
+              Terms & Conditions
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="pt-4 space-y-3 text-left text-white/80">
+                <div>
+                  <strong className="text-white">DEWII</strong> is the magazine feed branch of{' '}
+                  <span className="text-emerald-400 font-semibold">Hemp'in.org</span>, dedicated to bringing you curated content on sustainability, technology, and innovation.
+                </div>
+                <div>
+                  By creating an account, you agree to our content guidelines and community standards that promote respectful engagement and knowledge sharing.
+                </div>
+                <a 
+                  href="https://hempin.org/trust" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline font-medium"
+                >
+                  Visit Trust Center
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4">
+            <Button 
+              onClick={() => setShowTermsModal(false)}
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-teal-600 hover:to-emerald-500"
+            >
+              Got it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Marketing Newsletter Modal */}
+      <Dialog open={showMarketingModal} onOpenChange={setShowMarketingModal}>
+        <DialogContent className="sm:max-w-md bg-gradient-to-br from-[#041F1A]/95 to-[#0a2f28]/95 border-emerald-500/30 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Zap className="w-5 h-5 text-emerald-400" />
+              Marketing Newsletter
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="pt-4 space-y-3 text-left text-white/80">
+                <div>
+                  Our <strong className="text-white">Marketing Newsletter</strong> is a monthly digest featuring:
+                </div>
+                <ul className="list-disc list-inside space-y-1.5 text-sm">
+                  <li>Featured articles and trending topics</li>
+                  <li>Community highlights and achievements</li>
+                  <li>Platform updates and new features</li>
+                  <li>Exclusive sustainability insights</li>
+                </ul>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4">
+            <Button 
+              onClick={() => setShowMarketingModal(false)}
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-teal-600 hover:to-emerald-500"
+            >
+              Understood
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -536,7 +616,11 @@ function AuthModal({
   isLoading, 
   error, 
   onSubmit,
-  onGoogleLogin
+  onGoogleLogin,
+  showTermsModal,
+  setShowTermsModal,
+  showMarketingModal,
+  setShowMarketingModal
 }: any) {
   return (
     <motion.div
@@ -631,7 +715,14 @@ function AuthModal({
                     className="mt-1"
                   />
                   <label htmlFor="terms" className="text-sm text-white/70">
-                    I accept the terms and conditions
+                    I accept the{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowTermsModal(true)}
+                      className="text-emerald-400 hover:text-emerald-300 underline"
+                    >
+                      terms and conditions
+                    </button>
                   </label>
                 </div>
 
@@ -644,7 +735,13 @@ function AuthModal({
                     className="mt-1"
                   />
                   <label htmlFor="marketing" className="text-sm text-white/70">
-                    Subscribe to newsletter
+                    <button
+                      type="button"
+                      onClick={() => setShowMarketingModal(true)}
+                      className="text-emerald-400 hover:text-emerald-300 underline"
+                    >
+                      Subscribe to newsletter
+                    </button>
                   </label>
                 </div>
               </>
@@ -658,11 +755,6 @@ function AuthModal({
               {isLoading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
             </Button>
           </form>
-
-          {/* Social Login */}
-          <div className="mt-6">
-            <SocialButton provider="google" onClick={onGoogleLogin} />
-          </div>
 
           {/* Switch mode */}
           <p className="mt-6 text-center text-sm text-white/60">

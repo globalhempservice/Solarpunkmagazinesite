@@ -112,6 +112,7 @@ export default function App() {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const securityTrackerRef = useRef<ReadingSecurityTracker | null>(null)
   const isInitializingRef = useRef<boolean>(true)
+  const justLoggedInRef = useRef<boolean>(false) // FIX: Track manual login to prevent double updates
   const [articles, setArticles] = useState<Article[]>([])
   const [userArticles, setUserArticles] = useState<Article[]>([])
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null)
@@ -326,8 +327,13 @@ export default function App() {
     
     // Set up auth state change listener for automatic token refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // FIX #2: Removed initialization blocking so listener works immediately after login
-      // The completeInitialization() call above ensures this is safe
+      console.log('📡 Auth state change event:', event, 'justLoggedIn:', justLoggedInRef.current)
+      
+      // FIX: Skip listener update if we just did a manual login (prevents double update on mobile)
+      if (justLoggedInRef.current && event === 'SIGNED_IN') {
+        console.log('⏭️ Skipping listener update - just logged in manually')
+        return
+      }
       
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.access_token) {
@@ -919,6 +925,17 @@ export default function App() {
 
     if (data.session) {
       console.log('✅ Login successful, setting auth state')
+      
+      // FIX: Mark that we just logged in manually to prevent listener double-update
+      justLoggedInRef.current = true
+      setTimeout(() => { justLoggedInRef.current = false }, 1000)
+      
+      // FIX: Clean up any hash tokens in URL that Supabase might leave
+      if (window.location.hash) {
+        console.log('🧹 Cleaning up URL hash after login')
+        window.history.replaceState(null, '', window.location.pathname)
+      }
+      
       setAccessToken(data.session.access_token)
       setUserId(data.user.id)
       setUserEmail(data.user.email)

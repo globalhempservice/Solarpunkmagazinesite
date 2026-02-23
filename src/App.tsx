@@ -277,6 +277,7 @@ export default function App() {
         setAccessToken(validToken)
         setUserId(session.user.id)
         setUserEmail(session.user.email)
+        setDisplayName(session.user.email?.split('@')[0] || 'User')
         setIsAuthenticated(true)
         localStorage.setItem('supabase_access_token', validToken)
         
@@ -939,8 +940,9 @@ export default function App() {
       setAccessToken(data.session.access_token)
       setUserId(data.user.id)
       setUserEmail(data.user.email)
+      setDisplayName(data.user.email?.split('@')[0] || 'User')
       setIsAuthenticated(true)
-      
+
       // Store token in localStorage for components that need it
       localStorage.setItem('supabase_access_token', data.session.access_token)
     }

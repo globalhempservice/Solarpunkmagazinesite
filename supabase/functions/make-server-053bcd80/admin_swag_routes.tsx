@@ -1,0 +1,1 @@
+/Users/pauliglesia/Documents/Solarpunkmagazinesite/src/supabase/functions/server/admin_swag_routes.tsx

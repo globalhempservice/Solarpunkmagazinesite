@@ -1,0 +1,1 @@
+/Users/pauliglesia/Documents/Solarpunkmagazinesite/src/supabase/functions/server/admin_discovery_routes.tsx

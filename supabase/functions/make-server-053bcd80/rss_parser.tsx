@@ -1,1 +1,0 @@
-/Users/pauliglesia/Documents/Solarpunkmagazinesite/src/supabase/functions/server/rss_parser.tsx

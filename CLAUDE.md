@@ -72,34 +72,3 @@ Users earn XP from reading articles, accumulate "NADA" points for the swag shop,
 ### Path Aliases
 
 `@` maps to `/src` (configured in `vite.config.ts` and `tsconfig.json`).
-
-## Known Issues & Technical Debt (Priority Order)
-
-### Critical — Fix First
-1. **No client-side router** — navigation uses `currentView` string state. Add `wouter` for proper URL routing, deep linking, browser back/forward.
-2. **App.tsx god file** — 2000+ lines, 42 hooks. Needs to be split into `AuthProvider`, `UserProvider`, `ArticleProvider` contexts.
-3. **Window globals** — components communicate via `(window as any).__swapOpenAddModal` etc. Replace with React Context or events.
-4. **No code splitting** — all 300 components load on first visit. Add `React.lazy()` to all 8 mini-apps.
-
-### High Priority
-5. **No error boundaries** — a WebGL crash in Globe = blank white screen. Wrap each mini-app.
-6. **confirm() dialogs** — native browser confirm() used for destructive actions. Replace with shadcn AlertDialog.
-7. **Console.logs in production** — 132 in App.tsx alone. Strip via vite config.
-8. **30-second discovery polling** — always running even when tab is hidden. Throttle with Page Visibility API.
-
-### Cleanup
-9. **Dead welcome page variants** — ModernWelcomePage, PremiumWelcomePage unused. Delete them.
-10. **Figma Make artifacts** — `Code-component-*.tsx` files and duplicate `src/src/` directory. Delete them.
-11. **Server monolith** — `src/supabase/functions/server/index.tsx` is 9062 lines. Split into proper modules.
-12. **19 TODO comments** in production code.
-
-## Environments
-
-- **Local dev**: `localhost:3000` → `.env.development` → `dewii-dev` Supabase project
-- **Production**: Netlify → `.env.production` → `dewii` Supabase project
-- **Never run `supabase` CLI commands that require Docker** — not available on this machine
-
-## Working Rules
-
-- Always work on a git branch, never directly on `main`
-- Use shadcn/ui components from `s

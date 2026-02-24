@@ -148,12 +148,12 @@ export function ProposeSwapModal({ theirItem, userId, accessToken, onClose, onPr
     : !!(serviceTitle.trim() && serviceDescription.trim());
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-[60] px-4 py-4 pb-24">
+    <div className="fixed inset-x-0 z-[60] bg-black/95 backdrop-blur-md flex items-center justify-center p-4" style={{ top: 'var(--nav-top)', bottom: 'var(--nav-bottom)' }}>
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="relative bg-gradient-to-b from-purple-950/95 via-fuchsia-950/95 to-pink-950/95 border-2 border-fuchsia-500/40 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl flex flex-col max-h-[calc(90vh-80px)]"
+        className="relative bg-gradient-to-b from-purple-950/95 via-fuchsia-950/95 to-pink-950/95 border-2 border-fuchsia-500/40 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl flex flex-col max-h-full"
       >
         {/* Animated background glow */}
         <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/10 via-purple-500/10 to-pink-500/10 blur-3xl pointer-events-none" />
@@ -509,7 +509,8 @@ function ItemSelectorModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+      className="fixed inset-x-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+      style={{ top: 'var(--nav-top)', bottom: 'var(--nav-bottom)' }}
       onClick={onClose}
     >
       <motion.div

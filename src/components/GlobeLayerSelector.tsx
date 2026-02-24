@@ -55,7 +55,7 @@ export function GlobeLayerSelector({ activeLayer, onLayerChange }: GlobeLayerSel
   ]
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+    <div className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto" style={{ top: 'calc(var(--nav-top) + 0.75rem)' }}>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}

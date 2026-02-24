@@ -9,7 +9,7 @@ import { ArticleCard } from './components/ArticleCard'
 import { ArticleEditor } from './components/ArticleEditor'
 import { UserDashboard } from './components/UserDashboard'
 import { ArticleReader } from './components/ArticleReader'
-import { AdminDashboard } from './components/AdminDashboard'
+const AdminDashboard = React.lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
 import { ReadingHistory } from './components/ReadingHistory'
 import { LinkedInImporter } from './components/LinkedInImporter'
 import { PlacesDirectory } from './components/PlacesDirectory'
@@ -21,7 +21,7 @@ import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
 import { FeatureUnlockModal } from './components/FeatureUnlockModal'
 // import { LoadingScreen } from './components/LoadingScreen' // Removed for faster loading
-import { SwagShopAdmin } from './components/SwagShopAdmin'
+const SwagShopAdmin = React.lazy(() => import('./components/SwagShopAdmin').then(m => ({ default: m.SwagShopAdmin })))
 import { ComicLockOverlay } from './components/ComicLockOverlay'
 import { ReadingAnalytics } from './components/ReadingAnalytics'
 import { HomeCards } from './components/HomeCards'
@@ -49,16 +49,19 @@ import { CreateModal } from './components/CreateModal'
 import { HempForum } from './components/HempForum'
 import { AddPlaceModal } from './components/places/AddPlaceModal'
 
-// Mini-App Wrappers
-import { GlobeApp } from './components/mini-apps/GlobeApp'
-import { PlacesApp } from './components/mini-apps/PlacesApp'
-import { ForumApp } from './components/mini-apps/ForumApp'
-import { SwagApp } from './components/mini-apps/SwagApp'
-import { TerpeneHunterApp } from './components/mini-apps/TerpeneHunterApp'
-import { SwapApp } from './components/mini-apps/SwapApp'
-import { MagApp } from './components/mini-apps/MagApp'
-import { SwipeApp } from './components/mini-apps/SwipeApp'
-import { BudPresentationPage } from './components/BudPresentationPage'
+// Mini-App Wrappers (lazy-loaded)
+const GlobeApp = React.lazy(() => import('./components/mini-apps/GlobeApp').then(m => ({ default: m.GlobeApp })))
+const PlacesApp = React.lazy(() => import('./components/mini-apps/PlacesApp').then(m => ({ default: m.PlacesApp })))
+const ForumApp = React.lazy(() => import('./components/mini-apps/ForumApp').then(m => ({ default: m.ForumApp })))
+const SwagApp = React.lazy(() => import('./components/mini-apps/SwagApp').then(m => ({ default: m.SwagApp })))
+const TerpeneHunterApp = React.lazy(() => import('./components/mini-apps/TerpeneHunterApp').then(m => ({ default: m.TerpeneHunterApp })))
+const SwapApp = React.lazy(() => import('./components/mini-apps/SwapApp').then(m => ({ default: m.SwapApp })))
+const MagApp = React.lazy(() => import('./components/mini-apps/MagApp').then(m => ({ default: m.MagApp })))
+const SwipeApp = React.lazy(() => import('./components/mini-apps/SwipeApp').then(m => ({ default: m.SwipeApp })))
+const BudPresentationPage = React.lazy(() => import('./components/BudPresentationPage').then(m => ({ default: m.BudPresentationPage })))
+import { useConfirmDialog } from './components/ui/use-confirm-dialog'
+import { motion } from 'motion/react'
+import budCharacterUrl from './assets/bud-character.svg'
 
 interface Article {
   id: string
@@ -104,6 +107,7 @@ interface UserProgress {
 }
 
 export default function App() {
+  const { confirm: confirmDialog, ConfirmDialog } = useConfirmDialog()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
@@ -1158,7 +1162,8 @@ export default function App() {
   const handleDeleteArticle = async (articleId: string) => {
     if (!accessToken) return
     
-    if (!confirm('Are you sure you want to delete this article?')) return
+    const ok = await confirmDialog({ title: 'Delete article?', description: 'This action cannot be undone.', variant: 'destructive', confirmLabel: 'Delete' })
+    if (!ok) return
 
     try {
       const response = await fetch(`${serverUrl}/articles/${articleId}`, {
@@ -1320,7 +1325,9 @@ export default function App() {
   if (currentView === 'bud-presentation') {
     return (
       <>
-        <BudPresentationPage />
+        <React.Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader className="w-8 h-8 animate-spin text-primary" /></div>}>
+          <BudPresentationPage />
+        </React.Suspense>
         <Toaster />
       </>
     )
@@ -1377,14 +1384,72 @@ export default function App() {
     )
   }
 
-  // FIX #4: Show minimal loading while fetching user data to prevent flash
+  // FIX #4: Show BUD loading screen while fetching user data
   if (isAuthenticated && !authDataLoaded) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading your workspace...</p>
+      <div className="min-h-screen bg-gradient-to-b from-[#041F1A] via-[#0a2f28] to-[#041F1A] flex items-center justify-center overflow-hidden relative">
+        {/* Ambient glow — matches the logged-out homescreen */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] bg-emerald-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-teal-500/8 rounded-full blur-2xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-emerald-400/8 rounded-full blur-2xl" />
         </div>
+
+        {/* BUD + speech bubble */}
+        <div className="relative flex flex-col items-center">
+          {/* Speech bubble */}
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.15, duration: 0.4, type: 'spring', damping: 18 }}
+            className="relative mb-1"
+          >
+            <div className="bg-[#0a3830] border border-emerald-500/30 rounded-2xl px-6 py-3 shadow-2xl shadow-black/50">
+              <p className="text-white font-bold text-lg sm:text-xl whitespace-nowrap">
+                loading your{' '}
+                <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                  DEWII
+                </span>
+              </p>
+            </div>
+            {/* Bubble tail pointing down toward BUD */}
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full">
+              <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[11px] border-l-transparent border-r-transparent border-t-[#0a3830]" />
+            </div>
+          </motion.div>
+
+          {/* BUD character */}
+          <motion.img
+            src={budCharacterUrl}
+            alt="BUD"
+            className="w-32 h-32 sm:w-40 sm:h-40 drop-shadow-2xl mt-2"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1, y: [0, -8, 0] }}
+            transition={{
+              opacity: { duration: 0.35 },
+              scale: { duration: 0.35 },
+              y: { duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 },
+            }}
+          />
+
+          {/* Loading dots */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="flex items-center gap-2 mt-7"
+          >
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 bg-emerald-400/70 rounded-full"
+                animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.3, 0.8] }}
+                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
+              />
+            ))}
+          </motion.div>
+        </div>
+
         <Toaster />
       </div>
     )
@@ -1524,8 +1589,16 @@ export default function App() {
         }}
       />
 
-      <main className={currentView === 'swipe' ? 'py-0 h-[calc(100vh-64px)] overflow-hidden' : currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? 'p-0 pt-20' : 'py-8 pb-32 pt-20'}>
-        {/* Content with its own container for padding - pt-20 adds top padding to prevent content from going behind transparent navbar */}
+      <React.Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]"><Loader className="w-8 h-8 animate-spin text-primary" /></div>}>
+      <main
+        className={currentView === 'swipe' ? 'overflow-hidden' : ''}
+        style={{
+          paddingTop: 'var(--nav-top)',
+          paddingBottom: currentView === 'swipe' ? undefined : 'var(--nav-bottom)',
+          ...(currentView === 'swipe' && { height: 'calc(100dvh - var(--nav-top) - var(--nav-bottom))' }),
+        }}
+      >
+        {/* Shell padding: --nav-top / --nav-bottom keep content clear of fixed navbars on every view */}
         <div className={currentView === 'browse' || currentView === 'community-market' || currentView === 'reading-analytics' || currentView === 'swag-shop' || currentView === 'swag-marketplace' || currentView === 'globe' || currentView === 'places-directory' || currentView === 'swap-shop' ? '' : currentView === 'swipe' ? 'h-full' : 'container mx-auto px-4'}>
           {/* Increased pb-32 (128px) to account for bottom navbar height on all devices, but remove padding in swipe mode */}
           {currentView === 'feed' && userId && displayName && (
@@ -1903,6 +1976,7 @@ export default function App() {
           )}
         </div>
       </main>
+      </React.Suspense>
 
 
 
@@ -1999,6 +2073,7 @@ export default function App() {
       
       {/* Toaster for notifications */}
       <Toaster />
+      <ConfirmDialog />
     </div>
   )
 }

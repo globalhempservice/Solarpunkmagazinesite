@@ -38,11 +38,11 @@ export function BudModal({
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[80]"
-            style={{ top: '80px' }} // Below header
+            style={{ top: 'var(--nav-top)' }}
           />
 
           {/* Helper Modal - lives in content area between navbars */}
-          <div className="fixed left-0 right-0 z-[90] flex justify-center px-4 pointer-events-none" style={{ top: '80px', bottom: '80px' }}>
+          <div className="fixed left-0 right-0 z-[90] flex justify-center px-4 pointer-events-none" style={{ top: 'var(--nav-top)', bottom: 'var(--nav-bottom)' }}>
             <div className="w-full h-full flex items-center justify-center py-4">
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}

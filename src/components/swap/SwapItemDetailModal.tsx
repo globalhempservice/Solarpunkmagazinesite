@@ -62,7 +62,7 @@ export function SwapItemDetailModal({ item, userId, accessToken, onClose, onProp
   const powerLevel = item.power_level || 1;
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-x-0 top-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4" style={{ bottom: 'var(--nav-bottom)' }}>
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

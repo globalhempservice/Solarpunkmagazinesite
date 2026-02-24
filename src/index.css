@@ -71,6 +71,17 @@
   }
 }
 
+/* ================================================
+   SHELL LAYOUT TOKENS
+   Single source of truth for navbar heights.
+   Use these everywhere: padding, positioning, height calculations.
+   Top navbar: h-20 = 80px  |  Bottom navbar: h-24 = 96px
+   ================================================ */
+:root {
+  --nav-top: 80px;
+  --nav-bottom: 96px;
+}
+
 @layer theme {
   :root, :host {
     --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";

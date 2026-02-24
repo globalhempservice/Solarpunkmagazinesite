@@ -153,7 +153,9 @@ export function MiniAppContainer({
           </motion.div>
         )}
 
-        {/* Main App Content */}
+        {/* Main App Content — full screen so background bleeds behind navbars.
+            Interactive elements inside each mini-app use --nav-top/--nav-bottom
+            to position themselves within the visible safe zone. */}
         {loadingState === 'loaded' && !showWelcome && (
           <motion.div
             key="content"
@@ -163,7 +165,6 @@ export function MiniAppContainer({
             transition={{ duration: 0.3 }}
             className="relative h-full"
           >
-            {/* App Content - Fills entire screen */}
             {children}
           </motion.div>
         )}

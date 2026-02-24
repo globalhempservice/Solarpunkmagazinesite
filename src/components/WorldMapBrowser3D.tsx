@@ -1485,7 +1485,7 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, publicAnonKe
       />
 
       {/* Search Bar - Below Layer Selector */}
-      <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-30 pointer-events-auto">
+      <div className="absolute left-1/2 transform -translate-x-1/2 z-30 pointer-events-auto" style={{ top: 'calc(var(--nav-top) + 5rem)' }}>
         <div className={`relative transition-all duration-500 ease-out ${searchExpanded ? 'w-[90vw] max-w-2xl' : 'w-14'}`}>
           {/* Search Icon Button (Collapsed State) */}
           {!searchExpanded && (
@@ -1596,7 +1596,7 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, publicAnonKe
       </div>
 
       {/* Globe Controls - Bottom Right (Above navbar) */}
-      <div className="absolute bottom-20 md:bottom-24 right-3 md:right-4 z-30 pointer-events-auto">
+      <div className="absolute right-3 md:right-4 z-30 pointer-events-auto" style={{ bottom: 'calc(var(--nav-bottom) + 0.5rem)' }}>
         <div className="relative bg-black/40 backdrop-blur-xl border border-hemp-primary/30 rounded-2xl shadow-2xl shadow-hemp-primary/20 p-1.5 flex flex-col gap-1.5">
           {/* Glow effect */}
           <div className="absolute -inset-1 bg-gradient-to-br from-hemp-primary/20 to-transparent rounded-2xl blur-xl opacity-50 pointer-events-none"></div>
@@ -1644,7 +1644,7 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, publicAnonKe
 
       {/* Country Focus Mode Badge */}
       {selectedCountryName && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-top-3 duration-500">
+        <div className="absolute left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-top-3 duration-500" style={{ top: 'calc(var(--nav-top) + 8rem)' }}>
           <div className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 backdrop-blur-md border border-yellow-400/40 rounded-full shadow-2xl">
             <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
             <span className="font-mono text-yellow-400 font-bold tracking-wider">
@@ -1658,7 +1658,7 @@ export function WorldMapBrowser3D({ serverUrl, userId, accessToken, publicAnonKe
       )}
 
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-8">
+      <div className="absolute left-0 right-0 z-20 px-6 py-3" style={{ top: 'var(--nav-top)' }}>
         <div className="flex items-center justify-between">
           <Button onClick={onClose} variant="ghost" className="gap-2 text-white bg-black/20 backdrop-blur-sm hover:bg-black/30">
             <ArrowLeft className="w-4 h-4" />

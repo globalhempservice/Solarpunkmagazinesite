@@ -167,7 +167,7 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
   // SUCCESS CELEBRATION VIEW
   if (justPosted) {
     return (
-      <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[60]">
+      <div className="fixed inset-x-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[60]" style={{ top: 'var(--nav-top)', bottom: 'var(--nav-bottom)' }}>
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -244,11 +244,11 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
 
   // MAIN MODAL VIEW
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-[60] p-4 pb-28">
+    <div className="fixed inset-x-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-[60] p-4" style={{ top: 'var(--nav-top)', bottom: 'var(--nav-bottom)' }}>
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="relative max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        className="relative max-w-2xl w-full max-h-full overflow-y-auto"
       >
         {/* Ambient glow */}
         <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-orange-500/20 to-amber-600/20 rounded-3xl blur-3xl" />

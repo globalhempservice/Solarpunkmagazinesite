@@ -9,7 +9,19 @@ import { motion, AnimatePresence } from 'motion/react'
 import { AddPlaceModal } from '../places/AddPlaceModal'
 import { PlaceDetailModal } from '../places/PlaceDetailModal'
 import { projectId, publicAnonKey } from '../../utils/supabase/info'
-import { BudCharacter } from '../BudCharacter'
+import budCharacterUrl from '../../assets/bud-character.svg'
+
+const sizeMap = { sm: 'w-12 h-12', md: 'w-16 h-16', lg: 'w-24 h-24', xl: 'w-32 h-32' }
+function BudCharacter({ size = 'md', animate = true, className = '' }: { size?: 'sm' | 'md' | 'lg' | 'xl', animate?: boolean, expression?: string, mood?: string, className?: string }) {
+  return (
+    <motion.img
+      src={budCharacterUrl}
+      className={`${sizeMap[size]} drop-shadow-lg ${className}`}
+      animate={animate ? { y: [0, -6, 0] } : undefined}
+      transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+    />
+  )
+}
 
 interface Place {
   id: string
@@ -371,7 +383,8 @@ export function PlacesApp({
             whileHover={{ scale: 1.1, rotate: 90 }}
             whileTap={{ scale: 0.9 }}
             onClick={onClose}
-            className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600/80 to-teal-600/80 hover:from-emerald-500 hover:to-teal-500 border-2 border-emerald-400/40 backdrop-blur-sm shadow-lg hover:shadow-xl hover:shadow-emerald-500/40 transition-all flex items-center justify-center"
+            className="absolute z-50 w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600/80 to-teal-600/80 hover:from-emerald-500 hover:to-teal-500 border-2 border-emerald-400/40 backdrop-blur-sm shadow-lg hover:shadow-xl hover:shadow-emerald-500/40 transition-all flex items-center justify-center"
+            style={{ top: 'calc(var(--nav-top) + 1rem)', right: '1.5rem' }}
             title="Close Places"
           >
             <svg 

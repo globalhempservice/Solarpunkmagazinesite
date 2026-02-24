@@ -174,7 +174,7 @@ export function AddSwagProductModal({ isOpen, onClose, accessToken, serverUrl, o
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-end">
+      <div className="fixed inset-x-0 top-0 z-[100] flex items-end overflow-hidden" style={{ bottom: 'var(--nav-bottom)' }}>
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -190,7 +190,7 @@ export function AddSwagProductModal({ isOpen, onClose, accessToken, serverUrl, o
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="relative w-full h-[95vh] bg-gradient-to-br from-gray-900 via-purple-900/30 to-pink-900/30 rounded-t-3xl border-t-2 border-purple-500/30 overflow-hidden flex flex-col"
+          className="relative w-full max-h-full bg-gradient-to-br from-gray-900 via-purple-900/30 to-pink-900/30 rounded-t-3xl border-t-2 border-purple-500/30 overflow-hidden flex flex-col"
         >
           {/* Header */}
           <div className="sticky top-0 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-6 border-b border-purple-400/30 flex items-center justify-between z-10">

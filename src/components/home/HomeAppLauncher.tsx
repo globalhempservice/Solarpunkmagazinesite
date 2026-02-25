@@ -1,7 +1,7 @@
 import { motion, Reorder } from 'motion/react'
-import { 
+import {
   FileText, Heart, MapPin, RefreshCw, MessageSquare, Globe,
-  Edit3, Check, Target, Sparkles
+  Edit3, Check, Target, Sparkles, BookOpen
 } from 'lucide-react'
 import { createClient } from '../../utils/supabase/client'
 import { useEffect, useState, useRef } from 'react'
@@ -105,6 +105,14 @@ const ALL_APPS: AppItem[] = [
     iconColor: '#7c2d12',
     route: '/compass',
     category: 'Games'
+  },
+  {
+    key: 'wiki',
+    icon: BookOpen,
+    label: 'WIKI',
+    bgColor: 'linear-gradient(135deg, #6ee7b7 0%, #059669 100%)', // Emerald green
+    iconColor: '#064e3b',
+    category: 'Help'
   },
 ]
 

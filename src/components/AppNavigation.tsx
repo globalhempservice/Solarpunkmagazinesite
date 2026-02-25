@@ -7,11 +7,10 @@ import {
   Home, User, Plus, Heart, X, RefreshCw, Package, 
   MapPin, Briefcase, Store, Building2, MessageCircle, Wallet
 } from 'lucide-react'
-import { BrandLogo } from './BrandLogo'
+import budCharacterUrl from '../assets/bud-character.svg'
 import { WalletPanel } from './WalletPanel'
 import { PointsRulesModal } from './PointsRulesModal'
 import { BubbleController } from './BubbleController'
-import { WikiPage } from './WikiPage'
 import { MessageIcon } from './messaging/MessageIcon'
 import { MessagePanel } from './messaging/MessagePanel'
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
@@ -301,9 +300,8 @@ export function AppNavigation({
     }
   }, [isMessengerOpen])
   
-  // Bubble Controller & Wiki
+  // Bubble Controller
   const [showBubbleController, setShowBubbleController] = useState(false)
-  const [showWikiPage, setShowWikiPage] = useState(false)
   const [bubblePosition, setBubblePosition] = useState({ x: 0, y: 0 })
   
   // Refs
@@ -492,7 +490,7 @@ export function AppNavigation({
             onClick={handleLogoClick}
             isAuthenticated={isAuthenticated}
           >
-            <BrandLogo size="md" theme={homeButtonTheme} />
+            <img src={budCharacterUrl} alt="BUD" className="w-12 h-12 drop-shadow-lg" />
           </LogoButton>
 
           {/* RIGHT SIDE: Messages & Wallet */}
@@ -676,23 +674,10 @@ export function AppNavigation({
       <BubbleController
         isVisible={showBubbleController}
         onClose={() => setShowBubbleController(false)}
-        onWikiClick={() => {
-          setShowBubbleController(false)
-          setShowWikiPage(true)
-        }}
         onThemeClick={handleThemeClick}
-        onThemeSelect={handleThemeSelect}
         position={bubblePosition}
         currentTheme={currentTheme}
       />
-      
-      {/* Wiki Page */}
-      {showWikiPage && (
-        <WikiPage 
-          isOpen={showWikiPage}
-          onClose={() => setShowWikiPage(false)} 
-        />
-      )}
       
       {/* Points Rules Modal */}
       {showPointsRulesModal && (

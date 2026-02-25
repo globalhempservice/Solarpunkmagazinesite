@@ -445,16 +445,13 @@ export default function App() {
 
   // Apply theme globally when user progress loads or theme changes
   useEffect(() => {
+    const allThemes = ['dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour', 'light']
     if (userProgress?.selectedTheme) {
-      // Remove all theme classes first
-      document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour')
-      // Add the selected theme class
+      // Add first, then remove all OTHER themes — prevents classless white flash
       document.documentElement.classList.add(userProgress.selectedTheme)
-      console.log('🎨 Theme applied:', userProgress.selectedTheme)
+      document.documentElement.classList.remove(...allThemes.filter(t => t !== userProgress.selectedTheme))
     } else {
-      // Default: no theme class (uses :root styles)
-      document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour')
-      console.log('🎨 Theme applied: default')
+      document.documentElement.classList.remove(...allThemes)
     }
   }, [userProgress?.selectedTheme])
 
@@ -743,9 +740,13 @@ export default function App() {
   const handleThemeChange = (newTheme: string) => {
     console.log('🎨 Theme change requested:', newTheme)
     
-    // Apply theme immediately to DOM — add first to avoid classless flash
+    // Apply theme immediately to DOM — add first, then remove all OTHER themes
+    // (filtering newTheme out prevents removing the class we just added)
+    const allThemes = ['dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour', 'light']
     document.documentElement.classList.add(newTheme)
-    document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour', 'light')
+    document.documentElement.classList.remove(...allThemes.filter(t => t !== newTheme))
+    // Persist so index.html inline script can restore it instantly on next page load
+    try { localStorage.setItem('dewii-theme', newTheme) } catch(e) {}
     
     // Update user progress state
     if (userProgress) {

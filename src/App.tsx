@@ -279,13 +279,19 @@ export default function App() {
           // (Server might be temporarily down, don't block user)
         }
         
+        // Guard: if user already logged in manually while checkSession was running,
+        // don't overwrite their auth state (prevents double BUD loading screen on mobile)
+        if (justLoggedInRef.current) {
+          return
+        }
+
         // Success! Set auth state
         setAccessToken(validToken)
         setUserId(session.user.id)
         setUserEmail(session.user.email)
         setIsAuthenticated(true)
         localStorage.setItem('supabase_access_token', validToken)
-        
+
         completeInitialization()
       } catch (error: any) {
         console.error('❌ Session check error:', error)

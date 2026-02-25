@@ -1,13 +1,7 @@
-import { useState } from 'react'
-import { Award, Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Lock, Edit, Trash2, Eye, ChevronRight, Rocket, Activity, LogOut, Image as ImageIcon, Heart, Mail, Eye as EyeIcon, EyeOff, AlertCircle, BarChart3, BookOpen, Compass, Sun, Wand2, Atom, Gem, User } from "lucide-react"
+import { Book, Flame, TrendingUp, Trophy, Star, Zap, Crown, Target, Sparkles, Medal, Edit, Trash2, ChevronRight, Rocket, Activity, Image as ImageIcon, Heart, BarChart3, BookOpen, Compass, Sun, Wand2, Atom, Gem, User } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
-import { Progress } from "./ui/progress"
 import { Button } from "./ui/button"
-import { Switch } from "./ui/switch"
-import { Label } from "./ui/label"
-import { Separator } from "./ui/separator"
-import { Input } from "./ui/input"
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 import { ComicLockOverlay } from './ComicLockOverlay'
 import { BadgeDisplay } from './BadgeDisplay'
@@ -47,7 +41,6 @@ interface UserDashboardProps {
   userArticles?: Article[]
   onEditArticle?: (article: Article) => void
   onDeleteArticle?: (articleId: string) => void
-  onLogout?: () => void
   onViewReadingHistory?: () => void
   onViewMatches?: () => void
   matchesCount?: number
@@ -55,89 +48,12 @@ interface UserDashboardProps {
   onViewPointsSystem?: () => void
   onViewReadingAnalytics?: () => void
   onFeatureUnlock?: (featureId: 'reading-analytics') => void
-  accessToken?: string
   equippedBadgeId?: string | null
   profileBannerUrl?: string | null
   userEmail?: string | null
 }
 
-const achievementData: Record<string, { name: string; description: string; icon: any; color: string; rarity: 'common' | 'rare' | 'epic' | 'legendary' }> = {
-  'first-read': {
-    name: 'First Steps',
-    description: 'Read your first article',
-    icon: Book,
-    color: 'from-emerald-400 to-teal-500',
-    rarity: 'common'
-  },
-  'reader-10': {
-    name: 'Curious Mind',
-    description: 'Read 10 articles',
-    icon: Award,
-    color: 'from-blue-400 to-cyan-500',
-    rarity: 'rare'
-  },
-  'streak-3': {
-    name: '3-Day Streak',
-    description: 'Read for 3 consecutive days',
-    icon: Flame,
-    color: 'from-orange-400 to-red-500',
-    rarity: 'rare'
-  },
-  'streak-7': {
-    name: 'Weekly Warrior',
-    description: 'Read for 7 consecutive days',
-    icon: Trophy,
-    color: 'from-amber-400 to-orange-500',
-    rarity: 'epic'
-  },
-  'streak-30': {
-    name: 'Legendary Streak',
-    description: 'Read for 30 consecutive days',
-    icon: Crown,
-    color: 'from-amber-400 to-yellow-300',
-    rarity: 'legendary'
-  },
-  'reader-25': {
-    name: 'Knowledge Seeker',
-    description: 'Read 25 articles',
-    icon: Star,
-    color: 'from-purple-400 to-pink-500',
-    rarity: 'epic'
-  },
-  'reader-50': {
-    name: 'Master Reader',
-    description: 'Read 50 articles',
-    icon: Medal,
-    color: 'from-amber-400 to-yellow-300',
-    rarity: 'legendary'
-  }
-}
-
-const lockedAchievements = [
-  { id: 'reader-10', requiredReads: 10 },
-  { id: 'reader-25', requiredReads: 25 },
-  { id: 'reader-50', requiredReads: 50 },
-  { id: 'streak-3', requiredStreak: 3 },
-  { id: 'streak-7', requiredStreak: 7 },
-  { id: 'streak-30', requiredStreak: 30 },
-]
-
-export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onLogout, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements, onViewPointsSystem, onViewReadingAnalytics, onFeatureUnlock, accessToken, equippedBadgeId, profileBannerUrl, userEmail }: UserDashboardProps) {
-  const [hoveredStat, setHoveredStat] = useState<string | null>(null)
-  const [fireIconClicked, setFireIconClicked] = useState(false)
-  const [marketingNewsletter, setMarketingNewsletter] = useState(false)
-  
-  // Password change state
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmNewPassword, setConfirmNewPassword] = useState ('')
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false)
-  const [passwordChangeError, setPasswordChangeError] = useState('')
-  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false)
-  
+export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteArticle, onViewReadingHistory, onViewMatches, matchesCount, onViewAchievements, onViewPointsSystem, onViewReadingAnalytics, onFeatureUnlock, equippedBadgeId, profileBannerUrl, userEmail }: UserDashboardProps) {
   // Calculate user level based on XP from activities (NOT spendable points!)
   // XP is earned from permanent achievements and activities
   const calculateXP = () => {
@@ -548,28 +464,18 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
           <div className="mt-6 pt-6 border-t border-border/50">
             <div className="grid grid-cols-2 gap-4">
               {/* Current Streak */}
-              <div 
-                className="relative group cursor-pointer"
-                onMouseEnter={() => setHoveredStat('currentStreak')}
-                onMouseLeave={() => {
-                  setHoveredStat(null)
-                  setFireIconClicked(false)
-                }}
-                onClick={() => setFireIconClicked(!fireIconClicked)}
-              >
-                <div className={`absolute -inset-1 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'currentStreak' ? 'animate-pulse' : ''}`} />
-                
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 group-hover:animate-pulse transition-all duration-300" />
+
                 <div className="relative bg-card/90 backdrop-blur-sm border-2 border-orange-500/40 rounded-xl overflow-hidden transform group-hover:scale-105 transition-all duration-300">
                   {/* Decorative corner */}
                   <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-400/30 to-transparent rounded-bl-full" />
-                  
-                  {/* Animated rays */}
-                  {hoveredStat === 'currentStreak' && (
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-orange-400/20 rounded-full animate-ping" />
-                    </div>
-                  )}
-                  
+
+                  {/* Animated rays on hover */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-orange-400/20 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+
                   <div className="relative p-4 flex flex-col items-center justify-center gap-2">
                     <div className="relative">
                       <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full" />
@@ -578,15 +484,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                     <div className="text-3xl font-bold bg-gradient-to-br from-orange-500 to-red-500 bg-clip-text text-transparent">
                       {progress.currentStreak}
                     </div>
-                    
-                    {/* Animated label - shows on hover (desktop) or click (mobile) */}
-                    <div 
-                      className={`text-xs font-medium text-orange-600 dark:text-orange-400 text-center transition-all duration-300 ${
-                        hoveredStat === 'currentStreak' || fireIconClicked 
-                          ? 'opacity-100 translate-y-0' 
-                          : 'opacity-0 -translate-y-2 pointer-events-none'
-                      }`}
-                    >
+                    <div className="text-xs font-medium text-orange-600 dark:text-orange-400 text-center">
                       Day Streak
                     </div>
                   </div>
@@ -594,26 +492,22 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               </div>
               
               {/* Best Streak */}
-              <div 
+              <div
                 className="relative group cursor-pointer"
-                onMouseEnter={() => setHoveredStat('bestStreak')}
-                onMouseLeave={() => setHoveredStat(null)}
                 onClick={onViewPointsSystem}
                 title="Click to view Points System"
               >
-                <div className={`absolute -inset-1 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'bestStreak' ? 'animate-pulse' : ''}`} />
-                
+                <div className="absolute -inset-1 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 group-hover:animate-pulse transition-all duration-300" />
+
                 <div className="relative bg-card/90 backdrop-blur-sm border-2 border-amber-500/40 rounded-xl overflow-hidden transform group-hover:scale-105 transition-all duration-300">
                   {/* Decorative corner */}
                   <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-400/30 to-transparent rounded-bl-full" />
-                  
-                  {/* Animated rays */}
-                  {hoveredStat === 'bestStreak' && (
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-amber-400/20 rounded-full animate-ping" />
-                    </div>
-                  )}
-                  
+
+                  {/* Animated rays on hover */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-amber-400/20 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+
                   <div className="relative p-4 flex flex-col items-center justify-center gap-2">
                     <div className="relative">
                       <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
@@ -622,9 +516,8 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
                     <div className="text-3xl font-bold bg-gradient-to-br from-amber-500 to-yellow-500 bg-clip-text text-transparent">
                       {progress.longestStreak}
                     </div>
-                    {/* Add label for clarity */}
-                    <div className="text-xs text-muted-foreground text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      View Points System
+                    <div className="text-xs font-medium text-amber-600 dark:text-amber-400 text-center">
+                      Best Streak
                     </div>
                   </div>
                 </div>
@@ -637,25 +530,21 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
       {/* STATS GRID - MEGA ENHANCED */}
       <div className="grid grid-cols-3 gap-4">
         {/* Articles Read */}
-        <div 
+        <div
           className="relative group cursor-pointer"
-          onMouseEnter={() => setHoveredStat('articles')}
-          onMouseLeave={() => setHoveredStat(null)}
           onClick={onViewReadingHistory}
         >
-          <div className={`absolute -inset-1 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'articles' ? 'animate-pulse' : ''}`} />
-          
+          <div className="absolute -inset-1 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 group-hover:animate-pulse transition-all duration-300" />
+
           <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-emerald-500/40 overflow-hidden transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300 h-full">
             {/* Decorative corner */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-400/30 to-transparent rounded-bl-full" />
-            
-            {/* Animated rays */}
-            {hoveredStat === 'articles' && (
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-emerald-400/20 rounded-full animate-ping" />
-              </div>
-            )}
-            
+
+            {/* Animated rays on hover */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-emerald-400/20 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
             <CardContent className="p-6 flex flex-col items-center justify-center gap-3 min-h-[160px]">
               <div className="relative">
                 <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
@@ -664,12 +553,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               <div className="text-4xl font-bold bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent">
                 {progress.totalArticlesRead}
               </div>
-              {/* Two-line hover label */}
-              <div className={`text-xs font-medium text-emerald-600 dark:text-emerald-400 text-center transition-all duration-300 ${
-                hoveredStat === 'articles' 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 -translate-y-2 pointer-events-none'
-              }`}>
+              <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 text-center">
                 <div>Articles</div>
                 <div>Read</div>
               </div>
@@ -678,25 +562,21 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
         </div>
 
         {/* Reading Matches */}
-        <div 
+        <div
           className="relative group cursor-pointer"
-          onMouseEnter={() => setHoveredStat('matches')}
-          onMouseLeave={() => setHoveredStat(null)}
           onClick={onViewMatches}
         >
-          <div className={`absolute -inset-1 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'matches' ? 'animate-pulse' : ''}`} />
-          
+          <div className="absolute -inset-1 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 group-hover:animate-pulse transition-all duration-300" />
+
           <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-pink-500/40 overflow-hidden transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300 h-full">
             {/* Decorative corner */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-pink-400/30 to-transparent rounded-bl-full" />
-            
-            {/* Animated rays */}
-            {hoveredStat === 'matches' && (
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-pink-400/20 rounded-full animate-ping" />
-              </div>
-            )}
-            
+
+            {/* Animated rays on hover */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-pink-400/20 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
             <CardContent className="p-6 flex flex-col items-center justify-center gap-3 min-h-[160px]">
               <div className="relative">
                 <div className="absolute inset-0 bg-pink-500/20 blur-xl rounded-full" />
@@ -705,12 +585,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               <div className="text-4xl font-bold bg-gradient-to-br from-pink-500 to-rose-500 bg-clip-text text-transparent">
                 {matchesCount || 0}
               </div>
-              {/* Two-line hover label */}
-              <div className={`text-xs font-medium text-pink-600 dark:text-pink-400 text-center transition-all duration-300 ${
-                hoveredStat === 'matches' 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 -translate-y-2 pointer-events-none'
-              }`}>
+              <div className="text-xs font-medium text-pink-600 dark:text-pink-400 text-center">
                 <div>Reading</div>
                 <div>Matches</div>
               </div>
@@ -719,24 +594,21 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
         </div>
 
         {/* Achievements */}
-        <div 
+        <div
           className="relative group cursor-pointer"
-          onMouseEnter={() => setHoveredStat('achievements')}
-          onMouseLeave={() => setHoveredStat(null)}
           onClick={onViewAchievements}
           title="Click to view Achievements"
         >
-          <div className={`absolute -inset-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-all duration-300 ${hoveredStat === 'achievements' ? 'animate-pulse' : ''}`} />
-          
+          <div className="absolute -inset-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 group-hover:animate-pulse transition-all duration-300" />
+
           <Card className="relative bg-card/90 backdrop-blur-sm border-2 border-purple-500/40 overflow-hidden transform group-hover:scale-105 group-hover:rotate-1 transition-all duration-300 h-full">
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-400/30 to-transparent rounded-bl-full" />
-            
-            {hoveredStat === 'achievements' && (
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-purple-400/20 rounded-full animate-ping" />
-              </div>
-            )}
-            
+
+            {/* Animated rays on hover */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-purple-400/20 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
             <CardContent className="p-6 flex flex-col items-center justify-center gap-3 min-h-[160px]">
               <div className="relative">
                 <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
@@ -745,12 +617,7 @@ export function UserDashboard({ progress, userArticles, onEditArticle, onDeleteA
               <div className="text-4xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent">
                 {progress.achievements.length}
               </div>
-              {/* Two-line hover label */}
-              <div className={`text-xs font-medium text-purple-600 dark:text-purple-400 text-center transition-all duration-300 ${
-                hoveredStat === 'achievements' 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 -translate-y-2 pointer-events-none'
-              }`}>
+              <div className="text-xs font-medium text-purple-600 dark:text-purple-400 text-center">
                 <div>View</div>
                 <div>Achievements</div>
               </div>

@@ -70,6 +70,8 @@ interface AppNavigationProps {
   totalArticlesRead?: number
   currentStreak?: number
   currentTheme?: 'light' | 'dark' | 'hempin'
+  avatarUrl?: string | null
+  displayName?: string
   
   // Server Config
   serverUrl?: string
@@ -215,6 +217,8 @@ export function AppNavigation({
   totalArticlesRead = 0,
   currentStreak,
   currentTheme, // Theme state for bubble controller
+  avatarUrl,
+  displayName,
   serverUrl,
   projectId,
   publicAnonKey,
@@ -608,6 +612,8 @@ export function AppNavigation({
                   }}
                   isActive={meDrawerOpen || currentView === 'dashboard'}
                   hasNotification={hasNewDiscoveryMatches}
+                  avatarUrl={avatarUrl}
+                  displayName={displayName}
                 />
               </div>
 

@@ -206,34 +206,58 @@ interface MeButtonProps {
   onClick: () => void
   isActive: boolean
   hasNotification?: boolean
+  avatarUrl?: string | null
+  displayName?: string
 }
 
-export function MeButton({ onClick, isActive, hasNotification }: MeButtonProps) {
+export function MeButton({ onClick, isActive, hasNotification, avatarUrl, displayName }: MeButtonProps) {
   return (
     <div className="relative flex flex-col items-center -mt-8">
-      {/* Elevation shadow */}
-      <div 
+      {/* Elevation glow */}
+      <div
         className="absolute -inset-4 rounded-full blur-2xl transition-opacity duration-300"
         style={{
           background: 'linear-gradient(to bottom right, #0ea5e9, #a855f7, #ec4899)',
           opacity: isActive ? 0.4 : 0.2,
         }}
       />
-      
-      <HempButton
-        icon={User}
-        onClick={onClick}
-        theme="me"
-        size="2xl"
-        isActive={isActive}
-        enableMagnetic={false}
-        enableShimmer={false}
-        enableBreathing={hasNotification ? true : false}
-        showNotification={hasNotification}
-        aria-label="My profile"
-        title="My dashboard"
-        className="shadow-2xl"
-      />
+
+      {avatarUrl ? (
+        <motion.button
+          onClick={onClick}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          className="relative w-14 h-14 rounded-full overflow-hidden shadow-2xl focus:outline-none"
+          style={{
+            border: `3px solid ${isActive ? '#a855f7' : 'rgba(255,255,255,0.3)'}`,
+            boxShadow: isActive
+              ? '0 0 20px rgba(168, 85, 247, 0.5), 0 8px 32px rgba(0,0,0,0.3)'
+              : '0 8px 32px rgba(0,0,0,0.3)',
+          }}
+          aria-label="My profile"
+          title="My dashboard"
+        >
+          <img src={avatarUrl} alt={displayName || 'Me'} className="w-full h-full object-cover" />
+          {hasNotification && (
+            <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white" />
+          )}
+        </motion.button>
+      ) : (
+        <HempButton
+          icon={User}
+          onClick={onClick}
+          theme="me"
+          size="2xl"
+          isActive={isActive}
+          enableMagnetic={false}
+          enableShimmer={false}
+          enableBreathing={hasNotification ? true : false}
+          showNotification={hasNotification}
+          aria-label="My profile"
+          title="My dashboard"
+          className="shadow-2xl"
+        />
+      )}
     </div>
   )
 }

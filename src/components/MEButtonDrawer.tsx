@@ -155,7 +155,21 @@ export function MEButtonDrawer({
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut()
-      localStorage.clear()
+      // Remove auth/session keys but KEEP 'dewii-theme' so the page
+      // doesn't flash white on reload before React applies the saved theme.
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key !== 'dewii-theme' && (
+          key.includes('supabase') ||
+          key.includes('matchedArticles') ||
+          key.includes('readArticles') ||
+          key.startsWith('dewii-progress-')
+        )) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k))
       window.location.reload()
     } catch {
       window.location.reload()

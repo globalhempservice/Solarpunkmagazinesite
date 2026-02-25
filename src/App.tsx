@@ -455,16 +455,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView]) // fetchArticles causes unnecessary re-renders, so we intentionally omit it
 
-  // Apply theme globally when user progress loads or theme changes
+  // Apply theme globally when user progress loads or theme changes.
+  // IMPORTANT: Only act when we have an explicit theme value — never strip classes when
+  // selectedTheme is undefined/null (that happens on partial server responses and would
+  // turn the page white). The only place we deliberately clear the theme is handleLogout.
   useEffect(() => {
+    if (!userProgress?.selectedTheme) return
     const allThemes = ['dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour', 'light']
-    if (userProgress?.selectedTheme) {
-      // Add first, then remove all OTHER themes — prevents classless white flash
-      document.documentElement.classList.add(userProgress.selectedTheme)
-      document.documentElement.classList.remove(...allThemes.filter(t => t !== userProgress.selectedTheme))
-    } else {
-      document.documentElement.classList.remove(...allThemes)
-    }
+    document.documentElement.classList.add(userProgress.selectedTheme)
+    document.documentElement.classList.remove(...allThemes.filter(t => t !== userProgress.selectedTheme))
   }, [userProgress?.selectedTheme])
 
   const fetchArticles = async () => {
@@ -1099,7 +1098,8 @@ export default function App() {
 
             if (response.ok) {
               const data = await response.json()
-              setUserProgress(data.progress)
+              // Merge — preserve selectedTheme and other local fields the server may omit
+              setUserProgress(prev => prev ? { ...prev, ...data.progress } : data.progress)
               console.log('✅ Article marked as read successfully')
               
               // Cleanup tracker
@@ -1275,8 +1275,8 @@ export default function App() {
 
       const data = await response.json()
       console.log('Profile update response:', data)
-      
-      setUserProgress(data.progress)
+
+      setUserProgress(prev => prev ? { ...prev, ...data.progress } : data.progress)
       // Points notification removed - shown in navbar animation
       
       console.log('=== FRONTEND: Profile update successful ===')
@@ -1545,7 +1545,7 @@ export default function App() {
             }
             
             const data = await response.json()
-            setUserProgress(data.progress)
+            setUserProgress(prev => prev ? { ...prev, ...data.progress } : data.progress)
           } catch (error: any) {
             console.error('Exchange error:', error)
             throw error
@@ -1690,7 +1690,7 @@ export default function App() {
               allArticles={articles}
               accessToken={accessToken}
               userId={userId}
-              onProgressUpdate={(progress) => setUserProgress(progress)}
+              onProgressUpdate={(progress) => setUserProgress(prev => prev ? { ...prev, ...progress } : progress)}
               suggestedArticles={articles
                 .filter(a => 
                   a.id !== selectedArticle.id && // Not the current article
@@ -1779,7 +1779,7 @@ export default function App() {
             <AchievementsPage
               progress={userProgress}
               onBack={() => setCurrentView('dashboard')}
-              onProgressUpdate={(updatedProgress) => setUserProgress(updatedProgress)}
+              onProgressUpdate={(updatedProgress) => setUserProgress(prev => prev ? { ...prev, ...updatedProgress } : updatedProgress)}
               accessToken={accessToken}
             />
           )}
@@ -1796,7 +1796,7 @@ export default function App() {
               accessToken={accessToken}
               userProgress={userProgress}
               onClose={() => setCurrentView('feed')}
-              onProgressUpdate={(progress) => setUserProgress(progress)}
+              onProgressUpdate={(progress) => setUserProgress(prev => prev ? { ...prev, ...progress } : progress)}
             />
           )}
 

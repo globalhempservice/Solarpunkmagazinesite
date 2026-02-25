@@ -2,55 +2,41 @@ import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from './utils/supabase/client'
 import { projectId, publicAnonKey } from './utils/supabase/info'
 import { ReadingSecurityTracker } from './utils/readingSecurityTracker'
-import { CommunityMarketLoader } from './components/CommunityMarketLoader'
 import { NewPremiumWelcomePage } from './components/welcome/NewPremiumWelcomePage'
 import { AppNavigation } from './components/AppNavigation'
-import { ArticleCard } from './components/ArticleCard'
-import { ArticleEditor } from './components/ArticleEditor'
-import { UserDashboard } from './components/UserDashboard'
-import { ArticleReader } from './components/ArticleReader'
-const AdminDashboard = React.lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
-import { ReadingHistory } from './components/ReadingHistory'
-import { LinkedInImporter } from './components/LinkedInImporter'
-import { PlacesDirectory } from './components/PlacesDirectory'
-import { SwapLoader } from './components/swap/SwapLoader'
-import { MatchedArticles } from './components/MatchedArticles'
-import { AccountSettings } from './components/AccountSettings'
-import { PointsSystemPage } from './components/PointsSystemPage'
-import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { ResetPasswordModal } from './components/ResetPasswordModal'
 import { FeatureUnlockModal } from './components/FeatureUnlockModal'
-// import { LoadingScreen } from './components/LoadingScreen' // Removed for faster loading
-const SwagShopAdmin = React.lazy(() => import('./components/SwagShopAdmin').then(m => ({ default: m.SwagShopAdmin })))
-import { ComicLockOverlay } from './components/ComicLockOverlay'
-import { ReadingAnalytics } from './components/ReadingAnalytics'
-import { HomeCards } from './components/HomeCards'
-import { BrowsePage } from './components/BrowsePage'
-import { AchievementsPage } from './components/AchievementsPage'
-import { SwipeMode } from './components/SwipeMode'
-import { ServerErrorBanner } from './components/ServerErrorBanner'
-import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
-import { Skeleton } from './components/ui/skeleton'
-import { Sparkles, Search, X, Filter, Heart, Zap, BookOpen, Loader } from 'lucide-react'
-import { Input } from './components/ui/input'
-import { Button } from './components/ui/button'
-import { Badge } from './components/ui/badge'
+import { MEButtonDrawer } from './components/MEButtonDrawer'
+import { HomeAppLauncher } from './components/home/HomeAppLauncher'
 import { toast } from 'sonner@2.0.3'
 import { Toaster } from './components/ui/sonner'
-import { SwagShop } from './components/SwagShop'
-import { SwagMarketplace } from './components/SwagMarketplace'
-import { MEButtonDrawer } from './components/MEButtonDrawer'
-import { UserProfile } from './components/UserProfile'
-import { DiscoveryDashboard } from './components/discovery/DiscoveryDashboard'
-import { MyInventory } from './components/swap/MyInventory'
-import { HomeAppLauncher } from './components/home/HomeAppLauncher'
-import { TerpeneHunter } from './components/terpene/TerpeneHunter'
-import { CreateModal } from './components/CreateModal'
-import { HempForum } from './components/HempForum'
-import { AddPlaceModal } from './components/places/AddPlaceModal'
-import { WikiPage } from './components/WikiPage'
+import { Loader } from 'lucide-react'
 
-// Mini-App Wrappers (lazy-loaded)
+// ─── Lazy-loaded view components ────────────────────────────────────────────
+// Each is only downloaded + parsed when the user first navigates to that view.
+const UserDashboard = React.lazy(() => import('./components/UserDashboard').then(m => ({ default: m.UserDashboard })))
+const ArticleEditor = React.lazy(() => import('./components/ArticleEditor').then(m => ({ default: m.ArticleEditor })))
+const ArticleReader = React.lazy(() => import('./components/ArticleReader').then(m => ({ default: m.ArticleReader })))
+const AdminDashboard = React.lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
+const SwagShopAdmin = React.lazy(() => import('./components/SwagShopAdmin').then(m => ({ default: m.SwagShopAdmin })))
+const ReadingHistory = React.lazy(() => import('./components/ReadingHistory').then(m => ({ default: m.ReadingHistory })))
+const LinkedInImporter = React.lazy(() => import('./components/LinkedInImporter').then(m => ({ default: m.LinkedInImporter })))
+const MatchedArticles = React.lazy(() => import('./components/MatchedArticles').then(m => ({ default: m.MatchedArticles })))
+const AchievementsPage = React.lazy(() => import('./components/AchievementsPage').then(m => ({ default: m.AchievementsPage })))
+const PointsSystemPage = React.lazy(() => import('./components/PointsSystemPage').then(m => ({ default: m.PointsSystemPage })))
+const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })))
+const ReadingAnalytics = React.lazy(() => import('./components/ReadingAnalytics').then(m => ({ default: m.ReadingAnalytics })))
+const AccountSettings = React.lazy(() => import('./components/AccountSettings').then(m => ({ default: m.AccountSettings })))
+const UserProfile = React.lazy(() => import('./components/UserProfile').then(m => ({ default: m.UserProfile })))
+const MyInventory = React.lazy(() => import('./components/swap/MyInventory').then(m => ({ default: m.MyInventory })))
+const SwagShop = React.lazy(() => import('./components/SwagShop').then(m => ({ default: m.SwagShop })))
+const CommunityMarketLoader = React.lazy(() => import('./components/CommunityMarketLoader').then(m => ({ default: m.CommunityMarketLoader })))
+const DiscoveryDashboard = React.lazy(() => import('./components/discovery/DiscoveryDashboard').then(m => ({ default: m.DiscoveryDashboard })))
+const CreateModal = React.lazy(() => import('./components/CreateModal').then(m => ({ default: m.CreateModal })))
+const AddPlaceModal = React.lazy(() => import('./components/places/AddPlaceModal').then(m => ({ default: m.AddPlaceModal })))
+const WikiPage = React.lazy(() => import('./components/WikiPage').then(m => ({ default: m.WikiPage })))
+
+// ─── Lazy-loaded mini-app wrappers ──────────────────────────────────────────
 const GlobeApp = React.lazy(() => import('./components/mini-apps/GlobeApp').then(m => ({ default: m.GlobeApp })))
 const PlacesApp = React.lazy(() => import('./components/mini-apps/PlacesApp').then(m => ({ default: m.PlacesApp })))
 const ForumApp = React.lazy(() => import('./components/mini-apps/ForumApp').then(m => ({ default: m.ForumApp })))
@@ -399,27 +385,47 @@ export default function App() {
   useEffect(() => {
     if (isAuthenticated && userId && accessToken && !initializing) {
       console.log('🔐 User authenticated: Fetching user-specific data')
-      
-      // FIX #3: Mark as not loaded initially to prevent flash
-      setAuthDataLoaded(false)
-      
-      // Fetch all user data
+
+      // LAYER 2: Check for cached progress — show home instantly for returning users
+      const cacheKey = `dewii-progress-${userId}`
+      let usedCache = false
+      try {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached)
+          const ageMs = Date.now() - timestamp
+          if (ageMs < 5 * 60 * 1000) { // Cache valid for 5 minutes
+            console.log('⚡ Using cached progress — skipping loading screen')
+            setUserProgress(data)
+            setAuthDataLoaded(true) // Show home immediately
+            usedCache = true
+          }
+        }
+      } catch {}
+
+      if (!usedCache) {
+        // No fresh cache — show loading screen while we fetch
+        setAuthDataLoaded(false)
+      }
+
+      // LAYER 3: Fetch critical data immediately, defer non-critical calls
+      // Critical: progress + articles (needed for home screen)
       Promise.all([
         fetchUserProgress(),
         fetchUserArticles(),
-        fetchUserBadges(),
-        checkForNewDiscoveryMatches()
       ]).then(() => {
-        // Small delay to ensure smooth transition
-        setTimeout(() => {
-          setAuthDataLoaded(true)
-        }, 100)
+        if (!usedCache) {
+          setTimeout(() => setAuthDataLoaded(true), 100)
+        }
       }).catch(err => {
         console.error('Error fetching user data:', err)
-        // Still show UI even if data fetch fails
         setAuthDataLoaded(true)
       })
-      // REMOVED: Articles now loaded on-demand only when needed
+
+      // Non-critical: badges and discovery matches — defer to avoid startup memory spike
+      setTimeout(() => fetchUserBadges(), 400)
+      setTimeout(() => checkForNewDiscoveryMatches(), 700)
+
     } else if (!isAuthenticated) {
       // Reset when logged out
       setAuthDataLoaded(false)
@@ -612,7 +618,15 @@ export default function App() {
         marketUnlocked: mergedProgress.marketUnlocked,
         terpenes: progressData?.terpenes_collected
       })
-      
+
+      // Cache progress so next login skips the loading screen
+      try {
+        localStorage.setItem(
+          `dewii-progress-${userId}`,
+          JSON.stringify({ data: mergedProgress, timestamp: Date.now() })
+        )
+      } catch {}
+
       setUserProgress(mergedProgress)
     } catch (error: any) {
       console.error('Error fetching user progress:', error)
@@ -984,10 +998,10 @@ export default function App() {
 
   const handleLogout = async () => {
     console.log('🚪 Logging out...')
-    
+
     // Sign out from Supabase
     await supabase.auth.signOut()
-    
+
     // Clear ALL auth state
     setIsAuthenticated(false)
     setAccessToken(null)
@@ -997,12 +1011,12 @@ export default function App() {
     setArticles([])
     setUserArticles([])
     setMatchedArticles([])
-    
+
     // Clear localStorage auth data (but keep theme preferences)
     const keysToRemove = []
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
-      if (key && (key.includes('supabase') || key.includes('matchedArticles') || key.includes('readArticles'))) {
+      if (key && (key.includes('supabase') || key.includes('matchedArticles') || key.includes('readArticles') || key.startsWith('dewii-progress-'))) {
         keysToRemove.push(key)
       }
     }

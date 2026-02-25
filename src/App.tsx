@@ -1782,23 +1782,12 @@ export default function App() {
           {currentView === 'settings' && (
             <AccountSettings
               userId={userId}
-              userEmail={userEmail}
-              userPoints={userProgress?.points}
-              userNickname={userProgress?.nickname}
-              homeButtonTheme={userProgress?.homeButtonTheme}
-              selectedTheme={userProgress?.selectedTheme}
+              userEmail={userEmail || undefined}
               marketingOptIn={userProgress?.marketingOptIn}
-              totalArticlesRead={userProgress?.totalArticlesRead || 0}
+              marketNewsletterOptIn={userProgress?.marketNewsletterOptIn}
               accessToken={accessToken || undefined}
-              serverUrl={serverUrl}
-              profileBannerUrl={userProgress?.profileBannerUrl}
               onLogout={handleLogout}
-              onUpdateProfile={handleUpdateProfile}
               onUpdateMarketingPreference={handleUpdateMarketingPreference}
-              onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-              onThemeChange={handleThemeChange}
-              onBadgeEquipped={fetchUserProgress}
-              onBannerUploaded={fetchUserProgress}
             />
           )}
 

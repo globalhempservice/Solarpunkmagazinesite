@@ -1479,11 +1479,13 @@ export default function App() {
         currentTheme={
           // Normalize theme to light/dark only
           // If user has premium theme or hempin, return undefined to use default (light)
-          userProgress?.selectedTheme === 'light' || 
+          userProgress?.selectedTheme === 'light' ||
           userProgress?.selectedTheme === 'dark'
-            ? userProgress.selectedTheme 
+            ? userProgress.selectedTheme
             : undefined
         }
+        avatarUrl={avatarUrl}
+        displayName={displayName}
         serverUrl={serverUrl}
         projectId={projectId}
         publicAnonKey={publicAnonKey}
@@ -1637,7 +1639,6 @@ export default function App() {
               userArticles={userArticles}
               onEditArticle={handleEditArticle}
               onDeleteArticle={handleDeleteArticle}
-              onLogout={handleLogout}
               onViewReadingHistory={() => setCurrentView('reading-history')}
               onViewMatches={() => setCurrentView('matched-articles')}
               matchesCount={matchedArticles.length}
@@ -1645,7 +1646,6 @@ export default function App() {
               onViewPointsSystem={() => setCurrentView('points-system')}
               onViewReadingAnalytics={() => setCurrentView('reading-analytics')}
               onFeatureUnlock={(featureId) => setFeatureUnlockModal({ featureId, isOpen: true })}
-              accessToken={accessToken || undefined}
               equippedBadgeId={userProgress.selectedBadge || null}
               profileBannerUrl={userProgress.profileBannerUrl || null}
               userEmail={userEmail}
@@ -1989,8 +1989,8 @@ export default function App() {
             setCurrentView('dashboard')
             setMEDrawerOpen(false)
           }}
-          onOrganizationsClick={() => {
-            setCurrentView('my-organizations')
+          onDashboardClick={() => {
+            setCurrentView('dashboard')
             setMEDrawerOpen(false)
           }}
           onInventoryClick={() => {
@@ -1998,15 +1998,6 @@ export default function App() {
             setMEDrawerOpen(false)
           }}
           onSettingsClick={() => setCurrentView('settings')}
-          onDiscoveryMatchClick={() => setDiscoveryMatchOpen(true)}
-          onPluginStoreClick={() => {
-            setCurrentView('settings')
-            setMEDrawerOpen(false)
-            // Show a toast to guide user to the Home Button Theme section
-            setTimeout(() => {
-              toast.info('Scroll down to "Home Button Theme" to customize your logo!')
-            }, 500)
-          }}
         />
       )}
 

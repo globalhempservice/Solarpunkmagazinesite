@@ -48,6 +48,7 @@ import { TerpeneHunter } from './components/terpene/TerpeneHunter'
 import { CreateModal } from './components/CreateModal'
 import { HempForum } from './components/HempForum'
 import { AddPlaceModal } from './components/places/AddPlaceModal'
+import { WikiPage } from './components/WikiPage'
 
 // Mini-App Wrappers (lazy-loaded)
 const GlobeApp = React.lazy(() => import('./components/mini-apps/GlobeApp').then(m => ({ default: m.GlobeApp })))
@@ -138,6 +139,7 @@ export default function App() {
   const [discoveryMatchOpen, setDiscoveryMatchOpen] = useState(false)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
+  const [showWikiPage, setShowWikiPage] = useState(false)
   const [displayName, setDisplayName] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [hasNewDiscoveryMatches, setHasNewDiscoveryMatches] = useState(false)
@@ -416,7 +418,7 @@ export default function App() {
       // Reset when logged out
       setAuthDataLoaded(false)
     }
-  }, [isAuthenticated, userId, accessToken, initializing])
+  }, [isAuthenticated, userId, initializing])
 
   // Poll for new discovery matches every 30 seconds
   useEffect(() => {
@@ -741,9 +743,9 @@ export default function App() {
   const handleThemeChange = (newTheme: string) => {
     console.log('🎨 Theme change requested:', newTheme)
     
-    // Apply theme immediately to DOM
-    document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour')
+    // Apply theme immediately to DOM — add first to avoid classless flash
     document.documentElement.classList.add(newTheme)
+    document.documentElement.classList.remove('dark', 'hempin', 'solarpunk-dreams', 'midnight-hemp', 'golden-hour', 'light')
     
     // Update user progress state
     if (userProgress) {
@@ -1140,7 +1142,12 @@ export default function App() {
   // Handle app launcher navigation
   const handleAppLauncherClick = (appKey: string) => {
     console.log(`🚀 Launching app: ${appKey}`)
-    
+
+    if (appKey === 'wiki') {
+      setShowWikiPage(true)
+      return
+    }
+
     // Map app keys to views
     const appRoutes: Record<string, typeof currentView> = {
       'mag': 'browse',
@@ -2059,6 +2066,12 @@ export default function App() {
           // Refresh places if needed
           console.log('Place added successfully')
         }}
+      />
+
+      {/* Wiki Page */}
+      <WikiPage
+        isOpen={showWikiPage}
+        onClose={() => setShowWikiPage(false)}
       />
 
       {/* Feature Unlock Modal */}

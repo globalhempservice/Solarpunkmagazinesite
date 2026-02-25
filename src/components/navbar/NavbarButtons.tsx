@@ -82,10 +82,10 @@ export function LogoButton({ onClick, children, isAuthenticated }: LogoButtonPro
   return (
     <motion.button
       onClick={onClick}
-      className="group relative flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 active:scale-95 z-10"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      aria-label={isAuthenticated ? "Open menu" : "Change theme"}
+      className="group relative flex items-center justify-center transition-all focus:outline-none rounded-full z-10"
+      whileHover={{ scale: 2 }}
+      whileTap={{ scale: 1.8 }}
+      aria-label={isAuthenticated ? "Open BUD menu" : "Change theme"}
     >
       {/* Outer pulse ring for authenticated users */}
       {isAuthenticated && (

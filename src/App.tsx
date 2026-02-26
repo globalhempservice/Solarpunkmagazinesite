@@ -47,6 +47,7 @@ const MagApp = React.lazy(() => import('./components/mini-apps/MagApp').then(m =
 const SwipeApp = React.lazy(() => import('./components/mini-apps/SwipeApp').then(m => ({ default: m.SwipeApp })))
 const BudPresentationPage = React.lazy(() => import('./components/BudPresentationPage').then(m => ({ default: m.BudPresentationPage })))
 import { useConfirmDialog } from './components/ui/use-confirm-dialog'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { motion } from 'motion/react'
 import budCharacterUrl from './assets/bud-character.svg'
 
@@ -432,15 +433,22 @@ export default function App() {
     }
   }, [isAuthenticated, userId, initializing])
 
-  // Poll for new discovery matches every 30 seconds
+  // Poll for new discovery matches every 2 minutes — pauses when tab is hidden
   useEffect(() => {
     if (!isAuthenticated || !userId || !accessToken) return
 
-    const interval = setInterval(() => {
-      checkForNewDiscoveryMatches()
-    }, 30000) // 30 seconds
+    let interval: ReturnType<typeof setInterval> | null = null
+    const start = () => { if (!interval) interval = setInterval(checkForNewDiscoveryMatches, 120000) }
+    const stop  = () => { if (interval) { clearInterval(interval); interval = null } }
 
-    return () => clearInterval(interval)
+    start()
+    const onVisibility = () => document.hidden ? stop() : (start(), checkForNewDiscoveryMatches())
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [isAuthenticated, userId, accessToken])
 
   // Lazy load articles only when needed by specific views
@@ -1647,11 +1655,13 @@ export default function App() {
 
           {/* Swipe Mode - Mini-App Wrapper */}
           {currentView === 'swipe' && userId && accessToken && (
-            <SwipeApp
-              userId={userId}
-              accessToken={accessToken}
-              onClose={() => setCurrentView('feed')}
-            />
+            <ErrorBoundary label="swipe">
+              <SwipeApp
+                userId={userId}
+                accessToken={accessToken}
+                onClose={() => setCurrentView('feed')}
+              />
+            </ErrorBoundary>
           )}
 
           {currentView === 'dashboard' && userProgress && (
@@ -1791,13 +1801,15 @@ export default function App() {
           )}
 
           {currentView === 'browse' && userId && accessToken && (
-            <MagApp
-              userId={userId}
-              accessToken={accessToken}
-              userProgress={userProgress}
-              onClose={() => setCurrentView('feed')}
-              onProgressUpdate={(progress) => setUserProgress(prev => prev ? { ...prev, ...progress } : progress)}
-            />
+            <ErrorBoundary label="mag">
+              <MagApp
+                userId={userId}
+                accessToken={accessToken}
+                userProgress={userProgress}
+                onClose={() => setCurrentView('feed')}
+                onProgressUpdate={(progress) => setUserProgress(prev => prev ? { ...prev, ...progress } : progress)}
+              />
+            </ErrorBoundary>
           )}
 
           {currentView === 'settings' && (
@@ -1885,42 +1897,46 @@ export default function App() {
 
           {/* Places Directory */}
           {currentView === 'places-directory' && (
-            <PlacesApp
-              serverUrl={serverUrl}
-              onClose={() => setCurrentView('feed')}
-              onViewOnGlobe={() => setCurrentView('globe')}
-              userId={userId}
-              accessToken={accessToken}
-              onMessagePlace={(ownerId, placeId, placeName) => {
-                // Handle messaging from places
-                console.log('Message place:', placeId, placeName)
-              }}
-              currentUserName={userProgress?.name}
-              currentUserAvatar={userProgress?.avatar_url}
-              onManageOrganization={() => {
-                setCurrentView('community-market')
-                setAutoOpenOrganizations(true)
-                // Reset the flag after a delay to allow the panel to open
-                setTimeout(() => setAutoOpenOrganizations(false), 1000)
-              }}
-            />
+            <ErrorBoundary label="places">
+              <PlacesApp
+                serverUrl={serverUrl}
+                onClose={() => setCurrentView('feed')}
+                onViewOnGlobe={() => setCurrentView('globe')}
+                userId={userId}
+                accessToken={accessToken}
+                onMessagePlace={(ownerId, placeId, placeName) => {
+                  // Handle messaging from places
+                  console.log('Message place:', placeId, placeName)
+                }}
+                currentUserName={userProgress?.name}
+                currentUserAvatar={userProgress?.avatar_url}
+                onManageOrganization={() => {
+                  setCurrentView('community-market')
+                  setAutoOpenOrganizations(true)
+                  // Reset the flag after a delay to allow the panel to open
+                  setTimeout(() => setAutoOpenOrganizations(false), 1000)
+                }}
+              />
+            </ErrorBoundary>
           )}
 
           {/* Globe 3D Viewer */}
           {currentView === 'globe' && (
-            <GlobeApp
-              serverUrl={serverUrl}
-              userId={userId}
-              accessToken={accessToken}
-              publicAnonKey={publicAnonKey}
-              onClose={() => setCurrentView('feed')}
-              onViewCompany={(companyId) => {
-                // Navigate to company view if needed
-                console.log('View company:', companyId)
-              }}
-              onManageOrganization={() => setCurrentView('dashboard')}
-              onAddOrganization={() => setCurrentView('dashboard')}
-            />
+            <ErrorBoundary label="globe">
+              <GlobeApp
+                serverUrl={serverUrl}
+                userId={userId}
+                accessToken={accessToken}
+                publicAnonKey={publicAnonKey}
+                onClose={() => setCurrentView('feed')}
+                onViewCompany={(companyId) => {
+                  // Navigate to company view if needed
+                  console.log('View company:', companyId)
+                }}
+                onManageOrganization={() => setCurrentView('dashboard')}
+                onAddOrganization={() => setCurrentView('dashboard')}
+              />
+            </ErrorBoundary>
           )}
 
           {/* SWAP Shop - Infinite Feed */}
@@ -1968,28 +1984,32 @@ export default function App() {
 
           {/* Terpene Hunter - Full Screen Mini-App */}
           {currentView === 'compass' && userId && accessToken && (
-            <TerpeneHunterApp
-              userId={userId}
-              accessToken={accessToken}
-              onClose={() => setCurrentView('feed')}
-            />
+            <ErrorBoundary label="terpene-hunter">
+              <TerpeneHunterApp
+                userId={userId}
+                accessToken={accessToken}
+                onClose={() => setCurrentView('feed')}
+              />
+            </ErrorBoundary>
           )}
 
           {/* Hemp Forum - Full Screen */}
           {currentView === 'forum' && userId && accessToken && (
-            <ForumApp
-              userId={userId}
-              accessToken={accessToken}
-              serverUrl={serverUrl}
-              nadaPoints={userProgress?.nadaPoints || 0}
-              onClose={() => setCurrentView('feed')}
-              onNadaUpdate={(newBalance) => {
-                // Update user progress with new NADA balance
-                if (userProgress) {
-                  setUserProgress({ ...userProgress, nadaPoints: newBalance })
-                }
-              }}
-            />
+            <ErrorBoundary label="forum">
+              <ForumApp
+                userId={userId}
+                accessToken={accessToken}
+                serverUrl={serverUrl}
+                nadaPoints={userProgress?.nadaPoints || 0}
+                onClose={() => setCurrentView('feed')}
+                onNadaUpdate={(newBalance) => {
+                  // Update user progress with new NADA balance
+                  if (userProgress) {
+                    setUserProgress({ ...userProgress, nadaPoints: newBalance })
+                  }
+                }}
+              />
+            </ErrorBoundary>
           )}
         </div>
       </main>

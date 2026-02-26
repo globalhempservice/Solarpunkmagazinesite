@@ -261,10 +261,20 @@ export function AppNavigation({
     if (!isAuthenticated || !accessToken || !projectId) return
     
     fetchUnreadCount()
-    
-    // Poll for updates every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000)
-    return () => clearInterval(interval)
+
+    // Poll every 2 minutes — auto-pauses when tab is hidden
+    let interval: ReturnType<typeof setInterval> | null = null
+    const start = () => { if (!interval) interval = setInterval(fetchUnreadCount, 120000) }
+    const stop  = () => { if (interval) { clearInterval(interval); interval = null } }
+
+    start()
+    const onVisibility = () => document.hidden ? stop() : (start(), fetchUnreadCount())
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [isAuthenticated, projectId]) // Removed accessToken - we only need to re-run when user logs in/out
 
   const fetchUnreadCount = async () => {

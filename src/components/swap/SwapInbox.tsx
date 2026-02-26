@@ -161,29 +161,27 @@ export function SwapInbox() {
       if (!token) return;
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/swap/proposals/${proposalId}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/swap/proposals/${proposalId}/accept`,
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: 'accepted' })
+          }
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to accept proposal');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to accept proposal');
       }
 
-      // Reload data
+      // Reload data and switch to active deals tab
       await loadData();
-      
-      // Switch to active deals tab
       setActiveTab('active');
     } catch (err: any) {
       console.error('Error accepting proposal:', err);
-      alert('Failed to accept proposal: ' + err.message);
+      setError(err.message || 'Failed to accept proposal');
     }
   };
 
@@ -193,26 +191,25 @@ export function SwapInbox() {
       if (!token) return;
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/swap/proposals/${proposalId}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/swap/proposals/${proposalId}/decline`,
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: 'declined' })
+          }
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to decline proposal');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to decline proposal');
       }
 
-      // Reload data
       await loadData();
     } catch (err: any) {
       console.error('Error declining proposal:', err);
-      alert('Failed to decline proposal: ' + err.message);
+      setError(err.message || 'Failed to decline proposal');
     }
   };
 
@@ -321,7 +318,7 @@ export function SwapInbox() {
               />
             )}
             {activeTab === 'active' && (
-              <ActiveDealsTab deals={activeDeals} />
+              <ActiveDealsTab deals={activeDeals} onOpenChat={() => (window as any).__openMessenger?.({ inboxType: 'swap' })} />
             )}
             {activeTab === 'outgoing' && (
               <OutgoingTab proposals={outgoingProposals} />
@@ -539,9 +536,10 @@ function IncomingProposalCard({ proposal, onAccept, onDecline }: IncomingProposa
 // ============================================================================
 interface ActiveDealsTabProps {
   deals: SwapDeal[];
+  onOpenChat: () => void;
 }
 
-function ActiveDealsTab({ deals }: ActiveDealsTabProps) {
+function ActiveDealsTab({ deals, onOpenChat }: ActiveDealsTabProps) {
   if (deals.length === 0) {
     return (
       <motion.div
@@ -567,7 +565,7 @@ function ActiveDealsTab({ deals }: ActiveDealsTabProps) {
       className="space-y-4"
     >
       {deals.map((deal) => (
-        <ActiveDealCard key={deal.id} deal={deal} />
+        <ActiveDealCard key={deal.id} deal={deal} onOpenChat={onOpenChat} />
       ))}
     </motion.div>
   );
@@ -578,9 +576,10 @@ function ActiveDealsTab({ deals }: ActiveDealsTabProps) {
 // ============================================================================
 interface ActiveDealCardProps {
   deal: SwapDeal;
+  onOpenChat: () => void;
 }
 
-function ActiveDealCard({ deal }: ActiveDealCardProps) {
+function ActiveDealCard({ deal, onOpenChat }: ActiveDealCardProps) {
   const statusColors: Record<string, string> = {
     negotiating: 'from-blue-500 to-cyan-500',
     agreed: 'from-purple-500 to-pink-500',
@@ -687,10 +686,7 @@ function ActiveDealCard({ deal }: ActiveDealCardProps) {
 
       {/* Action Button */}
       <button
-        onClick={() => {
-          // TODO: Navigate to chat interface
-          console.log('Open chat for deal:', deal.id);
-        }}
+        onClick={onOpenChat}
         className="w-full px-4 py-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 border-2 border-green-400/60 text-white font-black text-sm hover:from-green-600 hover:to-emerald-600 hover:shadow-lg hover:shadow-green-500/50 transition-all flex items-center justify-center gap-2"
       >
         <MessageCircle className="w-4 h-4" />

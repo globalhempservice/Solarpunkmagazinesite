@@ -54,20 +54,19 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
   // Accordion states
   const [openSection, setOpenSection] = useState<string | null>(null);
 
-  // Calculate item power level
+  // Calculate item power level — matches backend calculatePowerLevel() in swap_routes.tsx
   const calculatePowerLevel = () => {
-    let power = 1; // Base level for posting
-    
-    if (category) power += 1;
-    if (condition) power += 1;
-    if (hempInside) power += 2;
-    if (hempPercentage) power += 1;
-    if (story && story.length > 50) power += 3;
-    if (yearsInUse) power += 1;
-    if (country) power += 1;
-    if (city) power += 1;
-    
-    return Math.min(power, 10); // Max level 10
+    let power = 1; // Base level
+    if (description && description.length > 20) power += 1; // +1 description
+    if (images.length >= 1) power += 1;                     // +1 for first image
+    if (images.length >= 3) power += 1;                     // +1 for 3+ images
+    if (story && story.length > 20) power += 1;             // +1 story
+    if (country) power += 1;                                 // +1 country
+    if (city) power += 1;                                    // +1 city
+    if (hempInside) power += 1;                             // +1 hemp
+    if (yearsInUse) power += 1;                             // +1 years in use
+    if (willingToShip) power += 1;                          // +1 willing to ship
+    return Math.min(power, 10);
   };
 
   const powerLevel = calculatePowerLevel();
@@ -85,21 +84,33 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
     try {
       setUploadingImage(true);
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setImages([...images, base64String]);
-        toast.success('Image uploaded!');
-        setUploadingImage(false);
-      };
-      reader.onerror = () => {
-        toast.error('Failed to upload image');
-        setUploadingImage(false);
-      };
-      reader.readAsDataURL(file);
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filename = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const uploadResponse = await fetch(
+        `https://${projectId}.supabase.co/storage/v1/object/swap-images/${filename}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': file.type,
+          },
+          body: file,
+        }
+      );
+
+      if (!uploadResponse.ok) {
+        const err = await uploadResponse.json().catch(() => ({}));
+        throw new Error(err.message || 'Upload failed');
+      }
+
+      const publicUrl = `https://${projectId}.supabase.co/storage/v1/object/public/swap-images/${filename}`;
+      setImages(prev => [...prev, publicUrl]);
+      toast.success('Image uploaded!');
     } catch (error: any) {
       console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
+      toast.error('Failed to upload image. Make sure the swap-images storage bucket exists.');
+    } finally {
       setUploadingImage(false);
     }
   };
@@ -467,9 +478,9 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
 
                 {/* Status text */}
                 <p className="text-sm text-gray-300 mt-3 text-center">
-                  {powerLevel === 1 && "Ready to post! Add details to boost visibility ⚡"}
-                  {powerLevel >= 2 && powerLevel < 5 && "Good start! Keep powering up 🌟"}
-                  {powerLevel >= 5 && powerLevel < 8 && "Level 5+: Will appear on the Globe! 🌍"}
+                  {powerLevel === 1 && "Add a photo + title to post instantly ⚡"}
+                  {powerLevel >= 2 && powerLevel < 5 && "Good start! Add details to boost visibility 🌟"}
+                  {powerLevel >= 5 && powerLevel < 8 && "Level 5+: Appears on the Globe! 🌍"}
                   {powerLevel >= 8 && "MAX POWER! Ultimate visibility! 🔥"}
                 </p>
               </div>
@@ -477,18 +488,13 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
 
             {/* Quick Description */}
             {!showPowerUpLab && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-              >
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Quick description (optional)"
-                  rows={2}
-                  className="bg-black/40 border-yellow-400/30 focus:border-yellow-400 text-white placeholder:text-gray-500 rounded-xl resize-none"
-                />
-              </motion.div>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Quick description (optional, +1 ⚡ if 20+ chars)"
+                rows={2}
+                className="bg-black/40 border-yellow-400/30 focus:border-yellow-400 text-white placeholder:text-gray-500 rounded-xl resize-none"
+              />
             )}
 
             {/* Action Buttons */}
@@ -543,9 +549,9 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                     className="w-full px-4 py-3 flex items-center justify-between bg-yellow-400/10 hover:bg-yellow-400/20 transition-colors"
                   >
                     <span className="text-white font-bold flex items-center gap-2">
-                      📦 Basic Stats
+                      📦 Description
                       <span className="text-sm text-yellow-400">
-                        +{(category ? 1 : 0) + (condition ? 1 : 0)} ⭐
+                        +{(description && description.length > 20 ? 1 : 0)} ⭐
                       </span>
                     </span>
                     {openSection === 'basic' ? <ChevronUp className="w-5 h-5 text-yellow-400" /> : <ChevronDown className="w-5 h-5 text-yellow-400" />}
@@ -562,8 +568,22 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                         <div className="p-4 space-y-4">
                           <div>
                             <Label className="text-white mb-2 block flex items-center justify-between">
+                              <span>Description</span>
+                              <span className="text-yellow-400 text-sm">+1 ⭐ (20+ chars)</span>
+                            </Label>
+                            <Textarea
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
+                              placeholder="Describe your item..."
+                              rows={3}
+                              className="bg-black/40 border-2 border-yellow-400/30 focus:border-yellow-400 text-white placeholder:text-gray-500 rounded-xl resize-none"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">{description.length} chars</p>
+                          </div>
+
+                          <div>
+                            <Label className="text-white mb-2 block flex items-center justify-between">
                               <span>Category</span>
-                              <span className="text-yellow-400 text-sm">+1 ⭐</span>
                             </Label>
                             <select
                               value={category}
@@ -582,7 +602,6 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                           <div>
                             <Label className="text-white mb-2 block flex items-center justify-between">
                               <span>Condition</span>
-                              <span className="text-yellow-400 text-sm">+1 ⭐</span>
                             </Label>
                             <select
                               value={condition}
@@ -617,7 +636,7 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                     <span className="text-white font-bold flex items-center gap-2">
                       🌿 Hemp Bonus
                       <span className="text-sm text-green-400">
-                        +{(hempInside ? 2 : 0) + (hempPercentage ? 1 : 0)} ⭐
+                        +{hempInside ? 1 : 0} ⭐
                       </span>
                     </span>
                     {openSection === 'hemp' ? <ChevronUp className="w-5 h-5 text-green-400" /> : <ChevronDown className="w-5 h-5 text-green-400" />}
@@ -643,7 +662,7 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                             <div className="flex-1">
                               <Label htmlFor="hempInside" className="text-white flex items-center justify-between">
                                 <span>Contains Hemp</span>
-                                <span className="text-green-400 text-sm">+2 ⭐</span>
+                                <span className="text-green-400 text-sm">+1 ⭐</span>
                               </Label>
                               <p className="text-sm text-gray-400 mt-1">Hemp items get bonus visibility</p>
                             </div>
@@ -653,7 +672,6 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                             <div>
                               <Label className="text-white mb-2 block flex items-center justify-between">
                                 <span>Hemp Percentage</span>
-                                <span className="text-green-400 text-sm">+1 ⭐</span>
                               </Label>
                               <Input
                                 type="number"
@@ -681,7 +699,7 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                     <span className="text-white font-bold flex items-center gap-2">
                       ✨ Story Power
                       <span className="text-sm text-purple-400">
-                        +{(story && story.length > 50 ? 3 : 0) + (yearsInUse ? 1 : 0)} ⭐
+                        +{(story && story.length > 20 ? 1 : 0) + (yearsInUse ? 1 : 0)} ⭐
                       </span>
                     </span>
                     {openSection === 'story' ? <ChevronUp className="w-5 h-5 text-purple-400" /> : <ChevronDown className="w-5 h-5 text-purple-400" />}
@@ -699,7 +717,7 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                           <div>
                             <Label className="text-white mb-2 block flex items-center justify-between">
                               <span>Item Story</span>
-                              <span className="text-purple-400 text-sm">+3 ⭐</span>
+                              <span className="text-purple-400 text-sm">+1 ⭐ (20+ chars)</span>
                             </Label>
                             <Textarea
                               value={story}
@@ -709,7 +727,7 @@ export function AddSwapItemModal({ userId, accessToken, onClose, onItemAdded }: 
                               className="bg-black/60 border-2 border-purple-400/30 focus:border-purple-400 text-white placeholder:text-gray-500 rounded-lg resize-none"
                             />
                             <p className="text-xs text-gray-400 mt-1">
-                              {story.length}/50 chars (min 50 for bonus)
+                              {story.length} chars (min 20 for bonus)
                             </p>
                           </div>
 

@@ -103,7 +103,7 @@ export function MyInventory({ userId, accessToken, onBack, onItemClick }: MyInve
 
   const fetchLikedItems = async () => {
     try {
-      const response = await fetch(`${serverUrl}/swap-likes?user_id=${userId}`, {
+      const response = await fetch(`${serverUrl}/swap/likes?user_id=${userId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -119,7 +119,7 @@ export function MyInventory({ userId, accessToken, onBack, onItemClick }: MyInve
 
   const fetchSwapProposals = async () => {
     try {
-      const response = await fetch(`${serverUrl}/swap-proposals?user_id=${userId}`, {
+      const response = await fetch(`${serverUrl}/swap/proposals?user_id=${userId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }

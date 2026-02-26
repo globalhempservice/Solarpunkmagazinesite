@@ -253,7 +253,17 @@ export function AppNavigation({
   
   // Messenger
   const [isMessengerOpen, setIsMessengerOpen] = useState(false)
-  
+  const [messengerInitialInboxType, setMessengerInitialInboxType] = useState<string | undefined>()
+
+  // Expose global opener so unconnected components (SwapInbox, etc.) can open the messenger
+  useEffect(() => {
+    (window as any).__openMessenger = (params?: { inboxType?: string }) => {
+      if (params?.inboxType) setMessengerInitialInboxType(params.inboxType)
+      setIsMessengerOpen(true)
+    }
+    return () => { delete (window as any).__openMessenger }
+  }, [])
+
   // Fetch unread message count from backend
   const [unreadCount, setUnreadCount] = useState(0)
   
@@ -677,12 +687,13 @@ export function AppNavigation({
       {isMessengerOpen && userId && accessToken && projectId && publicAnonKey && (
         <MessagePanel
           isOpen={isMessengerOpen}
-          onClose={() => setIsMessengerOpen(false)}
+          onClose={() => { setIsMessengerOpen(false); setMessengerInitialInboxType(undefined) }}
           userId={userId}
           accessToken={accessToken}
           serverUrl={serverUrl || `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`}
           projectId={projectId}
           publicAnonKey={publicAnonKey}
+          initialInboxType={messengerInitialInboxType}
           onMarkedAsRead={fetchUnreadCount}
         />
       )}

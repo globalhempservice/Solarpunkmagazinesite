@@ -1,4 +1,4 @@
-import { LogOut, Mail, Shield, Trash2, Lock, Eye, EyeOff, AlertCircle, ExternalLink, CheckCircle2 } from 'lucide-react'
+import { LogOut, Mail, Shield, Trash2, Lock, Eye, EyeOff, AlertCircle, ExternalLink, CheckCircle2, MessageCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Separator } from './ui/separator'
@@ -42,6 +42,10 @@ export function AccountSettings({
   const [marketingNewsletter, setMarketingNewsletter] = useState(initialMarketingOptIn || false)
   const [marketNewsletter, setMarketNewsletter] = useState(initialMarketNewsletterOptIn || false)
 
+  // Messages preferences
+  const [allowSearch, setAllowSearch] = useState(true)
+  const [allowSearchSaving, setAllowSearchSaving] = useState(false)
+
   // Change password modal
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [oldPassword, setOldPassword] = useState('')
@@ -59,6 +63,30 @@ export function AccountSettings({
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
   const [deleteAccountError, setDeleteAccountError] = useState('')
+
+  // Fetch messages preferences on mount
+  useEffect(() => {
+    if (!accessToken) return
+    fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/preferences`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setAllowSearch(data.allow_search ?? true) })
+      .catch(() => {})
+  }, [accessToken])
+
+  // Auto-save allow_search preference when changed
+  const handleAllowSearchChange = (value: boolean) => {
+    setAllowSearch(value)
+    setAllowSearchSaving(true)
+    fetch(`https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/preferences`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allow_search: value })
+    })
+      .catch(() => { setAllowSearch(!value) }) // revert on error
+      .finally(() => setAllowSearchSaving(false))
+  }
 
   // Auto-save marketing newsletter preference when changed
   useEffect(() => {
@@ -203,6 +231,39 @@ export function AccountSettings({
                 onCheckedChange={setMarketNewsletter}
                 className="flex-shrink-0"
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Messages Preferences */}
+        <Card className="border-2 border-violet-500/20 bg-card/50 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-violet-500" />
+              Messages Preferences
+            </CardTitle>
+            <CardDescription>
+              Control how others can find and contact you
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-xl border-2 border-border/50 bg-muted/30 hover:bg-muted/50 transition-all">
+              <div className="flex-1 pr-4">
+                <h4 className="font-semibold text-foreground mb-1">Allow others to find me</h4>
+                <p className="text-sm text-muted-foreground">
+                  When enabled, your name appears in user search results so others can message you directly
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {allowSearchSaving && (
+                  <div className="w-4 h-4 border-2 border-violet-500/40 border-t-violet-500 rounded-full animate-spin" />
+                )}
+                <Switch
+                  checked={allowSearch}
+                  onCheckedChange={handleAllowSearchChange}
+                  disabled={allowSearchSaving}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

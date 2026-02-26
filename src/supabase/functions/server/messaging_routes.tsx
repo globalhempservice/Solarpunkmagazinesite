@@ -856,6 +856,7 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
         .select('user_id, display_name, avatar_url, country')
         .ilike('display_name', `%${q}%`)
         .neq('user_id', userId)       // exclude self
+        .eq('allow_search', true)     // respect discoverability preference
         .limit(15)
 
       if (error) {
@@ -866,6 +867,55 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
       return c.json({ users: profiles || [] })
     } catch (error: any) {
       return c.json({ error: 'Search failed', details: error.message }, 500)
+    }
+  })
+
+  // ============================================
+  // MESSAGES PREFERENCES (allow_search)
+  // ============================================
+  app.get('/make-server-053bcd80/messages/preferences', requireAuth, async (c: any) => {
+    try {
+      const userId = c.get('userId')
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('allow_search')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('❌ Fetch preferences error:', error)
+        return c.json({ error: 'Failed to fetch preferences' }, 500)
+      }
+
+      return c.json({ allow_search: data?.allow_search ?? true })
+    } catch (error: any) {
+      return c.json({ error: 'Failed to fetch preferences', details: error.message }, 500)
+    }
+  })
+
+  app.put('/make-server-053bcd80/messages/preferences', requireAuth, async (c: any) => {
+    try {
+      const userId = c.get('userId')
+      const body = await c.req.json()
+      const { allow_search } = body
+
+      if (typeof allow_search !== 'boolean') {
+        return c.json({ error: 'allow_search must be a boolean' }, 400)
+      }
+
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ allow_search })
+        .eq('user_id', userId)
+
+      if (error) {
+        console.error('❌ Update preferences error:', error)
+        return c.json({ error: 'Failed to update preferences' }, 500)
+      }
+
+      return c.json({ success: true })
+    } catch (error: any) {
+      return c.json({ error: 'Failed to update preferences', details: error.message }, 500)
     }
   })
 

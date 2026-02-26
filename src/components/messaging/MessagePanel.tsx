@@ -495,14 +495,17 @@ export function MessagePanel({
                     <div className="flex flex-col h-full p-4 gap-4">
                       {/* Search input */}
                       <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                        {!composeQuery && (
+                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                        )}
                         <input
                           autoFocus
                           type="text"
+                          inputMode="search"
                           placeholder="Search by name…"
                           value={composeQuery}
                           onChange={e => handleComposeSearch(e.target.value)}
-                          className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#E8FF00]/50 focus:bg-white/8 transition-colors text-sm"
+                          className={`w-full pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#E8FF00]/50 focus:bg-white/8 transition-colors text-base ${composeQuery ? 'pl-4' : 'pl-9'}`}
                         />
                       </div>
 

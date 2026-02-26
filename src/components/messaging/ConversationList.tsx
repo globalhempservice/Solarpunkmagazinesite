@@ -308,7 +308,15 @@ export function ConversationList({
             {filteredConversations.map((conversation, index) => (
               <button
                 key={conversation.id}
-                onClick={() => onSelectConversation(conversation)}
+                onClick={() => {
+                  // Optimistically clear the unread badge before the thread marks-read round-trip
+                  if (conversation.unread_count > 0) {
+                    setConversations(prev =>
+                      prev.map(c => c.id === conversation.id ? { ...c, unread_count: 0 } : c)
+                    )
+                  }
+                  onSelectConversation(conversation)
+                }}
                 className={`
                   w-full p-3 rounded-xl mb-2
                   hover:bg-white/10 active:bg-white/15

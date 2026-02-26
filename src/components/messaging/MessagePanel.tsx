@@ -40,21 +40,23 @@ interface MessagePanelProps {
   initialContextId?: string
   initialContextName?: string  // Add context name (e.g., place name)
   serverUrl: string  // Add serverUrl for places fetching
+  onMarkedAsRead?: () => void  // Notify parent when messages are read
 }
 
-export function MessagePanel({ 
-  isOpen, 
-  onClose, 
-  userId, 
-  accessToken, 
-  projectId, 
+export function MessagePanel({
+  isOpen,
+  onClose,
+  userId,
+  accessToken,
+  projectId,
   publicAnonKey,
   initialInboxType,
   initialRecipientId,
   initialContextType,
   initialContextId,
   initialContextName,
-  serverUrl
+  serverUrl,
+  onMarkedAsRead
 }: MessagePanelProps) {
   const [viewState, setViewState] = useState<ViewState>('dashboard')
   const [selectedInboxType, setSelectedInboxType] = useState<string | null>(null)
@@ -316,6 +318,7 @@ export function MessagePanel({
                   projectId={projectId}
                   publicAnonKey={publicAnonKey}
                   onBack={handleBackFromThread}
+                  onMarkedAsRead={onMarkedAsRead}
                 />
               )}
             </div>

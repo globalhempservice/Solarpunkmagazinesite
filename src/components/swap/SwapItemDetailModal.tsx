@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Package, Sparkles, MessageCircle, ChevronDown, ChevronUp, Zap, Shield, TrendingUp, Clock, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -91,8 +92,8 @@ export function SwapItemDetailModal({ item, userId, accessToken, onClose, onProp
     }
   };
 
-  return (
-    <div className="fixed inset-x-0 top-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4" style={{ bottom: 'var(--nav-bottom)' }}>
+  return createPortal(
+    <div className="fixed inset-x-0 top-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-[200] p-4" style={{ bottom: 'var(--nav-bottom)' }}>
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -430,6 +431,7 @@ export function SwapItemDetailModal({ item, userId, accessToken, onClose, onProp
           }}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

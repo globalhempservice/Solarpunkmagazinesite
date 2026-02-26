@@ -144,7 +144,7 @@ export function getLevelDisplay(level: number, maxLevel: number = 100): string {
  * @returns true if valid app key
  */
 export function isValidAppKey(key: string): boolean {
-  const validKeys = ['mag', 'swipe', 'places', 'swap', 'forum', 'globe', 'swag', 'compass']
+  const validKeys = ['mag', 'swipe', 'places', 'swap', 'forum', 'globe', 'swag', 'compass', 'wiki']
   return validKeys.includes(key)
 }
 
@@ -175,7 +175,7 @@ export function generateRandomGradient(): string {
  * Default home layout configuration
  */
 export const DEFAULT_HOME_LAYOUT = {
-  appOrder: ['mag', 'swipe', 'places', 'swap', 'forum', 'globe', 'swag', 'compass'],
+  appOrder: ['mag', 'swipe', 'places', 'swap', 'forum', 'globe', 'swag', 'compass', 'wiki'],
   hiddenApps: [],
   favorites: [],
   quickActions: [],

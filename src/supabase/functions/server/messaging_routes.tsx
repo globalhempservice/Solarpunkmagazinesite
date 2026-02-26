@@ -200,20 +200,7 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
                 conversationId = raceConv2.id
                 console.log('✅ Found conversation after race condition (reverse):', conversationId)
               } else {
-                // WORKAROUND: Database constraint is wrong (doesn't include context)
-                // Just find ANY conversation between these users
-                console.log('⚠️  WARNING: Using existing conversation as workaround for bad constraint')
-                const { data: anyConv } = await supabase
-                  .from('conversations')
-                  .select('id')
-                  .or(`and(participant_1_id.eq.${userId},participant_2_id.eq.${recipientId}),and(participant_1_id.eq.${recipientId},participant_2_id.eq.${userId})`)
-                  .limit(1)
-                  .maybeSingle()
-                
-                if (anyConv) {
-                  conversationId = anyConv.id
-                  console.log('✅ Using existing conversation (wrong context):', conversationId)
-                }
+                console.error('❌ Race condition: could not find conversation after duplicate error')
               }
             }
           }

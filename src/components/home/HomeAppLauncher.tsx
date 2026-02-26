@@ -117,134 +117,70 @@ const ALL_APPS: AppItem[] = [
 ]
 
 // Animated gradient orbs for background
+/**
+ * FloatingOrbs — pure CSS animations only.
+ *
+ * Why not Framer Motion here:
+ *   - 5× blur-3xl motion.divs were doing 60fps JS-driven GPU work on mobile
+ *   - CSS animations run on the compositor thread (zero JS), and browsers
+ *     automatically pause them when the tab is hidden — Framer Motion does not.
+ *   - prefers-reduced-motion is respected natively via the stylesheet below.
+ *
+ * Reduced from 5 orbs → 3, blur-3xl (40px) → blur-2xl (24px).
+ */
+const ORB_STYLES = `
+  @keyframes orb1 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%      { transform: translate(40px,25px) scale(1.08); }
+  }
+  @keyframes orb2 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%      { transform: translate(-25px,40px) scale(1.1); }
+  }
+  @keyframes orb3 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%      { transform: translate(30px,-30px) scale(1.06); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dewii-orb { animation: none !important; }
+  }
+`
+
 const FloatingOrbs = ({ isLightTheme }: { isLightTheme: boolean }) => {
+  const alpha = isLightTheme ? 0.15 : 0.22
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Top left orb */}
-      <motion.div
-        className="absolute rounded-full blur-3xl"
-        style={{
-          width: '500px',
-          height: '500px',
-          top: '-250px',
-          left: '-250px',
-          background: isLightTheme 
-            ? 'radial-gradient(circle, rgba(94, 234, 212, 0.15) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(94, 234, 212, 0.25) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, 50, 0],
-          y: [0, 30, 0],
-          scale: [1, 1.1, 1],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-
-      {/* Top right orb */}
-      <motion.div
-        className="absolute rounded-full blur-3xl"
-        style={{
-          width: '400px',
-          height: '400px',
-          top: '-150px',
-          right: '-150px',
-          background: isLightTheme
-            ? 'radial-gradient(circle, rgba(167, 139, 250, 0.12) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(167, 139, 250, 0.2) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, -30, 0],
-          y: [0, 50, 0],
-          scale: [1, 1.15, 1],
-        }}
-        transition={{
-          duration: 18,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1
-        }}
-      />
-
-      {/* Bottom left orb */}
-      <motion.div
-        className="absolute rounded-full blur-3xl"
-        style={{
-          width: '450px',
-          height: '450px',
-          bottom: '-200px',
-          left: '-100px',
-          background: isLightTheme
-            ? 'radial-gradient(circle, rgba(59, 130, 246, 0.13) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(59, 130, 246, 0.22) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, 40, 0],
-          y: [0, -40, 0],
-          scale: [1, 1.12, 1],
-        }}
-        transition={{
-          duration: 22,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2
-        }}
-      />
-
-      {/* Bottom right orb */}
-      <motion.div
-        className="absolute rounded-full blur-3xl"
-        style={{
-          width: '380px',
-          height: '380px',
-          bottom: '-150px',
-          right: '-120px',
-          background: isLightTheme
-            ? 'radial-gradient(circle, rgba(249, 168, 212, 0.14) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(249, 168, 212, 0.18) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, -35, 0],
-          y: [0, -25, 0],
-          scale: [1, 1.08, 1],
-        }}
-        transition={{
-          duration: 19,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 0.5
-        }}
-      />
-
-      {/* Center floating orb */}
-      <motion.div
-        className="absolute rounded-full blur-3xl"
-        style={{
-          width: '320px',
-          height: '320px',
-          top: '40%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: isLightTheme
-            ? 'radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [-20, 20, -20],
-          y: [-30, 30, -30],
-          scale: [1, 1.2, 1],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1.5
-        }}
-      />
-    </div>
+    <>
+      <style>{ORB_STYLES}</style>
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0" aria-hidden>
+        {/* Top-left — teal */}
+        <div
+          className="dewii-orb absolute rounded-full blur-2xl"
+          style={{
+            width: 380, height: 380, top: -190, left: -190,
+            background: `radial-gradient(circle, rgba(94,234,212,${alpha}) 0%, transparent 70%)`,
+            animation: 'orb1 22s ease-in-out infinite',
+          }}
+        />
+        {/* Top-right — purple */}
+        <div
+          className="dewii-orb absolute rounded-full blur-2xl"
+          style={{
+            width: 320, height: 320, top: -130, right: -130,
+            background: `radial-gradient(circle, rgba(167,139,250,${alpha * 0.85}) 0%, transparent 70%)`,
+            animation: 'orb2 19s ease-in-out infinite 1.2s',
+          }}
+        />
+        {/* Bottom-left — blue */}
+        <div
+          className="dewii-orb absolute rounded-full blur-2xl"
+          style={{
+            width: 340, height: 340, bottom: -160, left: -80,
+            background: `radial-gradient(circle, rgba(59,130,246,${alpha * 0.9}) 0%, transparent 70%)`,
+            animation: 'orb3 25s ease-in-out infinite 2.5s',
+          }}
+        />
+      </div>
+    </>
   )
 }
 

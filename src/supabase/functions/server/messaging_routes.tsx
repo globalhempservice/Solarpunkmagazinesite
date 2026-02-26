@@ -321,29 +321,7 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
 
       const metadataMap = new Map(metadata?.map(m => [m.conversation_id, m]) || [])
 
-      // Filter archived if needed
-      let filteredConversations = conversations || []
-      if (!includeArchived) {
-        filteredConversations = filteredConversations.filter(conv => {
-          const meta = metadataMap.get(conv.id)
-          return !meta?.archived
-        })
-      }
-
-      // Get other participant details for each conversation
-      const otherParticipantIds = filteredConversations.map(conv => 
-        conv.participant_1_id === userId ? conv.participant_2_id : conv.participant_1_id
-      )
-
-      // Fetch user profiles for participants
-      const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', otherParticipantIds)
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || [])
-
-      // Get unread count for each conversation
+      // Get unread count first so we can surface archived threads that have new messages
       const { data: unreadCounts } = await supabase
         .from('messages')
         .select('conversation_id, id')
@@ -357,6 +335,30 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
         const count = unreadMap.get(msg.conversation_id) || 0
         unreadMap.set(msg.conversation_id, count + 1)
       })
+
+      // Filter archived, but always surface archived threads with unread messages
+      let filteredConversations = conversations || []
+      if (!includeArchived) {
+        filteredConversations = filteredConversations.filter(conv => {
+          const meta = metadataMap.get(conv.id)
+          if (!meta?.archived) return true
+          // New message on an archived thread — bring it back to the top
+          return (unreadMap.get(conv.id) || 0) > 0
+        })
+      }
+
+      // Get other participant details for each conversation
+      const otherParticipantIds = filteredConversations.map(conv =>
+        conv.participant_1_id === userId ? conv.participant_2_id : conv.participant_1_id
+      )
+
+      // Fetch user profiles for participants
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('user_id, display_name, avatar_url')
+        .in('user_id', otherParticipantIds)
+
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || [])
 
       // Fetch place names for place conversations
       const placeContextIds = filteredConversations

@@ -404,7 +404,7 @@ export function ConversationList({
                 )}
               </button>
 
-              {/* Archive button — visible on hover (desktop) or always on mobile */}
+              {/* Archive button — always visible, subtle */}
               <button
                 onClick={(e) => handleArchive(e, conversation.id)}
                 disabled={archivingId === conversation.id}
@@ -412,12 +412,9 @@ export function ConversationList({
                 className="
                   absolute right-1 top-1/2 -translate-y-1/2
                   w-7 h-7 rounded-full
-                  bg-black/60 border border-white/10
                   flex items-center justify-center
-                  text-white/30 hover:text-white/80 hover:bg-white/10
+                  text-white/20 hover:text-white/70 hover:bg-white/10
                   transition-all duration-150
-                  opacity-0 group-hover:opacity-100
-                  md:opacity-0 md:group-hover:opacity-100
                   disabled:cursor-not-allowed
                 "
               >

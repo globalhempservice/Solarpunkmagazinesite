@@ -797,5 +797,77 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
     }
   })
 
+  // ============================================
+  // MUTE / UNMUTE CONVERSATION (per-user)
+  // ============================================
+  app.post('/make-server-053bcd80/messages/conversation/:conversationId/mute', requireAuth, async (c: any) => {
+    try {
+      const userId = c.get('userId')
+      const conversationId = c.req.param('conversationId')
+
+      const { data: conv } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('id', conversationId)
+        .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
+        .maybeSingle()
+
+      if (!conv) return c.json({ error: 'Conversation not found or unauthorized' }, 404)
+
+      await supabase.from('conversation_metadata').upsert(
+        { conversation_id: conversationId, user_id: userId, muted: true },
+        { onConflict: 'user_id,conversation_id' }
+      )
+
+      return c.json({ success: true })
+    } catch (error: any) {
+      return c.json({ error: 'Failed to mute conversation', details: error.message }, 500)
+    }
+  })
+
+  app.post('/make-server-053bcd80/messages/conversation/:conversationId/unmute', requireAuth, async (c: any) => {
+    try {
+      const userId = c.get('userId')
+      const conversationId = c.req.param('conversationId')
+
+      await supabase.from('conversation_metadata')
+        .update({ muted: false })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId)
+
+      return c.json({ success: true })
+    } catch (error: any) {
+      return c.json({ error: 'Failed to unmute conversation', details: error.message }, 500)
+    }
+  })
+
+  // ============================================
+  // SEARCH USERS (for starting new conversations)
+  // ============================================
+  app.get('/make-server-053bcd80/messages/search-users', requireAuth, async (c: any) => {
+    try {
+      const userId = c.get('userId')
+      const q = (c.req.query('q') || '').trim()
+
+      if (q.length < 2) return c.json({ users: [] })
+
+      const { data: profiles, error } = await supabase
+        .from('user_profiles')
+        .select('user_id, display_name, avatar_url, country')
+        .ilike('display_name', `%${q}%`)
+        .neq('user_id', userId)       // exclude self
+        .limit(15)
+
+      if (error) {
+        console.error('❌ User search error:', error)
+        return c.json({ error: 'Search failed' }, 500)
+      }
+
+      return c.json({ users: profiles || [] })
+    } catch (error: any) {
+      return c.json({ error: 'Search failed', details: error.message }, 500)
+    }
+  })
+
   console.log('✅ Messaging routes setup complete')
 }

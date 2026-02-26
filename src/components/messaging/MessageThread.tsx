@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../utils/supabase/client'
-import { ChevronLeft, Send, MoreVertical } from 'lucide-react'
+import { ChevronLeft, Send, MoreVertical, ArchiveX, BellOff, Bell, Flag, UserCircle, X } from 'lucide-react'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
 
@@ -66,6 +66,7 @@ interface MessageThreadProps {
   publicAnonKey: string
   onBack: () => void
   onMarkedAsRead?: () => void
+  onViewProfile?: (userId: string) => void
 }
 
 export function MessageThread({
@@ -75,7 +76,8 @@ export function MessageThread({
   projectId,
   publicAnonKey,
   onBack,
-  onMarkedAsRead
+  onMarkedAsRead,
+  onViewProfile
 }: MessageThreadProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,6 +85,9 @@ export function MessageThread({
   const [newMessage, setNewMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [showActionSheet, setShowActionSheet] = useState(false)
+  const [isMuted, setIsMuted] = useState(conversation.muted || false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -159,6 +164,37 @@ export function MessageThread({
       onMarkedAsRead?.()
     } catch (err) {
       console.error('Error marking as read:', err)
+    }
+  }
+
+  const handleArchive = async () => {
+    if (conversation.id.startsWith('new_')) { onBack(); return }
+    setActionLoading('archive')
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/conversation/${conversation.id}/archive`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}` } }
+      )
+    } finally {
+      setActionLoading(null)
+      setShowActionSheet(false)
+      onBack() // returns to inbox list — conversation gone for this user only
+    }
+  }
+
+  const handleToggleMute = async () => {
+    if (conversation.id.startsWith('new_')) return
+    const endpoint = isMuted ? 'unmute' : 'mute'
+    setActionLoading('mute')
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/conversation/${conversation.id}/${endpoint}`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}` } }
+      )
+      setIsMuted(!isMuted)
+    } finally {
+      setActionLoading(null)
+      setShowActionSheet(false)
     }
   }
 
@@ -355,7 +391,7 @@ export function MessageThread({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-white/10">
         <button
@@ -397,10 +433,99 @@ export function MessageThread({
           )}
         </div>
 
-        <button className="p-2 hover:bg-white/5 rounded-lg transition-colors">
+        <button
+          onClick={() => setShowActionSheet(true)}
+          className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+        >
           <MoreVertical size={20} className="text-white/60" />
         </button>
       </div>
+
+      {/* Action Sheet */}
+      {showActionSheet && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 z-40 bg-black/50"
+            onClick={() => setShowActionSheet(false)}
+          />
+          {/* Sheet — slides up from bottom */}
+          <div className="absolute bottom-0 left-0 right-0 z-50 bg-[#0D1220] border-t border-white/10 rounded-t-2xl p-2 pb-6 space-y-1">
+            {/* Drag handle */}
+            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-3" />
+
+            {/* Archive — hides only for you */}
+            <button
+              onClick={handleArchive}
+              disabled={actionLoading === 'archive'}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors text-left"
+            >
+              <ArchiveX size={20} className="text-amber-400 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">
+                  {actionLoading === 'archive' ? 'Archiving…' : 'Archive conversation'}
+                </p>
+                <p className="text-white/40 text-xs">Only hidden for you — other person keeps their copy</p>
+              </div>
+            </button>
+
+            {/* Mute */}
+            <button
+              onClick={handleToggleMute}
+              disabled={actionLoading === 'mute'}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors text-left"
+            >
+              {isMuted
+                ? <Bell size={20} className="text-[#E8FF00] flex-shrink-0" />
+                : <BellOff size={20} className="text-white/60 flex-shrink-0" />
+              }
+              <div>
+                <p className="text-white text-sm font-medium">
+                  {actionLoading === 'mute' ? 'Saving…' : isMuted ? 'Unmute notifications' : 'Mute notifications'}
+                </p>
+                <p className="text-white/40 text-xs">
+                  {isMuted ? 'Resume message notifications' : 'Stop pings from this conversation'}
+                </p>
+              </div>
+            </button>
+
+            {/* View profile */}
+            {onViewProfile && (
+              <button
+                onClick={() => { setShowActionSheet(false); onViewProfile(conversation.other_participant.id) }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors text-left"
+              >
+                <UserCircle size={20} className="text-[#00D9FF] flex-shrink-0" />
+                <div>
+                  <p className="text-white text-sm font-medium">View profile</p>
+                  <p className="text-white/40 text-xs">{conversation.other_participant.display_name}</p>
+                </div>
+              </button>
+            )}
+
+            {/* Report */}
+            <button
+              onClick={() => setShowActionSheet(false)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors text-left"
+            >
+              <Flag size={20} className="text-red-400 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Report conversation</p>
+                <p className="text-white/40 text-xs">Flag for moderator review</p>
+              </div>
+            </button>
+
+            {/* Cancel */}
+            <button
+              onClick={() => setShowActionSheet(false)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 transition-colors mt-2"
+            >
+              <X size={16} className="text-white/60" />
+              <span className="text-white/60 text-sm">Cancel</span>
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">

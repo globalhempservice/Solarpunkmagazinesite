@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { X, ChevronLeft, Mail } from 'lucide-react'
+import { X, ChevronLeft, Mail, SquarePen, Search, User } from 'lucide-react'
 import { MessageDashboard } from './MessageDashboard'
 import { ConversationList } from './ConversationList'
 import { MessageThread } from './MessageThread'
@@ -28,13 +28,14 @@ interface Conversation {
   context_name?: string
 }
 
-type ViewState = 'dashboard' | 'inbox' | 'thread' | 'swap-inbox' | 'swap-proposal'
+type ViewState = 'dashboard' | 'inbox' | 'thread' | 'swap-inbox' | 'swap-proposal' | 'compose'
 
 // Depth determines animation direction (higher = forward, lower = back)
 const VIEW_DEPTH: Record<ViewState, number> = {
   'dashboard':     0,
   'inbox':         1,
   'swap-inbox':    1,
+  'compose':       1,
   'swap-proposal': 2,
   'thread':        2,
 }
@@ -79,6 +80,7 @@ interface MessagePanelProps {
   initialContextName?: string
   serverUrl: string
   onMarkedAsRead?: () => void
+  onViewProfile?: (userId: string) => void
 }
 
 // Build a Conversation object from a swap proposal + conversationId so we can
@@ -125,6 +127,7 @@ export function MessagePanel({
   initialContextName,
   serverUrl,
   onMarkedAsRead,
+  onViewProfile,
 }: MessagePanelProps) {
   const [viewState, setViewState]               = useState<ViewState>('dashboard')
   const [navDirection, setNavDirection]         = useState<'forward' | 'back'>('forward')
@@ -137,6 +140,10 @@ export function MessagePanel({
     contextId?: string
     contextName?: string
   } | null>(null)
+  // Compose state
+  const [composeQuery, setComposeQuery] = useState('')
+  const [composeResults, setComposeResults] = useState<Array<{ user_id: string; display_name: string; avatar_url: string | null; country: string | null }>>([])
+  const [composeLoading, setComposeLoading] = useState(false)
 
   // ── Navigate helper: sets direction, then view ─────────────────────────────
   const navigateTo = useCallback((newView: ViewState) => {
@@ -268,9 +275,54 @@ export function MessagePanel({
         setSelectedInboxType(null)
         navigateTo('dashboard')
         break
+      case 'compose':
+        setComposeQuery('')
+        setComposeResults([])
+        navigateTo('dashboard')
+        break
       default:
         break
     }
+  }
+
+  // ── Compose: search users ────────────────────────────────────────────────────
+  const handleComposeSearch = async (q: string) => {
+    setComposeQuery(q)
+    if (q.trim().length < 2) { setComposeResults([]); return }
+    setComposeLoading(true)
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/search-users?q=${encodeURIComponent(q.trim())}`,
+        { headers: { 'Authorization': `Bearer ${accessToken}` } }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setComposeResults(data.users || [])
+      }
+    } finally {
+      setComposeLoading(false)
+    }
+  }
+
+  const handleComposeSelectUser = (user: { user_id: string; display_name: string; avatar_url: string | null }) => {
+    setComposeQuery('')
+    setComposeResults([])
+    // Open a new personal conversation with this user
+    const newConv: Conversation = {
+      id: `new_${user.user_id}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_message_at: null,
+      last_message_preview: null,
+      unread_count: 0,
+      archived: false,
+      muted: false,
+      context_type: 'personal',
+      context_id: undefined,
+      other_participant: { id: user.user_id, display_name: user.display_name, avatar_url: user.avatar_url }
+    }
+    setSelectedConversation(newConv)
+    navigateTo('thread')
   }
 
   // ── Header title ────────────────────────────────────────────────────────────
@@ -290,6 +342,7 @@ export function MessagePanel({
       )
     }
     if (viewState === 'swap-proposal') return 'SWAP Proposal'
+    if (viewState === 'compose') return 'New Message'
     return selectedInboxType ? (titles[selectedInboxType] || 'Messages') : 'Messages'
   }
 
@@ -346,12 +399,24 @@ export function MessagePanel({
                 </AnimatePresence>
               </div>
 
-              <button
-                onClick={onClose}
-                className="p-1.5 hover:bg-white/5 rounded-lg transition-colors flex-shrink-0"
-              >
-                <X size={20} className="text-white/60" />
-              </button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Compose button — visible on dashboard + inbox */}
+                {(viewState === 'dashboard' || viewState === 'inbox') && (
+                  <button
+                    onClick={() => navigateTo('compose')}
+                    className="p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+                    title="New message"
+                  >
+                    <SquarePen size={18} className="text-white/60" />
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-white/60" />
+                </button>
+              </div>
             </div>
 
             {/* Sliding content area */}
@@ -422,7 +487,59 @@ export function MessagePanel({
                       publicAnonKey={publicAnonKey}
                       onBack={handleBack}
                       onMarkedAsRead={onMarkedAsRead}
+                      onViewProfile={onViewProfile}
                     />
+                  )}
+
+                  {viewState === 'compose' && (
+                    <div className="flex flex-col h-full p-4 gap-4">
+                      {/* Search input */}
+                      <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Search by name…"
+                          value={composeQuery}
+                          onChange={e => handleComposeSearch(e.target.value)}
+                          className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#E8FF00]/50 focus:bg-white/8 transition-colors text-sm"
+                        />
+                      </div>
+
+                      {/* Results */}
+                      <div className="flex-1 overflow-y-auto space-y-1">
+                        {composeLoading && (
+                          <div className="flex justify-center pt-8">
+                            <div className="w-6 h-6 border-2 border-[#E8FF00] border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                        {!composeLoading && composeQuery.length >= 2 && composeResults.length === 0 && (
+                          <div className="text-center text-white/40 text-sm pt-8">No users found</div>
+                        )}
+                        {!composeLoading && composeQuery.length < 2 && (
+                          <p className="text-center text-white/30 text-sm pt-8">Type at least 2 characters to search</p>
+                        )}
+                        {composeResults.map(user => (
+                          <button
+                            key={user.user_id}
+                            onClick={() => handleComposeSelectUser(user)}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors text-left"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E8FF00]/20 to-[#00D9FF]/20 flex items-center justify-center border border-white/10 overflow-hidden flex-shrink-0">
+                              {user.avatar_url ? (
+                                <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
+                              ) : (
+                                <User size={18} className="text-[#E8FF00]" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-white text-sm font-medium truncate">{user.display_name}</p>
+                              {user.country && <p className="text-white/40 text-xs">{user.country}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </motion.div>
               </AnimatePresence>

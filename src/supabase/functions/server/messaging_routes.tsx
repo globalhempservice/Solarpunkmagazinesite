@@ -22,9 +22,9 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
     try {
       const userId = c.get('userId')
       const body = await c.req.json()
-      const { recipientId, content, contextType, contextId } = body
+      const { recipientId, content, contextType, contextId, conversationId: knownConversationId } = body
 
-      console.log('📤 Sending message:', { from: userId, to: recipientId, contextType, contextId })
+      console.log('📤 Sending message:', { from: userId, to: recipientId, contextType, contextId, knownConversationId })
 
       // Validate input
       if (!recipientId || !content) {
@@ -55,6 +55,53 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
       }
 
       console.log('✅ Recipient found:', recipient.user.email)
+
+      // Fast-path: if the client already knows the conversation ID, skip the lookup entirely.
+      // This guarantees messages land in the exact conversation the receiver is watching.
+      if (knownConversationId) {
+        // Verify caller is a participant (security check)
+        const { data: knownConv } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('id', knownConversationId)
+          .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
+          .maybeSingle()
+
+        if (knownConv) {
+          const { data: fastMsg, error: fastErr } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: knownConversationId,
+              sender_id: userId,
+              recipient_id: recipientId,
+              content: content.trim()
+            })
+            .select()
+            .single()
+
+          if (fastErr) {
+            console.error('❌ Fast-path insert error:', fastErr)
+            return c.json({ error: 'Failed to send message', details: fastErr.message }, 500)
+          }
+
+          console.log('✅ Fast-path message sent:', fastMsg.id)
+          return c.json({
+            success: true,
+            message: {
+              id: fastMsg.id,
+              conversation_id: fastMsg.conversation_id,
+              sender_id: fastMsg.sender_id,
+              recipient_id: fastMsg.recipient_id,
+              content: fastMsg.content,
+              created_at: fastMsg.created_at,
+              read_at: fastMsg.read_at
+            },
+            conversation: { id: knownConversationId }
+          })
+        }
+        // If verification fails, fall through to normal lookup
+        console.warn('⚠️  knownConversationId not valid for this user, falling back to lookup')
+      }
 
       // NEW APPROACH: Query first, then insert if not found
       let conversationId = null

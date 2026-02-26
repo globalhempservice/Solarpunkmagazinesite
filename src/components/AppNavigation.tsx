@@ -685,8 +685,8 @@ export function AppNavigation({
         onShowPointsRules={() => setShowPointsRulesModal(true)}
       />
       
-      {/* Messenger Modal (Persistent) */}
-      {isMessengerOpen && userId && accessToken && projectId && publicAnonKey && (
+      {/* Messenger Modal — always mounted when authed so AnimatePresence can animate exit */}
+      {userId && accessToken && projectId && publicAnonKey && (
         <MessagePanel
           isOpen={isMessengerOpen}
           onClose={() => {

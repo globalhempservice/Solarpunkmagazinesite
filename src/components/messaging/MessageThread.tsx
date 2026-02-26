@@ -272,8 +272,14 @@ export function MessageThread({
         recipientId: conversation.other_participant.id,
         content
       }
-      if (conversation.context_type) requestBody.contextType = conversation.context_type
-      if (conversation.context_id)   requestBody.contextId   = conversation.context_id
+      // For existing conversations, pin to the known conversation ID so the backend
+      // never creates or resolves to a different conversation (fixes missed messages bug)
+      if (!conversation.id.startsWith('new_')) {
+        requestBody.conversationId = conversation.id
+      } else {
+        if (conversation.context_type) requestBody.contextType = conversation.context_type
+        if (conversation.context_id)   requestBody.contextId   = conversation.context_id
+      }
 
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/send`,

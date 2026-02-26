@@ -683,6 +683,7 @@ export function AppNavigation({
           serverUrl={serverUrl || `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80`}
           projectId={projectId}
           publicAnonKey={publicAnonKey}
+          onMarkedAsRead={fetchUnreadCount}
         />
       )}
       

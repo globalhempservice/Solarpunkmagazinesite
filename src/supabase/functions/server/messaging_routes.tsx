@@ -472,21 +472,35 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
         return c.json({ error: 'Conversation not found or unauthorized' }, 404)
       }
 
-      // Use helper function to mark as read
-      const { data: markedCount, error: markError } = await supabase
-        .rpc('mark_conversation_as_read', { 
-          conversation_uuid: conversationId, 
-          user_uuid: userId 
+      // Mark messages as read — try RPC first, fall back to direct UPDATE
+      let markedCount = 0
+      const { data: rpcCount, error: markError } = await supabase
+        .rpc('mark_conversation_as_read', {
+          conversation_uuid: conversationId,
+          user_uuid: userId
         })
 
       if (markError) {
-        console.error('❌ Error marking as read:', markError)
-        return c.json({ error: 'Failed to mark as read', details: markError.message }, 500)
+        console.warn('⚠️ RPC mark_conversation_as_read unavailable, using direct UPDATE:', markError.message)
+        const { error: updateError, count } = await supabase
+          .from('messages')
+          .update({ read_at: new Date().toISOString() })
+          .eq('conversation_id', conversationId)
+          .eq('recipient_id', userId)
+          .is('read_at', null)
+          .eq('deleted', false)
+        if (updateError) {
+          console.error('❌ Fallback mark-read failed:', updateError)
+          return c.json({ error: 'Failed to mark as read', details: updateError.message }, 500)
+        }
+        markedCount = count || 0
+      } else {
+        markedCount = rpcCount || 0
       }
 
       console.log('✅ Marked', markedCount, 'messages as read')
 
-      return c.json({ success: true, marked_count: markedCount || 0 })
+      return c.json({ success: true, marked_count: markedCount })
     } catch (error: any) {
       console.error('❌ Error in mark-read endpoint:', error)
       return c.json({ error: 'Failed to mark as read', details: error.message }, 500)
@@ -502,18 +516,28 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
 
       console.log('📊 Fetching unread count for user:', userId)
 
-      // Use helper function
-      const { data: unreadCount, error } = await supabase
+      // Get unread count — try RPC first, fall back to direct COUNT
+      const { data: rpcCount, error: rpcError } = await supabase
         .rpc('get_unread_count', { user_uuid: userId })
 
-      if (error) {
-        console.error('❌ Error fetching unread count:', error)
-        return c.json({ error: 'Failed to fetch unread count', details: error.message }, 500)
+      if (rpcError) {
+        console.warn('⚠️ RPC get_unread_count unavailable, using direct COUNT:', rpcError.message)
+        const { count, error: countError } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('recipient_id', userId)
+          .is('read_at', null)
+          .eq('deleted', false)
+        if (countError) {
+          console.error('❌ Fallback count failed:', countError)
+          return c.json({ error: 'Failed to fetch unread count', details: countError.message }, 500)
+        }
+        console.log('✅ Unread count (fallback):', count || 0)
+        return c.json({ unread_count: count || 0 })
       }
 
-      console.log('✅ Unread count:', unreadCount)
-
-      return c.json({ unread_count: unreadCount || 0 })
+      console.log('✅ Unread count:', rpcCount)
+      return c.json({ unread_count: rpcCount || 0 })
     } catch (error: any) {
       console.error('❌ Error in unread-count endpoint:', error)
       return c.json({ error: 'Failed to fetch unread count', details: error.message }, 500)

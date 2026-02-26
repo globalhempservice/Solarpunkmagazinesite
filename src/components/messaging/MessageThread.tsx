@@ -65,6 +65,7 @@ interface MessageThreadProps {
   projectId: string
   publicAnonKey: string
   onBack: () => void
+  onMarkedAsRead?: () => void
 }
 
 export function MessageThread({
@@ -73,13 +74,15 @@ export function MessageThread({
   accessToken,
   projectId,
   publicAnonKey,
-  onBack
+  onBack,
+  onMarkedAsRead
 }: MessageThreadProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [newMessage, setNewMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -139,11 +142,8 @@ export function MessageThread({
   }
 
   const markAsRead = async () => {
-    // Don't try to mark as read for new conversations (no conversation ID yet)
-    if (conversation.id.startsWith('new_')) {
-      return
-    }
-    
+    if (conversation.id.startsWith('new_')) return
+
     try {
       await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/mark-read/${conversation.id}`,
@@ -155,6 +155,8 @@ export function MessageThread({
           }
         }
       )
+      // Tell the parent (AppNavigation) the count changed so badge clears immediately
+      onMarkedAsRead?.()
     } catch (err) {
       console.error('Error marking as read:', err)
     }
@@ -242,26 +244,36 @@ export function MessageThread({
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!newMessage.trim() || sending) return
+
+    const content = newMessage.trim()
+    if (!content || sending) return
+
+    setSendError(null)
+
+    // Optimistic: add the message to the UI immediately
+    const tempId = `temp_${Date.now()}`
+    const optimisticMsg: Message = {
+      id: tempId,
+      conversation_id: conversation.id,
+      sender_id: userId,
+      recipient_id: conversation.other_participant.id,
+      content,
+      created_at: new Date().toISOString(),
+      read_at: null,
+      deleted: false
+    }
+    setMessages(prev => [...prev, optimisticMsg])
+    setNewMessage('')
 
     try {
       setSending(true)
 
       const requestBody: any = {
         recipientId: conversation.other_participant.id,
-        content: newMessage.trim()
+        content
       }
-
-      // Include context information if this is a new conversation (for places, etc.)
-      if (conversation.context_type) {
-        requestBody.contextType = conversation.context_type
-      }
-      if (conversation.context_id) {
-        requestBody.contextId = conversation.context_id
-      }
-
-      console.log('📤 Sending message with body:', requestBody)
+      if (conversation.context_type) requestBody.contextType = conversation.context_type
+      if (conversation.context_id)   requestBody.contextId   = conversation.context_id
 
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/send`,
@@ -277,34 +289,35 @@ export function MessageThread({
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ Send message error response:', errorData)
-        
-        // Check if this is a retryable error
-        if (errorData.shouldRetry || errorData.code === 'connection_error') {
-          throw new Error('Connection issue. Please check your internet and try again.')
-        }
-        
-        throw new Error(errorData.error || 'Failed to send message')
+        throw new Error(
+          errorData.shouldRetry || errorData.code === 'connection_error'
+            ? 'Connection issue. Check your internet and try again.'
+            : errorData.error || 'Failed to send message'
+        )
       }
 
       const responseData = await response.json()
-      console.log('✅ Message sent successfully:', responseData)
 
-      // Message will be added via realtime subscription
-      // Clear input immediately for better UX
-      setNewMessage('')
-      
-      // Focus input for next message
+      // Replace the temp message with the confirmed real message from server
+      setMessages(prev => {
+        const withoutTemp = prev.filter(m => m.id !== tempId)
+        // Only add if Realtime hasn't already delivered it
+        const alreadyHere = withoutTemp.some(m => m.id === responseData.message?.id)
+        if (alreadyHere || !responseData.message) return withoutTemp
+        return [...withoutTemp, { ...responseData.message, deleted: false }]
+      })
+
       inputRef.current?.focus()
     } catch (err: any) {
       console.error('Error sending message:', err)
-      
-      // Show more helpful error messages
-      const errorMessage = err.message.includes('Connection issue') 
-        ? err.message 
-        : 'Failed to send message. Please try again.'
-      
-      alert(errorMessage)
+      // Remove the optimistic message and restore the input text
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setNewMessage(content)
+      setSendError(
+        err.message.includes('Connection issue')
+          ? err.message
+          : 'Failed to send. Please try again.'
+      )
     } finally {
       setSending(false)
     }
@@ -413,11 +426,11 @@ export function MessageThread({
                 
                 <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-[80%] px-4 py-2 rounded-2xl ${
+                    className={`max-w-[80%] px-4 py-2 rounded-2xl transition-opacity ${
                       isOwn
                         ? 'bg-[#E8FF00] text-black rounded-br-sm'
                         : 'bg-white/10 text-white rounded-bl-sm'
-                    }`}
+                    } ${message.id.startsWith('temp_') ? 'opacity-60' : ''}`}
                   >
                     <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   </div>
@@ -431,13 +444,16 @@ export function MessageThread({
 
       {/* Input */}
       <div className="p-4 border-t border-white/10 mb-20 md:mb-0">
+        {sendError && (
+          <p className="text-xs text-red-400 mb-2 px-1">{sendError}</p>
+        )}
         <form onSubmit={handleSend} className="flex items-center gap-2">
           <Input
             ref={inputRef}
             type="text"
             placeholder="Type a message..."
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => { setNewMessage(e.target.value); setSendError(null) }}
             disabled={sending}
             className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/40"
           />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { MapPin, MessageCircle, ChevronRight, Building2 } from 'lucide-react'
+import { createClient } from '../../utils/supabase/client'
 
 interface Place {
   id: string
@@ -17,6 +18,7 @@ interface PlacesInboxOverviewProps {
   userId: string
   accessToken: string
   projectId: string
+  publicAnonKey: string
   serverUrl: string
   onSelectPlace: (placeId: string, placeName: string) => void
 }
@@ -25,6 +27,7 @@ export function PlacesInboxOverview({
   userId,
   accessToken,
   projectId,
+  publicAnonKey,
   serverUrl,
   onSelectPlace
 }: PlacesInboxOverviewProps) {
@@ -34,6 +37,26 @@ export function PlacesInboxOverview({
 
   useEffect(() => {
     fetchUserPlaces()
+
+    // Subscribe to new/updated messages so unread badges stay live
+    const supabase = createClient(projectId, publicAnonKey)
+    const channel = supabase
+      .channel('places-inbox-messages')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `recipient_id=eq.${userId}`
+      }, () => fetchUserPlaces())
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `recipient_id=eq.${userId}`
+      }, () => fetchUserPlaces())
+      .subscribe()
+
+    return () => { channel.unsubscribe() }
   }, [userId])
 
   const fetchUserPlaces = async () => {

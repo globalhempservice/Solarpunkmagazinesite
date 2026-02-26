@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '../../utils/supabase/client'
-import { Search, MessageCircle } from 'lucide-react'
+import { Search, MessageCircle, ArchiveX } from 'lucide-react'
 import { Input } from '../ui/input'
 
 // Simple time ago helper
@@ -73,6 +73,7 @@ export function ConversationList({
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
 
   // Fetch conversations
   useEffect(() => {
@@ -209,6 +210,23 @@ export function ConversationList({
     }
   }
 
+  const handleArchive = async (e: React.MouseEvent, conversationId: string) => {
+    e.stopPropagation()
+    setArchivingId(conversationId)
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/messages/conversation/${conversationId}/archive`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}` } }
+      )
+      // Remove immediately from local list
+      setConversations(prev => prev.filter(c => c.id !== conversationId))
+    } catch {
+      // Silently ignore — worst case it reappears on next fetch
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
   const setupRealtimeSubscription = () => {
     const supabase = createClient(projectId, publicAnonKey)
 
@@ -306,8 +324,8 @@ export function ConversationList({
         ) : (
           <div className="px-2">
             {filteredConversations.map((conversation, index) => (
+              <div key={conversation.id} className="relative group mb-2">
               <button
-                key={conversation.id}
                 onClick={() => {
                   // Optimistically clear the unread badge before the thread marks-read round-trip
                   if (conversation.unread_count > 0) {
@@ -318,7 +336,7 @@ export function ConversationList({
                   onSelectConversation(conversation)
                 }}
                 className={`
-                  w-full p-3 rounded-xl mb-2
+                  w-full p-3 rounded-xl
                   hover:bg-white/10 active:bg-white/15
                   transition-all duration-150
                   text-left flex items-center gap-3
@@ -385,6 +403,30 @@ export function ConversationList({
                   </div>
                 )}
               </button>
+
+              {/* Archive button — visible on hover (desktop) or always on mobile */}
+              <button
+                onClick={(e) => handleArchive(e, conversation.id)}
+                disabled={archivingId === conversation.id}
+                title="Hide conversation"
+                className="
+                  absolute right-1 top-1/2 -translate-y-1/2
+                  w-7 h-7 rounded-full
+                  bg-black/60 border border-white/10
+                  flex items-center justify-center
+                  text-white/30 hover:text-white/80 hover:bg-white/10
+                  transition-all duration-150
+                  opacity-0 group-hover:opacity-100
+                  md:opacity-0 md:group-hover:opacity-100
+                  disabled:cursor-not-allowed
+                "
+              >
+                {archivingId === conversation.id
+                  ? <div className="w-3 h-3 border border-white/40 border-t-transparent rounded-full animate-spin" />
+                  : <ArchiveX size={12} />
+                }
+              </button>
+              </div>
             ))}
           </div>
         )}

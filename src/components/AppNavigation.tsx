@@ -13,6 +13,7 @@ import { PointsRulesModal } from './PointsRulesModal'
 import { BubbleController } from './BubbleController'
 import { MessageIcon } from './messaging/MessageIcon'
 import { MessagePanel } from './messaging/MessagePanel'
+import { createClient } from '../utils/supabase/client'
 import { isFeatureUnlocked, FEATURE_UNLOCKS } from '../utils/featureUnlocks'
 import {
   AdminButton,
@@ -268,15 +269,15 @@ export function AppNavigation({
 
   // Fetch unread message count from backend
   const [unreadCount, setUnreadCount] = useState(0)
-  
+
   useEffect(() => {
     if (!isAuthenticated || !accessToken || !projectId) return
-    
+
     fetchUnreadCount()
 
-    // Poll every 2 minutes — auto-pauses when tab is hidden
+    // Poll every 5 minutes as a correctness fallback (realtime handles instant updates)
     let interval: ReturnType<typeof setInterval> | null = null
-    const start = () => { if (!interval) interval = setInterval(fetchUnreadCount, 120000) }
+    const start = () => { if (!interval) interval = setInterval(fetchUnreadCount, 300000) }
     const stop  = () => { if (interval) { clearInterval(interval); interval = null } }
 
     start()
@@ -287,7 +288,30 @@ export function AppNavigation({
       stop()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [isAuthenticated, projectId]) // Removed accessToken - we only need to re-run when user logs in/out
+  }, [isAuthenticated, projectId])
+
+  // Realtime: increment badge instantly when a new message arrives for this user
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel('nav-unread-badge')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `recipient_id=eq.${userId}`
+      }, () => {
+        // Don't increment if the messenger is already open — user sees it immediately
+        if (!isMessengerOpen) {
+          setUnreadCount(prev => prev + 1)
+        }
+      })
+      .subscribe()
+
+    return () => { channel.unsubscribe() }
+  }, [isAuthenticated, userId, isMessengerOpen])
 
   const fetchUnreadCount = async () => {
     if (!accessToken || !projectId) return

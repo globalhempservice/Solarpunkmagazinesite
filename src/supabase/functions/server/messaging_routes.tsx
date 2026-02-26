@@ -200,7 +200,23 @@ export function setupMessagingRoutes(app: any, requireAuth: any) {
                 conversationId = raceConv2.id
                 console.log('✅ Found conversation after race condition (reverse):', conversationId)
               } else {
-                console.error('❌ Race condition: could not find conversation after duplicate error')
+                // Last resort: find any conversation between these users with SAME context type.
+                // This handles a broken DB constraint (missing context_type+context_id fields).
+                // Note: run the DB migration to fix the constraint permanently.
+                const { data: sameCtxConv } = await supabase
+                  .from('conversations')
+                  .select('id')
+                  .or(`and(participant_1_id.eq.${userId},participant_2_id.eq.${recipientId}),and(participant_1_id.eq.${recipientId},participant_2_id.eq.${userId})`)
+                  .eq('context_type', finalContextType)
+                  .limit(1)
+                  .maybeSingle()
+
+                if (sameCtxConv) {
+                  conversationId = sameCtxConv.id
+                  console.log('⚠️  Using same-context conversation (constraint fallback):', conversationId)
+                } else {
+                  console.error('❌ Cannot find or create conversation — run DB migration to fix constraint')
+                }
               }
             }
           }

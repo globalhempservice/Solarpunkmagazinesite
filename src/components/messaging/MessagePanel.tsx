@@ -72,12 +72,42 @@ interface MessagePanelProps {
   projectId: string
   publicAnonKey: string
   initialInboxType?: string
+  initialConversationId?: string
   initialRecipientId?: string
   initialContextType?: string
   initialContextId?: string
   initialContextName?: string
   serverUrl: string
   onMarkedAsRead?: () => void
+}
+
+// Build a Conversation object from a swap proposal + conversationId so we can
+// navigate straight to the MessageThread without a separate fetch.
+function buildConversationFromProposal(
+  proposal: any,
+  conversationId: string,
+  currentUserId: string
+): Conversation {
+  const isIncoming = proposal.swap_item?.user_profile?.user_id === currentUserId
+  const other = isIncoming ? proposal.proposer_profile : proposal.swap_item?.user_profile
+  return {
+    id: conversationId,
+    created_at: proposal.created_at,
+    updated_at: proposal.created_at,
+    last_message_at: null,
+    last_message_preview: null,
+    unread_count: 0,
+    archived: false,
+    muted: false,
+    context_type: 'swap',
+    context_id: proposal.id,
+    context_name: proposal.swap_item?.title || 'SWAP Deal',
+    other_participant: {
+      id: other?.user_id || '',
+      display_name: other?.display_name || 'Trader',
+      avatar_url: other?.avatar_url || null,
+    },
+  }
 }
 
 export function MessagePanel({
@@ -88,6 +118,7 @@ export function MessagePanel({
   projectId,
   publicAnonKey,
   initialInboxType,
+  initialConversationId,
   initialRecipientId,
   initialContextType,
   initialContextId,
@@ -117,9 +148,35 @@ export function MessagePanel({
 
   // ── Open directly to a conversation (deep-link) ────────────────────────────
   useEffect(() => {
-    if (isOpen && initialInboxType) {
+    if (!isOpen) return
+
+    if (initialConversationId) {
+      // Deep-link to a specific conversation thread (e.g. from SwapInbox "Open Chat")
+      // We don't have the full Conversation object here, so build a minimal one.
+      // MessageThread will fetch the actual messages by conversation ID.
+      setSelectedConversation({
+        id: initialConversationId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_message_at: null,
+        last_message_preview: null,
+        unread_count: 0,
+        archived: false,
+        muted: false,
+        context_type: 'swap',
+        other_participant: { id: '', display_name: 'Trader', avatar_url: null },
+      })
+      navigateTo('thread')
+      return
+    }
+
+    if (initialInboxType) {
       setSelectedInboxType(initialInboxType)
-      navigateTo('inbox')
+      if (initialInboxType === 'swap') {
+        navigateTo('swap-inbox')
+      } else {
+        navigateTo('inbox')
+      }
       if (initialRecipientId) {
         setPendingConversation({
           recipientId: initialRecipientId,
@@ -129,7 +186,7 @@ export function MessagePanel({
         })
       }
     }
-  }, [isOpen, initialInboxType, initialRecipientId, initialContextType, initialContextId, initialContextName])
+  }, [isOpen, initialConversationId, initialInboxType, initialRecipientId, initialContextType, initialContextId, initialContextName])
 
   // ── Reset on close ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -167,12 +224,19 @@ export function MessagePanel({
   }
 
   const handleSelectSwapConversation = (conversationId: string, proposal: any) => {
-    setSelectedSwapProposal(proposal)
+    const convo = buildConversationFromProposal(proposal, conversationId, userId)
+    setSelectedConversation(convo)
     navigateTo('thread')
   }
 
-  const handleSwapProposalAccept = () => {
-    navigateTo('swap-inbox')
+  const handleSwapProposalAccept = (conversationId: string) => {
+    if (selectedSwapProposal && conversationId) {
+      const convo = buildConversationFromProposal(selectedSwapProposal, conversationId, userId)
+      setSelectedConversation(convo)
+      navigateTo('thread')
+    } else {
+      navigateTo('swap-inbox')
+    }
   }
 
   const handleSwapProposalDecline = () => {
@@ -185,7 +249,11 @@ export function MessagePanel({
     switch (viewState) {
       case 'thread':
         setSelectedConversation(null)
-        navigateTo('inbox')
+        if (selectedConversation?.context_type === 'swap') {
+          navigateTo('swap-inbox')
+        } else {
+          navigateTo('inbox')
+        }
         break
       case 'inbox':
         setSelectedInboxType(null)

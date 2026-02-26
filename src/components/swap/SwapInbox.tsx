@@ -318,7 +318,7 @@ export function SwapInbox() {
               />
             )}
             {activeTab === 'active' && (
-              <ActiveDealsTab deals={activeDeals} onOpenChat={() => (window as any).__openMessenger?.({ inboxType: 'swap' })} />
+              <ActiveDealsTab deals={activeDeals} onOpenChat={(conversationId) => (window as any).__openMessenger?.({ conversationId })} />
             )}
             {activeTab === 'outgoing' && (
               <OutgoingTab proposals={outgoingProposals} />
@@ -536,7 +536,7 @@ function IncomingProposalCard({ proposal, onAccept, onDecline }: IncomingProposa
 // ============================================================================
 interface ActiveDealsTabProps {
   deals: SwapDeal[];
-  onOpenChat: () => void;
+  onOpenChat: (conversationId: string) => void;
 }
 
 function ActiveDealsTab({ deals, onOpenChat }: ActiveDealsTabProps) {
@@ -565,7 +565,7 @@ function ActiveDealsTab({ deals, onOpenChat }: ActiveDealsTabProps) {
       className="space-y-4"
     >
       {deals.map((deal) => (
-        <ActiveDealCard key={deal.id} deal={deal} onOpenChat={onOpenChat} />
+        <ActiveDealCard key={deal.id} deal={deal} onOpenChat={() => onOpenChat(deal.conversation_id)} />
       ))}
     </motion.div>
   );

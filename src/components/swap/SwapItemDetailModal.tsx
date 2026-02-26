@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { X, MapPin, Package, Sparkles, MessageCircle, ChevronDown, ChevronUp, Zap, Shield, TrendingUp, Clock } from 'lucide-react';
+import { X, Package, Sparkles, MessageCircle, ChevronDown, ChevronUp, Zap, Shield, TrendingUp, Clock, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { CountryFlag } from '../profile/CountryFlag';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProposeSwapModal } from './ProposeSwapModal';
+import { toast } from 'sonner';
+import { projectId } from '../../utils/supabase/info';
 
 interface SwapItem {
   id: string;
@@ -53,13 +55,41 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+function getRarityLabel(level: number): { label: string; color: string; border: string } {
+  if (level >= 10) return { label: 'LEGENDARY', color: 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-400 to-cyan-300', border: 'border-yellow-400/60' }
+  if (level >= 9)  return { label: 'EPIC',      color: 'text-fuchsia-300', border: 'border-fuchsia-500/60' }
+  if (level >= 7)  return { label: 'RARE',       color: 'text-cyan-300',    border: 'border-cyan-400/60' }
+  if (level >= 4)  return { label: 'UNCOMMON',   color: 'text-emerald-300', border: 'border-emerald-500/60' }
+  return           { label: 'COMMON',     color: 'text-slate-400',   border: 'border-slate-500/40' }
+}
+
 export function SwapItemDetailModal({ item, userId, accessToken, onClose, onProposalSent }: SwapItemDetailModalProps) {
   const isOwnItem = userId === item.user_id;
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [storyExpanded, setStoryExpanded] = useState(false);
   const [isProposeSwapModalOpen, setProposeSwapModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const powerLevel = item.power_level || 1;
+  const rarity = getRarityLabel(powerLevel);
+
+  const handleDelete = async () => {
+    if (!accessToken) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-053bcd80/swap/items/${item.id}`,
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } }
+      );
+      if (!res.ok) throw new Error('Failed to delete');
+      toast.success('Listing removed');
+      onClose();
+    } catch {
+      toast.error('Could not delete listing');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-x-0 top-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4" style={{ bottom: 'var(--nav-bottom)' }}>
@@ -108,6 +138,11 @@ export function SwapItemDetailModal({ item, userId, accessToken, onClose, onProp
                 LVL {powerLevel}
               </Badge>
 
+              {/* Rarity Badge */}
+              <Badge className={`bg-black/70 backdrop-blur-sm border-2 ${rarity.border} font-black text-sm px-3 py-1 shadow-lg`}>
+                <span className={rarity.color}>{rarity.label}</span>
+              </Badge>
+
               {/* Hemp Badge */}
               {item.hemp_inside && (
                 <Badge className="bg-gradient-to-r from-emerald-400 to-green-500 text-white border-2 border-emerald-300/50 font-black text-sm px-3 py-1 shadow-lg">
@@ -139,13 +174,21 @@ export function SwapItemDetailModal({ item, userId, accessToken, onClose, onProp
               </motion.div>
             )}
 
-            {/* Own item indicator */}
+            {/* Own item indicator + delete */}
             {isOwnItem && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)]">
-                <Badge className="w-full h-14 bg-purple-900/80 backdrop-blur-sm border-2 border-purple-500/50 text-purple-200 font-black text-lg flex items-center justify-center">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] flex gap-3">
+                <Badge className="flex-1 h-14 bg-purple-900/80 backdrop-blur-sm border-2 border-purple-500/50 text-purple-200 font-black text-lg flex items-center justify-center">
                   <Shield className="w-6 h-6 mr-2" />
                   YOUR ITEM
                 </Badge>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="h-14 px-4 rounded-xl bg-red-900/70 backdrop-blur-sm border-2 border-red-500/50 text-red-300 hover:bg-red-800/80 hover:border-red-400/70 transition-all disabled:opacity-50 flex items-center gap-2 font-black"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  {deleting ? '...' : 'Delete'}
+                </button>
               </div>
             )}
           </div>

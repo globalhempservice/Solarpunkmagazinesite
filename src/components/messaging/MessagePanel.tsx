@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { X, ChevronLeft, Mail } from 'lucide-react'
 import { MessageDashboard } from './MessageDashboard'
 import { ConversationList } from './ConversationList'
 import { MessageThread } from './MessageThread'
-import { PlacesInboxOverview } from './PlacesInboxOverview'
 import { SwapConversationList } from './SwapConversationList'
 import { SwapProposalCard } from './SwapProposalCard'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Conversation {
   id: string
@@ -22,9 +23,46 @@ interface Conversation {
     display_name: string
     avatar_url: string | null
   }
+  context_type?: string
+  context_id?: string
+  context_name?: string
 }
 
-type ViewState = 'dashboard' | 'places-overview' | 'inbox' | 'thread' | 'swap-inbox' | 'swap-proposal'
+type ViewState = 'dashboard' | 'inbox' | 'thread' | 'swap-inbox' | 'swap-proposal'
+
+// Depth determines animation direction (higher = forward, lower = back)
+const VIEW_DEPTH: Record<ViewState, number> = {
+  'dashboard':     0,
+  'inbox':         1,
+  'swap-inbox':    1,
+  'swap-proposal': 2,
+  'thread':        2,
+}
+
+// ─── Slide animation variants ─────────────────────────────────────────────────
+// Forward: new view slides in from right, old exits left (parallax dimming)
+// Back:    new view slides in from left,  old exits right
+
+const slideVariants = {
+  enter: (dir: 'forward' | 'back') => ({
+    x: dir === 'forward' ? '100%' : '-20%',
+    opacity: dir === 'back' ? 0 : 1,
+  }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: 'forward' | 'back') => ({
+    x: dir === 'forward' ? '-20%' : '100%',
+    opacity: dir === 'forward' ? 0 : 1,
+  }),
+}
+
+const slideTransition = {
+  type: 'spring' as const,
+  damping: 32,
+  stiffness: 320,
+  mass: 0.6,
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 interface MessagePanelProps {
   isOpen: boolean
@@ -33,14 +71,13 @@ interface MessagePanelProps {
   accessToken: string
   projectId: string
   publicAnonKey: string
-  // Optional: Open directly to a specific inbox and/or conversation
   initialInboxType?: string
   initialRecipientId?: string
   initialContextType?: string
   initialContextId?: string
-  initialContextName?: string  // Add context name (e.g., place name)
-  serverUrl: string  // Add serverUrl for places fetching
-  onMarkedAsRead?: () => void  // Notify parent when messages are read
+  initialContextName?: string
+  serverUrl: string
+  onMarkedAsRead?: () => void
 }
 
 export function MessagePanel({
@@ -56,148 +93,139 @@ export function MessagePanel({
   initialContextId,
   initialContextName,
   serverUrl,
-  onMarkedAsRead
+  onMarkedAsRead,
 }: MessagePanelProps) {
-  const [viewState, setViewState] = useState<ViewState>('dashboard')
+  const [viewState, setViewState]               = useState<ViewState>('dashboard')
+  const [navDirection, setNavDirection]         = useState<'forward' | 'back'>('forward')
   const [selectedInboxType, setSelectedInboxType] = useState<string | null>(null)
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null) // Track selected place
-  const [selectedSwapProposal, setSelectedSwapProposal] = useState<any | null>(null) // Track selected SWAP proposal
+  const [selectedSwapProposal, setSelectedSwapProposal] = useState<any | null>(null)
   const [pendingConversation, setPendingConversation] = useState<{
     recipientId: string
     contextType?: string
     contextId?: string
-    contextName?: string  // Add context name
+    contextName?: string
   } | null>(null)
 
-  // Handle initial parameters to open directly to a conversation
+  // ── Navigate helper: sets direction, then view ─────────────────────────────
+  const navigateTo = useCallback((newView: ViewState) => {
+    setNavDirection(
+      (VIEW_DEPTH[newView] ?? 0) >= (VIEW_DEPTH[viewState] ?? 0) ? 'forward' : 'back'
+    )
+    setViewState(newView)
+  }, [viewState])
+
+  // ── Open directly to a conversation (deep-link) ────────────────────────────
   useEffect(() => {
     if (isOpen && initialInboxType) {
       setSelectedInboxType(initialInboxType)
-      setViewState('inbox')
-      
-      // If we also have recipient info, prepare to start/open a conversation
+      navigateTo('inbox')
       if (initialRecipientId) {
         setPendingConversation({
           recipientId: initialRecipientId,
           contextType: initialContextType,
-          contextId: initialContextId,
-          contextName: initialContextName  // Pass through context name
+          contextId:   initialContextId,
+          contextName: initialContextName,
         })
       }
     }
   }, [isOpen, initialInboxType, initialRecipientId, initialContextType, initialContextId, initialContextName])
 
-  // Reset to dashboard when panel closes
+  // ── Reset on close ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) {
       setViewState('dashboard')
+      setNavDirection('forward')
       setSelectedInboxType(null)
       setSelectedConversation(null)
       setPendingConversation(null)
     }
   }, [isOpen])
 
+  // ── Navigation handlers ────────────────────────────────────────────────────
+
   const handleSelectInbox = (contextType: string) => {
-    // Special handling for Places - show overview first
-    if (contextType === 'place') {
-      setViewState('places-overview')
-      return
-    }
-    
-    // Special handling for SWAP - show SWAP conversation list
     if (contextType === 'swap') {
       setSelectedInboxType('swap')
-      setViewState('swap-inbox')
+      navigateTo('swap-inbox')
       return
     }
-    
+    // All other inbox types (personal, organization, swag, rfp, place)
+    // go directly to ConversationList — no intermediate overview
     setSelectedInboxType(contextType)
-    setViewState('inbox')
-  }
-  
-  const handleSelectPlace = (placeId: string, placeName: string) => {
-    // When a specific place is selected from the overview
-    setSelectedPlaceId(placeId)
-    setSelectedInboxType('place')
-    setViewState('inbox')
-  }
-
-  // SWAP-specific handlers
-  const handleSelectSwapProposal = (proposal: any) => {
-    setSelectedSwapProposal(proposal)
-    setViewState('swap-proposal')
-  }
-
-  const handleSelectSwapConversation = (conversationId: string, proposal: any) => {
-    // Find or create the conversation object
-    // For now, we'll need to fetch the conversation details
-    setSelectedSwapProposal(proposal) // Store proposal for context
-    setViewState('thread')
-    // TODO: Fetch full conversation details using conversationId
-  }
-
-  const handleSwapProposalAccept = (conversationId: string) => {
-    // After accepting, navigate to the conversation
-    // We need to fetch the conversation details and open it
-    setViewState('swap-inbox') // Go back to SWAP inbox for now
-    // TODO: Fetch and open the newly created conversation
-  }
-
-  const handleSwapProposalDecline = () => {
-    // Go back to SWAP inbox
-    setViewState('swap-inbox')
-    setSelectedSwapProposal(null)
-  }
-
-  const handleBackFromSwapProposal = () => {
-    setSelectedSwapProposal(null)
-    setViewState('swap-inbox')
-  }
-
-  const handleBackFromSwapInbox = () => {
-    setSelectedInboxType(null)
-    setViewState('dashboard')
+    navigateTo('inbox')
   }
 
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation)
-    setViewState('thread')
+    navigateTo('thread')
   }
 
-  const handleBackFromThread = () => {
-    setSelectedConversation(null)
-    setViewState('inbox')
+  const handleSelectSwapProposal = (proposal: any) => {
+    setSelectedSwapProposal(proposal)
+    navigateTo('swap-proposal')
   }
 
-  const handleBackFromInbox = () => {
-    // If we're in a place inbox (specific or general), go back to places overview
-    if (selectedInboxType === 'place') {
-      setSelectedPlaceId(null)
-      setViewState('places-overview')
-      return
+  const handleSelectSwapConversation = (conversationId: string, proposal: any) => {
+    setSelectedSwapProposal(proposal)
+    navigateTo('thread')
+  }
+
+  const handleSwapProposalAccept = () => {
+    navigateTo('swap-inbox')
+  }
+
+  const handleSwapProposalDecline = () => {
+    setSelectedSwapProposal(null)
+    navigateTo('swap-inbox')
+  }
+
+  // Back handlers
+  const handleBack = () => {
+    switch (viewState) {
+      case 'thread':
+        setSelectedConversation(null)
+        navigateTo('inbox')
+        break
+      case 'inbox':
+        setSelectedInboxType(null)
+        setPendingConversation(null)
+        navigateTo('dashboard')
+        break
+      case 'swap-proposal':
+        setSelectedSwapProposal(null)
+        navigateTo('swap-inbox')
+        break
+      case 'swap-inbox':
+        setSelectedInboxType(null)
+        navigateTo('dashboard')
+        break
+      default:
+        break
     }
-    
-    setSelectedInboxType(null)
-    setViewState('dashboard')
-  }
-  
-  const handleBackFromPlacesOverview = () => {
-    setViewState('dashboard')
   }
 
-  const getInboxTitle = (contextType: string | null) => {
-    const titles: { [key: string]: string } = {
-      'personal': 'Personal Messages',
-      'organization': 'Organization Messages',
-      'swap': 'SWAP Deals',
-      'swag': 'SWAG Orders',
-      'rfp': 'RFP Projects',
-      'place': 'Places'
+  // ── Header title ────────────────────────────────────────────────────────────
+  const getTitle = (): string => {
+    const titles: Record<string, string> = {
+      personal:     'Personal Messages',
+      organization: 'Organizations',
+      swap:         'SWAP Deals',
+      swag:         'SWAG Orders',
+      rfp:          'RFP Projects',
+      place:        'Places',
     }
-    return contextType ? titles[contextType] || 'Messages' : 'Messages'
+    if (viewState === 'thread' && selectedConversation) {
+      return (
+        selectedConversation.context_name ||
+        selectedConversation.other_participant.display_name
+      )
+    }
+    if (viewState === 'swap-proposal') return 'SWAP Proposal'
+    return selectedInboxType ? (titles[selectedInboxType] || 'Messages') : 'Messages'
   }
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <AnimatePresence>
       {isOpen && (
@@ -212,7 +240,7 @@ export function MessagePanel({
             onClick={onClose}
           />
 
-          {/* Panel - Full screen on mobile, right panel on desktop, covers everything including navbar */}
+          {/* Panel */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -220,107 +248,116 @@ export function MessagePanel({
             transition={{ duration: 0.15 }}
             className="fixed inset-0 md:right-0 md:left-auto md:w-[500px] bg-[#0A0F1E] md:border-l border-white/10 z-[101] flex flex-col"
           >
-            {/* Compact Header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                {/* Back Button */}
-                {viewState !== 'dashboard' && (
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                {viewState !== 'dashboard' ? (
                   <button
-                    onClick={
-                      viewState === 'places-overview' 
-                        ? handleBackFromPlacesOverview 
-                        : viewState === 'inbox' 
-                        ? handleBackFromInbox 
-                        : viewState === 'swap-inbox'
-                        ? handleBackFromSwapInbox
-                        : viewState === 'swap-proposal'
-                        ? handleBackFromSwapProposal
-                        : handleBackFromThread
-                    }
-                    className="p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+                    onClick={handleBack}
+                    className="p-1.5 hover:bg-white/5 rounded-lg transition-colors flex-shrink-0"
                   >
                     <ChevronLeft size={20} className="text-white/60" />
                   </button>
-                )}
-                
-                {/* Purple Mail Icon on Dashboard, Title on other views */}
-                {viewState === 'dashboard' ? (
-                  <div className="p-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-400/30">
+                ) : (
+                  <div className="p-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-400/30 flex-shrink-0">
                     <Mail size={18} className="text-violet-300" strokeWidth={2.5} />
                   </div>
-                ) : (
-                  <h2 className="text-white text-sm font-medium">{getInboxTitle(selectedInboxType)}</h2>
                 )}
+
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.h2
+                    key={viewState}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="text-white text-sm font-medium truncate"
+                  >
+                    {viewState === 'dashboard' ? '' : getTitle()}
+                  </motion.h2>
+                </AnimatePresence>
               </div>
-              
+
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white/5 rounded-lg transition-colors flex-shrink-0"
               >
                 <X size={20} className="text-white/60" />
               </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-hidden">
-              {viewState === 'dashboard' ? (
-                <MessageDashboard
-                  userId={userId}
-                  accessToken={accessToken}
-                  projectId={projectId}
-                  publicAnonKey={publicAnonKey}
-                  onSelectInbox={handleSelectInbox}
-                />
-              ) : viewState === 'places-overview' ? (
-                <PlacesInboxOverview
-                  userId={userId}
-                  accessToken={accessToken}
-                  projectId={projectId}
-                  publicAnonKey={publicAnonKey}
-                  serverUrl={serverUrl}
-                  onSelectPlace={handleSelectPlace}
-                />
-              ) : viewState === 'inbox' ? (
-                <ConversationList
-                  userId={userId}
-                  accessToken={accessToken}
-                  projectId={projectId}
-                  publicAnonKey={publicAnonKey}
-                  onSelectConversation={handleConversationSelect}
-                  contextType={selectedInboxType || undefined}
-                  pendingRecipient={pendingConversation || undefined}
-                />
-              ) : viewState === 'swap-inbox' ? (
-                <SwapConversationList
-                  userId={userId}
-                  accessToken={accessToken}
-                  projectId={projectId}
-                  publicAnonKey={publicAnonKey}
-                  onSelectConversation={handleSelectSwapConversation}
-                  onSelectProposal={handleSelectSwapProposal}
-                />
-              ) : viewState === 'swap-proposal' ? (
-                <SwapProposalCard
-                  proposal={selectedSwapProposal!}
-                  userId={userId}
-                  accessToken={accessToken}
-                  projectId={projectId}
-                  isIncoming={selectedSwapProposal?.swap_item?.user_profile?.user_id === userId}
-                  onClose={handleBackFromSwapProposal}
-                  onAccept={handleSwapProposalAccept}
-                  onDecline={handleSwapProposalDecline}
-                />
-              ) : (
-                <MessageThread
-                  conversation={selectedConversation!}
-                  userId={userId}
-                  accessToken={accessToken}
-                  projectId={projectId}
-                  publicAnonKey={publicAnonKey}
-                  onBack={handleBackFromThread}
-                  onMarkedAsRead={onMarkedAsRead}
-                />
-              )}
+            {/* Sliding content area */}
+            <div className="flex-1 relative overflow-hidden">
+              <AnimatePresence initial={false} custom={navDirection}>
+                <motion.div
+                  key={viewState}
+                  custom={navDirection}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={slideTransition}
+                  className="absolute inset-0 overflow-y-auto"
+                >
+                  {viewState === 'dashboard' && (
+                    <MessageDashboard
+                      userId={userId}
+                      accessToken={accessToken}
+                      projectId={projectId}
+                      publicAnonKey={publicAnonKey}
+                      onSelectInbox={handleSelectInbox}
+                    />
+                  )}
+
+                  {viewState === 'inbox' && (
+                    <ConversationList
+                      userId={userId}
+                      accessToken={accessToken}
+                      projectId={projectId}
+                      publicAnonKey={publicAnonKey}
+                      onSelectConversation={handleConversationSelect}
+                      contextType={selectedInboxType || undefined}
+                      pendingRecipient={pendingConversation || undefined}
+                    />
+                  )}
+
+                  {viewState === 'swap-inbox' && (
+                    <SwapConversationList
+                      userId={userId}
+                      accessToken={accessToken}
+                      projectId={projectId}
+                      publicAnonKey={publicAnonKey}
+                      onSelectConversation={handleSelectSwapConversation}
+                      onSelectProposal={handleSelectSwapProposal}
+                    />
+                  )}
+
+                  {viewState === 'swap-proposal' && (
+                    <SwapProposalCard
+                      proposal={selectedSwapProposal!}
+                      userId={userId}
+                      accessToken={accessToken}
+                      projectId={projectId}
+                      isIncoming={selectedSwapProposal?.swap_item?.user_profile?.user_id === userId}
+                      onClose={handleBack}
+                      onAccept={handleSwapProposalAccept}
+                      onDecline={handleSwapProposalDecline}
+                    />
+                  )}
+
+                  {viewState === 'thread' && selectedConversation && (
+                    <MessageThread
+                      conversation={selectedConversation}
+                      userId={userId}
+                      accessToken={accessToken}
+                      projectId={projectId}
+                      publicAnonKey={publicAnonKey}
+                      onBack={handleBack}
+                      onMarkedAsRead={onMarkedAsRead}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </motion.div>
         </>

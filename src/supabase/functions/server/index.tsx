@@ -8673,8 +8673,8 @@ app.get('/make-server-053bcd80/rss-articles/published', requireAuth, requireAdmi
 })
 
 // Publish ALL pending RSS articles (Admin only) — uses classifyArticle for auto-categorization
-// NOTE: must be defined BEFORE /:articleId/publish to prevent route shadowing
-app.post('/make-server-053bcd80/rss-articles/publish-all', requireAuth, requireAdmin, async (c) => {
+// Uses /rss/publish-all path to avoid any conflict with /rss-articles/:articleId/publish
+app.post('/make-server-053bcd80/rss/publish-all', requireAuth, requireAdmin, async (c) => {
   try {
     const { data: pendingArticles, error: fetchError } = await supabase
       .from('rss_articles')

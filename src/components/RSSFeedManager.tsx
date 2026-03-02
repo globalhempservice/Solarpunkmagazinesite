@@ -293,7 +293,7 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
   const handlePublishAll = async () => {
     setPublishingAll(true)
     try {
-      const response = await fetch(`${serverUrl}/rss-articles/publish-all`, {
+      const response = await fetch(`${serverUrl}/rss/publish-all`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })

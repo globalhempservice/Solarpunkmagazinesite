@@ -68,6 +68,7 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
   const [publishedArticles, setPublishedArticles] = useState<RSSArticle[]>([]) // New state for published articles
   const [view, setView] = useState<'add' | 'feeds' | 'pending' | 'published'>('add') // Added 'published' view
   const [fetchingFeedId, setFetchingFeedId] = useState<string | null>(null)
+  const [publishingAll, setPublishingAll] = useState(false)
 
   // Detect if URL looks like an RSS feed
   const isRSSUrl = (url: string): boolean => {
@@ -286,6 +287,32 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
     } catch (error: any) {
       console.error('Reject error:', error)
       toast.error(error.message || 'Failed to reject article')
+    }
+  }
+
+  const handlePublishAll = async () => {
+    setPublishingAll(true)
+    try {
+      const response = await fetch(`${serverUrl}/rss-articles/publish-all`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to publish all articles')
+      }
+
+      const data = await response.json()
+      toast.success(`Published ${data.published} articles!`, {
+        description: data.errors.length > 0 ? `${data.errors.length} failed` : 'All articles published successfully'
+      })
+      loadPendingArticles()
+      loadPublishedArticles()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to publish all articles')
+    } finally {
+      setPublishingAll(false)
     }
   }
 
@@ -884,7 +911,22 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
               </Button>
             </Card>
           ) : (
-            pendingArticles.map(article => (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{pendingArticles.length} article{pendingArticles.length !== 1 ? 's' : ''} pending</p>
+                <Button
+                  onClick={handlePublishAll}
+                  disabled={publishingAll}
+                  size="sm"
+                >
+                  {publishingAll ? (
+                    <><Loader className="w-4 h-4 animate-spin mr-2" />Publishing...</>
+                  ) : (
+                    <><Zap className="w-4 h-4 mr-2" />Publish All</>
+                  )}
+                </Button>
+              </div>
+            {pendingArticles.map(article => (
               <Card key={article.id} className="p-4">
                 <div className="flex gap-4">
                   {article.imageUrl && (
@@ -955,7 +997,8 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
                   </div>
                 </div>
               </Card>
-            ))
+            ))}
+            </>
           )}
         </div>
       )}

@@ -8768,6 +8768,84 @@ app.post('/make-server-053bcd80/rss-articles/:articleId/publish', requireAuth, r
   }
 })
 
+// Publish ALL pending RSS articles (Admin only) — uses classifyArticle for auto-categorization
+app.post('/make-server-053bcd80/rss-articles/publish-all', requireAuth, requireAdmin, async (c) => {
+  try {
+    const { data: pendingArticles, error: fetchError } = await supabase
+      .from('rss_articles')
+      .select('*, rss_feeds(default_category)')
+      .eq('status', 'pending')
+
+    if (fetchError) {
+      return c.json({ error: 'Failed to fetch pending articles', details: fetchError.message }, 500)
+    }
+
+    if (!pendingArticles || pendingArticles.length === 0) {
+      return c.json({ published: 0, errors: [], message: 'No pending articles' })
+    }
+
+    console.log(`📰 Bulk publishing ${pendingArticles.length} pending articles`)
+
+    let published = 0
+    const errors: string[] = []
+
+    for (const rssArticle of pendingArticles) {
+      try {
+        const feedDefaultCategory = (rssArticle.rss_feeds as any)?.default_category ?? null
+        const category = classifyArticle(
+          rssArticle.title || '',
+          rssArticle.description || '',
+          feedDefaultCategory
+        )
+
+        const wordCount = (rssArticle.content || rssArticle.description || '').split(/\s+/).length
+        const readingTime = Math.max(1, Math.ceil(wordCount / 200))
+
+        const { data: magazineArticle, error: insertError } = await supabase
+          .from('articles')
+          .insert({
+            title: rssArticle.title,
+            excerpt: rssArticle.description || rssArticle.content?.substring(0, 200) || '',
+            content: rssArticle.content || rssArticle.description || '',
+            category,
+            cover_image: rssArticle.image_url || null,
+            reading_time: readingTime,
+            author_id: Deno.env.get('ADMIN_USER_ID'),
+            source: 'rss',
+            source_url: rssArticle.link,
+            author: rssArticle.author || rssArticle.feed_title
+          })
+          .select('id')
+          .single()
+
+        if (insertError) {
+          errors.push(`${rssArticle.title}: ${insertError.message}`)
+          continue
+        }
+
+        await supabase
+          .from('rss_articles')
+          .update({
+            status: 'published',
+            magazine_article_id: magazineArticle.id,
+            published_to_magazine_at: new Date().toISOString()
+          })
+          .eq('id', rssArticle.id)
+
+        published++
+      } catch (err: any) {
+        errors.push(`${rssArticle.title}: ${err.message}`)
+      }
+    }
+
+    console.log(`✅ Bulk published ${published}/${pendingArticles.length} articles`)
+    return c.json({ published, total: pendingArticles.length, errors })
+  } catch (error: any) {
+    console.error('Error in publish-all:', error)
+    return c.json({ error: 'Failed to publish all articles', details: error.message }, 500)
+  }
+})
+
 // Reject RSS article (Admin only)
 app.post('/make-server-053bcd80/rss-articles/:articleId/reject', requireAuth, requireAdmin, async (c) => {
   try {

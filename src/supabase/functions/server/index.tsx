@@ -8369,10 +8369,40 @@ app.post('/make-server-053bcd80/purchase-swag-item', async (c) => {
 // RSS FEED MANAGEMENT ENDPOINTS
 // ============================================================================
 
+// ============================================================
+// RSS AUTO-PUBLISH HELPERS
+// ============================================================
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'Renewable Energy': ['solar', 'wind', 'battery', 'grid', 'electric vehicle', 'ev ', 'hydrogen', 'geothermal', 'hydropower', 'turbine', 'photovoltaic', 'kilowatt', 'megawatt', 'biofuel', 'biomass', 'offshore wind', 'clean energy', 'decarboni', 'power plant', 'renewable'],
+  'Sustainable Tech': ['circular economy', 'carbon capture', 'recycling', 'upcycl', 'packaging', 'zero waste', 'sustainable design', 'lifecycle', 'plastic', 'compost', 'biodegradable', 'green tech', 'cleantech', 'biotech', 'material science', 'sustainable material'],
+  'Green Cities': ['urban', 'transit', 'zoning', 'housing', 'walkable', 'bike lane', 'cycling', 'public transport', 'municipality', 'infrastructure', 'architecture', 'green building', 'leed', 'smart city', 'neighborhood', 'street design', 'urban planning', 'light rail'],
+  'Climate Action': ['emission', 'cop ', 'policy', 'carbon tax', 'ipcc', 'climate change', 'global warming', 'greenhouse', 'paris agreement', 'net zero', 'carbon neutral', 'fossil fuel', 'methane', 'carbon offset', 'legislation', 'activist', 'protest', 'advocacy'],
+  'Community': ['cooperative', 'mutual aid', 'grassroots', 'solidarity', 'collective', 'nonprofit', 'volunteer', 'social justice', 'equity', 'indigenous', 'food bank', 'land trust', 'credit union', 'worker-owned', 'community garden', 'local food', 'community hub'],
+  'Future Vision': ['solarpunk', 'degrowth', 'post-scarcity', 'commons', 'utopia', 'transformation', 'paradigm shift', 'transition town', 'alternative economy', 'post-capitalist', 'abundance', 'rewild', 'regenerative culture', 'new economy', 'systems change'],
+}
+
+function classifyArticle(title: string, description: string, feedDefaultCategory?: string | null): string {
+  if (feedDefaultCategory) return feedDefaultCategory
+  const text = `${title} ${description}`.toLowerCase()
+  let bestCategory = 'Eco Innovation'
+  let bestScore = 0
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    const score = keywords.filter(kw => text.includes(kw)).length
+    if (score > bestScore) {
+      bestScore = score
+      bestCategory = category
+    }
+  }
+  return bestCategory
+}
+
+// ============================================================
+
 // Subscribe to a new RSS feed (Admin only)
 app.post('/make-server-053bcd80/rss-feeds', requireAuth, requireAdmin, async (c) => {
   try {
-    const { feedUrl } = await c.req.json()
+    const { feedUrl, defaultCategory } = await c.req.json()
     const userId = c.get('userId')
 
     if (!feedUrl) {
@@ -8408,7 +8438,8 @@ app.post('/make-server-053bcd80/rss-feeds', requireAuth, requireAdmin, async (c)
         description: feed.description || null,
         link: feed.link || null,
         is_active: true,
-        added_by_user_id: userId || null
+        added_by_user_id: userId || null,
+        default_category: defaultCategory || null
       })
       .select()
       .single()
@@ -8793,6 +8824,158 @@ app.delete('/make-server-053bcd80/rss-feeds/:feedId', requireAuth, requireAdmin,
   } catch (error: any) {
     console.error('Error deleting RSS feed:', error)
     return c.json({ error: 'Failed to delete feed', details: error.message }, 500)
+  }
+})
+
+// Daily auto-publish sync — fetches all active feeds and publishes new articles
+// Accepts admin JWT OR x-cron-secret header (for Supabase pg_cron)
+app.post('/make-server-053bcd80/rss/daily-sync', async (c) => {
+  const cronSecret = Deno.env.get('CRON_SECRET')
+  const providedSecret = c.req.header('x-cron-secret')
+  let authorized = false
+
+  if (cronSecret && providedSecret === cronSecret) {
+    authorized = true
+  } else {
+    const authHeader = c.req.header('Authorization')
+    const accessToken = authHeader?.split(' ')[1]
+    if (accessToken) {
+      const { data: { user } } = await supabaseAuth.auth.getUser(accessToken)
+      const adminUserId = Deno.env.get('ADMIN_USER_ID')
+      if (user && user.id === adminUserId) authorized = true
+    }
+  }
+
+  if (!authorized) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  console.log('🌅 RSS daily-sync started')
+  const syncStart = Date.now()
+  const stats = { feedsProcessed: 0, newArticles: 0, published: 0, errors: [] as string[] }
+
+  try {
+    // Get all active feeds
+    const { data: feeds, error: feedsError } = await supabase
+      .from('rss_feeds')
+      .select('*')
+      .eq('is_active', true)
+
+    if (feedsError || !feeds) {
+      return c.json({ error: 'Failed to load feeds', details: feedsError?.message }, 500)
+    }
+
+    for (const feed of feeds) {
+      try {
+        stats.feedsProcessed++
+        console.log(`📡 Syncing feed: ${feed.title}`)
+
+        const { articles } = await parseRSSFeed(feed.url)
+
+        // Get existing article links for this feed to avoid duplicates
+        const { data: existingArticles } = await supabase
+          .from('rss_articles')
+          .select('link')
+          .eq('feed_id', feed.id)
+
+        const existingLinks = new Set(existingArticles?.map((a: any) => a.link) || [])
+
+        const newArticles = articles.filter(a => a.link && !existingLinks.has(a.link))
+        stats.newArticles += newArticles.length
+
+        for (const article of newArticles) {
+          try {
+            const articleId = generateArticleId(feed.id, article.link!)
+
+            // Classify category — feed default first, then keyword scoring
+            const category = classifyArticle(
+              article.title || '',
+              article.description || '',
+              feed.default_category
+            )
+
+            // Calculate reading time
+            const wordCount = (article.content || article.description || '').split(/\s+/).length
+            const readingTime = Math.max(1, Math.ceil(wordCount / 200))
+
+            // Insert into rss_articles as pending first
+            await supabase.from('rss_articles').upsert({
+              id: articleId,
+              feed_id: feed.id,
+              feed_title: feed.title,
+              feed_url: feed.url,
+              title: article.title!,
+              link: article.link!,
+              description: article.description || null,
+              content: article.content || null,
+              author: article.author || null,
+              published_at: article.publishedAt || null,
+              image_url: article.imageUrl || null,
+              category,
+              status: 'pending'
+            }, { onConflict: 'id' })
+
+            // Publish directly to magazine articles table
+            const { data: magazineArticle, error: insertError } = await supabase
+              .from('articles')
+              .insert({
+                title: article.title!,
+                excerpt: article.description || article.content?.substring(0, 200) || '',
+                content: article.content || article.description || '',
+                category,
+                cover_image: article.imageUrl || null,
+                reading_time: readingTime,
+                author_id: Deno.env.get('ADMIN_USER_ID'),
+                source: 'rss',
+                source_url: article.link!,
+                author: article.author || feed.title
+              })
+              .select('id')
+              .single()
+
+            if (insertError) {
+              console.error(`❌ Failed to publish article: ${article.title}`, insertError.message)
+              stats.errors.push(`${article.title}: ${insertError.message}`)
+              continue
+            }
+
+            // Mark rss_article as published
+            await supabase
+              .from('rss_articles')
+              .update({
+                status: 'published',
+                magazine_article_id: magazineArticle.id,
+                published_to_magazine_at: new Date().toISOString()
+              })
+              .eq('id', articleId)
+
+            stats.published++
+            console.log(`✅ Auto-published: ${article.title} → ${category}`)
+          } catch (articleErr: any) {
+            console.error(`❌ Article error: ${article.title}`, articleErr.message)
+            stats.errors.push(`${article.title}: ${articleErr.message}`)
+          }
+        }
+
+        // Update feed last_fetched_at
+        await supabase
+          .from('rss_feeds')
+          .update({ last_fetched_at: new Date().toISOString() })
+          .eq('id', feed.id)
+
+      } catch (feedErr: any) {
+        console.error(`❌ Feed error: ${feed.title}`, feedErr.message)
+        stats.errors.push(`Feed ${feed.title}: ${feedErr.message}`)
+      }
+    }
+
+    const durationMs = Date.now() - syncStart
+    console.log(`🌅 RSS daily-sync complete in ${durationMs}ms — ${stats.published} articles published`)
+
+    return c.json({ success: true, durationMs, ...stats })
+  } catch (error: any) {
+    console.error('❌ daily-sync fatal error:', error)
+    return c.json({ error: 'Daily sync failed', details: error.message }, 500)
   }
 })
 

@@ -5,12 +5,23 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Card } from './ui/card'
 import { Badge } from './ui/badge'
+import { useConfirmDialog } from './ui/use-confirm-dialog'
 
 interface RSSFeedManagerProps {
   accessToken: string
   serverUrl: string
   onClose?: () => void
 }
+
+const RSS_CATEGORIES = [
+  'Renewable Energy',
+  'Sustainable Tech',
+  'Green Cities',
+  'Eco Innovation',
+  'Climate Action',
+  'Community',
+  'Future Vision',
+] as const
 
 interface RSSFeed {
   id: string
@@ -21,6 +32,7 @@ interface RSSFeed {
   addedAt: string
   lastFetchedAt?: string
   isActive: boolean
+  defaultCategory?: string
 }
 
 interface RSSArticle {
@@ -42,7 +54,9 @@ interface RSSArticle {
 }
 
 export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManagerProps) {
+  const { confirm: confirmDialog, ConfirmDialog } = useConfirmDialog()
   const [feedUrl, setFeedUrl] = useState('')
+  const [defaultCategory, setDefaultCategory] = useState('')
   const [loading, setLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<{
@@ -129,7 +143,7 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify({ feedUrl: feedUrl.trim() })
+        body: JSON.stringify({ feedUrl: feedUrl.trim(), defaultCategory: defaultCategory || null })
       })
 
       if (!response.ok) {
@@ -141,8 +155,9 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
       toast.success(`Subscribed to ${data.feed.title}!`, {
         description: `${data.articlesPreview.length} articles fetched`
       })
-      
+
       setFeedUrl('')
+      setDefaultCategory('')
       setPreview(null)
       loadSubscribedFeeds()
       loadPendingArticles()
@@ -275,7 +290,8 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
   }
 
   const handleDeleteFeed = async (feedId: string) => {
-    if (!confirm('Are you sure you want to unsubscribe from this feed?')) return
+    const ok = await confirmDialog({ title: 'Unsubscribe from feed?', variant: 'destructive', confirmLabel: 'Unsubscribe' })
+    if (!ok) return
 
     try {
       const response = await fetch(`${serverUrl}/rss-feeds/${feedId}`, {
@@ -417,6 +433,20 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
                   <Rss className="w-3 h-3" /> RSS feed detected
                 </p>
               )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-2">Default Category <span className="text-muted-foreground font-normal">(optional — auto-detected if blank)</span></label>
+              <select
+                value={defaultCategory}
+                onChange={(e) => setDefaultCategory(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Auto-detect from content</option>
+                {RSS_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
 
             {preview && (
@@ -792,7 +822,7 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
                     {feed.description && (
                       <p className="text-sm text-muted-foreground mt-1">{feed.description}</p>
                     )}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Globe className="w-3 h-3" />
                         <a href={feed.link || feed.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
@@ -804,6 +834,13 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
                           <Calendar className="w-3 h-3" />
                           Last: {new Date(feed.lastFetchedAt).toLocaleDateString()}
                         </span>
+                      )}
+                      {feed.defaultCategory ? (
+                        <Badge variant="secondary" className="text-xs">
+                          📁 {feed.defaultCategory}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground/60 italic">auto-category</span>
                       )}
                     </div>
                   </div>
@@ -997,6 +1034,7 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
           )}
         </div>
       )}
+      <ConfirmDialog />
     </div>
   )
 }

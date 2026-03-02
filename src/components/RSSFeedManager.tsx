@@ -366,7 +366,27 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
     if (newView === 'published') loadPublishedArticles()
   }
 
-  const categories = ['Renewable Energy', 'Sustainable Tech', 'Green Cities', 'Eco Innovation', 'Climate Action', 'Community', 'Future Vision']
+  const classifyArticle = (title: string, description: string): string => {
+    const CATEGORY_KEYWORDS: Record<string, string[]> = {
+      'Renewable Energy': ['solar', 'wind', 'battery', 'grid', 'electric vehicle', 'ev ', 'hydrogen', 'geothermal', 'hydropower', 'turbine', 'photovoltaic', 'kilowatt', 'megawatt', 'biofuel', 'biomass', 'offshore wind', 'clean energy', 'decarboni', 'power plant', 'renewable'],
+      'Sustainable Tech': ['circular economy', 'carbon capture', 'recycling', 'upcycl', 'packaging', 'zero waste', 'sustainable design', 'lifecycle', 'plastic', 'compost', 'biodegradable', 'green tech', 'cleantech', 'biotech', 'material science', 'sustainable material'],
+      'Green Cities': ['urban', 'transit', 'zoning', 'housing', 'walkable', 'bike lane', 'cycling', 'public transport', 'municipality', 'infrastructure', 'architecture', 'green building', 'leed', 'smart city', 'neighborhood', 'street design', 'urban planning', 'light rail'],
+      'Climate Action': ['emission', 'cop ', 'policy', 'carbon tax', 'ipcc', 'climate change', 'global warming', 'greenhouse', 'paris agreement', 'net zero', 'carbon neutral', 'fossil fuel', 'methane', 'carbon offset', 'legislation', 'activist', 'protest', 'advocacy'],
+      'Community': ['cooperative', 'mutual aid', 'grassroots', 'solidarity', 'collective', 'nonprofit', 'volunteer', 'social justice', 'equity', 'indigenous', 'food bank', 'land trust', 'credit union', 'worker-owned', 'community garden', 'local food', 'community hub'],
+      'Future Vision': ['solarpunk', 'degrowth', 'post-scarcity', 'commons', 'utopia', 'transformation', 'paradigm shift', 'transition town', 'alternative economy', 'post-capitalist', 'abundance', 'rewild', 'regenerative culture', 'new economy', 'systems change'],
+    }
+    const text = `${title} ${description}`.toLowerCase()
+    let bestCategory = 'Eco Innovation'
+    let bestScore = 0
+    for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+      const score = keywords.filter(kw => text.includes(kw)).length
+      if (score > bestScore) {
+        bestScore = score
+        bestCategory = category
+      }
+    }
+    return bestCategory
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto p-6 space-y-6">
@@ -939,7 +959,7 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
                   <div className="flex-1 space-y-2">
                     <div>
                       <h3 className="font-bold">{article.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <Badge variant="secondary" className="text-xs">
                           {article.feedTitle}
                         </Badge>
@@ -949,6 +969,9 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
                             {article.author}
                           </span>
                         )}
+                        <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-300">
+                          📁 {classifyArticle(article.title, article.description || '')}
+                        </Badge>
                       </div>
                     </div>
                     {article.description && (
@@ -966,21 +989,9 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
                       </a>
                     </div>
                     <div className="flex items-center gap-2 pt-2">
-                      <select
-                        className="text-sm border rounded px-2 py-1"
-                        defaultValue="Eco Innovation"
-                        id={`category-${article.id}`}
-                      >
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
                       <Button
                         size="sm"
-                        onClick={() => {
-                          const select = document.getElementById(`category-${article.id}`) as HTMLSelectElement
-                          handlePublishArticle(article.id, select.value)
-                        }}
+                        onClick={() => handlePublishArticle(article.id, classifyArticle(article.title, article.description || ''))}
                       >
                         <Check className="w-4 h-4 mr-1" />
                         Publish

@@ -291,21 +291,33 @@ export function RSSFeedManager({ accessToken, serverUrl, onClose }: RSSFeedManag
   }
 
   const handlePublishAll = async () => {
+    if (pendingArticles.length === 0) return
     setPublishingAll(true)
+    let published = 0
+    let failed = 0
     try {
-      const response = await fetch(`${serverUrl}/rss/publish-all`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to publish all articles')
+      for (const article of pendingArticles) {
+        try {
+          const category = classifyArticle(article.title, article.description || '')
+          const response = await fetch(`${serverUrl}/rss-articles/${article.id}/publish`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ category })
+          })
+          if (response.ok) {
+            published++
+          } else {
+            failed++
+          }
+        } catch {
+          failed++
+        }
       }
-
-      const data = await response.json()
-      toast.success(`Published ${data.published} articles!`, {
-        description: data.errors.length > 0 ? `${data.errors.length} failed` : 'All articles published successfully'
+      toast.success(`Published ${published} article${published !== 1 ? 's' : ''}!`, {
+        description: failed > 0 ? `${failed} failed` : 'All articles published successfully'
       })
       loadPendingArticles()
       loadPublishedArticles()
